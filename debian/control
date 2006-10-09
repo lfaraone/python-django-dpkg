@@ -1,0 +1,31 @@
+Source: python-django
+Section: python
+Priority: optional
+Maintainer: Brett Parker <iDunno@sommitrealweird.co.uk>
+Uploaders: Raphael Hertzog <hertzog@debian.org>, Debian Python Modules Team <python-modules-team@lists.alioth.debian.org>
+Standards-Version: 3.7.2
+Build-Depends: debhelper (>= 5.0.37.2), python-dev, cdbs (>= 0.4.42), python-setuptools (>= 0.6b3-1), python-support (>= 0.3)
+
+Package: python-django
+Architecture: all
+Depends: ${python:Depends}
+Recommends: python-psycopg, python-pysqlite2, python-mysqldb
+Priority: optional
+Description: A high-level Python Web framework
+ Django is a high-level Python Web framework that encourages rapid development
+ and clean, pragmatic design.
+ .
+ Python's equivalent to the famous Ruby on rails, Django lets you build
+ high-performing, elegant Web applications quickly. Django focuses on
+ automating as much as possible and adhering to the "Don't Repeat
+ Yourself" (DRY) principle.
+ .
+ It notably features:
+  * an object-relational mapper
+  * an automatic admin interface
+  * an elegant URL design
+  * a template system
+  * a cache system
+  * internationalization support
+ .
+  Homepage: http://www.djangoproject.com/

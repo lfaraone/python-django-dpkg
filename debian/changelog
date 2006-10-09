@@ -1,0 +1,11 @@
+python-django (0.95-1) unstable; urgency=low
+
+  [ Brett Parker ]
+  * 0.95 release - initial packaging
+
+  [ Raphael Hertzog ]
+  * Fix recommends: s/python-sqlite/python-pysqlite2/
+  * Add debian/pyversions to ensure that we have at least python 2.3 (and to
+    work around bug #391689 of python-support).
+
+ -- Raphael Hertzog <hertzog@debian.org>  Mon,  9 Oct 2006 12:10:27 +0200
