@@ -1,3 +1,18 @@
+python-django (0.95-3) unstable; urgency=low
+
+  * Integrate 2 upstream changesets:
+    - http://code.djangoproject.com/changeset/3754 as
+      debian/patches/04_sec_fix_auth.diff
+      Fixes a possible case of mis-authentication due to bad caching.
+      Closes: #407521
+    - http://code.djangoproject.com/changeset/3592 as
+      debian/patches/03_sec_fix_compile-messages.diff
+      Fixes an (unlikely) arbitrary command execution if the user is blindly
+      running compile-messages.py on a untrusted set of *.po files.
+      Closes: #407519
+
+ -- Raphael Hertzog <hertzog@debian.org>  Sat, 16 Dec 2006 15:13:29 +0100
+
 python-django (0.95-2) unstable; urgency=low
 
   [ Piotr Ozarowski ]
