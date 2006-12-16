@@ -1,3 +1,18 @@
+python-django (0.95-2) unstable; urgency=low
+
+  [ Piotr Ozarowski ]
+  * Added XS-Vcs-Svn field
+
+  [ Brett Parker ]
+  * Made manage.py get a shebang with the version of python
+    used when running django-admin (closes: #401616)
+  * Created a convenience /usr/lib/python-django/bin symlink.
+
+  [ Raphael Hertzog ]
+  * Adapted Brett's work to better fit my views of the packaging.
+
+ -- Raphael Hertzog <hertzog@debian.org>  Sat, 16 Dec 2006 11:03:20 +0100
+
 python-django (0.95-1) unstable; urgency=low
 
   [ Brett Parker ]
