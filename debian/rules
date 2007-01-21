@@ -20,5 +20,5 @@ binary-post-install/python-django::
 	# Create convenience symlink
 	mkdir -p debian/python-django/usr/lib/python-django
 	dh_link usr/share/python-support/python-django/django/bin usr/lib/python-django/bin 
-	# Rename djando-admin.py to djando-admin
+	# Rename django-admin.py to django-admin
 	mv debian/python-django/usr/bin/django-admin.py debian/python-django/usr/bin/django-admin

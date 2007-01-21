@@ -1,3 +1,27 @@
+python-django (0.95.1-1) unstable; urgency=low
+
+  [ Brett Parker ]
+  * New upstream minor release for security bugs:
+    - http://www.djangoproject.com/weblog/2007/jan/21/0951/
+      - Fixes a small security vulnerability in the script Django's
+        internationalization system uses to compile translation files
+        (changeset 4360 in the "0.95-bugfixes" branch).
+      - fix for a bug in Django's authentication middleware which could cause
+        apparent "caching" of a logged-in user (changeset 4361).
+      - patch which disables debugging mode in the flup FastCGI package Django
+        uses to launch its FastCGI server, which prevents tracebacks from
+        bubbling up during production use (changeset 4363).
+    Closes: #407786, #407607
+  * Sets Recommends to python-psycopg and moves other database engines to
+    the Suggests field.
+
+  [ Raphael Hertzog ]
+  * Use python-pysqlite2 as default database engine in Recommends. Others are
+    in Suggests. Closes: #403761
+  * Add python-psycopg2 in Suggests. Closes: #407489
+
+ -- Raphael Hertzog <hertzog@debian.org>  Sun, 21 Jan 2007 17:45:50 +0100
+
 python-django (0.95-3) unstable; urgency=low
 
   * Integrate 2 upstream changesets:
