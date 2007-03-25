@@ -1,3 +1,18 @@
+python-django (0.96-1) unstable; urgency=low
+
+  [ Brett Parker ]
+  * New upstream release - introduces some backwards incompatible changes, see
+    README.Debian or the backwards incompatible changes page at
+    http://code.djangoproject.com/wiki/BackwardsIncompatibleChanges
+  * Add documentation from upstream to /usr/share/doc/python-django
+    Closes: #411249
+  * Install the bash completion file from extras in to
+    /etc/bash_completion.d/django_bash_completion
+    Closes: #414399
+  * Egg support dropped as it's been dropped by upstream.
+
+ -- Brett Parker <iDunno@sommitrealweird.co.uk>  Sun, 25 Mar 2007 19:18:39 +0100
+
 python-django (0.95.1-1) unstable; urgency=low
 
   [ Brett Parker ]
