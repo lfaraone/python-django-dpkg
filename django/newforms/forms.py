@@ -2,12 +2,15 @@
 Form classes
 """
 
-from django.utils.datastructures import SortedDict, MultiValueDict
-from django.utils.html import escape
-from fields import Field
-from widgets import TextInput, Textarea, HiddenInput, MultipleHiddenInput
-from util import flatatt, StrAndUnicode, ErrorDict, ErrorList, ValidationError
 import copy
+
+from django.utils.datastructures import SortedDict
+from django.utils.html import escape
+from django.utils.encoding import StrAndUnicode, smart_unicode, force_unicode
+
+from fields import Field
+from widgets import TextInput, Textarea
+from util import flatatt, ErrorDict, ErrorList, ValidationError
 
 __all__ = ('BaseForm', 'Form')
 
@@ -60,7 +63,7 @@ class BaseForm(StrAndUnicode):
         self.auto_id = auto_id
         self.prefix = prefix
         self.initial = initial or {}
-        self.__errors = None # Stores the errors after clean() has been called.
+        self._errors = None # Stores the errors after clean() has been called.
 
         # The base_fields class attribute is the *class-wide* definition of
         # fields. Because a particular *instance* of the class might want to
@@ -84,12 +87,12 @@ class BaseForm(StrAndUnicode):
             raise KeyError('Key %r not found in Form' % name)
         return BoundField(self, field, name)
 
-    def _errors(self):
+    def _get_errors(self):
         "Returns an ErrorDict for self.data"
-        if self.__errors is None:
+        if self._errors is None:
             self.full_clean()
-        return self.__errors
-    errors = property(_errors)
+        return self._errors
+    errors = property(_get_errors)
 
     def is_valid(self):
         """
@@ -116,17 +119,24 @@ class BaseForm(StrAndUnicode):
             bf_errors = ErrorList([escape(error) for error in bf.errors]) # Escape and cache in local variable.
             if bf.is_hidden:
                 if bf_errors:
-                    top_errors.extend(['(Hidden field %s) %s' % (name, e) for e in bf_errors])
+                    top_errors.extend(['(Hidden field %s) %s' % (name, force_unicode(e)) for e in bf_errors])
                 hidden_fields.append(unicode(bf))
             else:
                 if errors_on_separate_row and bf_errors:
-                    output.append(error_row % bf_errors)
-                label = bf.label and bf.label_tag(escape(bf.label + ':')) or ''
+                    output.append(error_row % force_unicode(bf_errors))
+                if bf.label:
+                    label = escape(force_unicode(bf.label))
+                    # Only add a colon if the label does not end in punctuation.
+                    if label[-1] not in ':?.!':
+                        label += ':'
+                    label = bf.label_tag(label) or ''
+                else:
+                    label = ''
                 if field.help_text:
-                    help_text = help_text_html % field.help_text
+                    help_text = help_text_html % force_unicode(field.help_text)
                 else:
                     help_text = u''
-                output.append(normal_row % {'errors': bf_errors, 'label': label, 'field': unicode(bf), 'help_text': help_text})
+                output.append(normal_row % {'errors': force_unicode(bf_errors), 'label': force_unicode(label), 'field': unicode(bf), 'help_text': help_text})
         if top_errors:
             output.insert(0, error_row % top_errors)
         if hidden_fields: # Insert any hidden fields in the last row.
@@ -149,7 +159,7 @@ class BaseForm(StrAndUnicode):
 
     def as_p(self):
         "Returns this form rendered as HTML <p>s."
-        return self._html_output(u'<p>%(label)s %(field)s%(help_text)s</p>', u'<p>%s</p>', '</p>', u' %s', True)
+        return self._html_output(u'<p>%(label)s %(field)s%(help_text)s</p>', u'%s', '</p>', u' %s', True)
 
     def non_field_errors(self):
         """
@@ -161,13 +171,13 @@ class BaseForm(StrAndUnicode):
 
     def full_clean(self):
         """
-        Cleans all of self.data and populates self.__errors and self.clean_data.
+        Cleans all of self.data and populates self._errors and
+        self.cleaned_data.
         """
-        errors = ErrorDict()
+        self._errors = ErrorDict()
         if not self.is_bound: # Stop further processing.
-            self.__errors = errors
             return
-        self.clean_data = {}
+        self.cleaned_data = {}
         for name, field in self.fields.items():
             # value_from_datadict() gets the data from the dictionary.
             # Each widget type knows how to retrieve its own data, because some
@@ -175,19 +185,20 @@ class BaseForm(StrAndUnicode):
             value = field.widget.value_from_datadict(self.data, self.add_prefix(name))
             try:
                 value = field.clean(value)
-                self.clean_data[name] = value
+                self.cleaned_data[name] = value
                 if hasattr(self, 'clean_%s' % name):
                     value = getattr(self, 'clean_%s' % name)()
-                self.clean_data[name] = value
+                    self.cleaned_data[name] = value
             except ValidationError, e:
-                errors[name] = e.messages
+                self._errors[name] = e.messages
+                if name in self.cleaned_data:
+                    del self.cleaned_data[name]
         try:
-            self.clean_data = self.clean()
+            self.cleaned_data = self.clean()
         except ValidationError, e:
-            errors[NON_FIELD_ERRORS] = e.messages
-        if errors:
-            delattr(self, 'clean_data')
-        self.__errors = errors
+            self._errors[NON_FIELD_ERRORS] = e.messages
+        if self._errors:
+            delattr(self, 'cleaned_data')
 
     def clean(self):
         """
@@ -196,7 +207,7 @@ class BaseForm(StrAndUnicode):
         not be associated with a particular field; it will have a special-case
         association with the field named '__all__'.
         """
-        return self.clean_data
+        return self.cleaned_data
 
 class Form(BaseForm):
     "A collection of Fields, plus their associated data."
@@ -227,9 +238,9 @@ class BoundField(StrAndUnicode):
         value = self.as_widget(self.field.widget)
         if not isinstance(value, basestring):
             # Some Widget render() methods -- notably RadioSelect -- return a
-            # "special" object rather than a string. Call the __str__() on that
+            # "special" object rather than a string. Call __unicode__() on that
             # object to get its rendered value.
-            value = value.__str__()
+            value = unicode(value)
         return value
 
     def _errors(self):
@@ -243,10 +254,12 @@ class BoundField(StrAndUnicode):
     def as_widget(self, widget, attrs=None):
         attrs = attrs or {}
         auto_id = self.auto_id
-        if auto_id and not attrs.has_key('id') and not widget.attrs.has_key('id'):
+        if auto_id and 'id' not in attrs and 'id' not in widget.attrs:
             attrs['id'] = auto_id
         if not self.form.is_bound:
             data = self.form.initial.get(self.name, self.field.initial)
+            if callable(data):
+                data = data()
         else:
             data = self.data
         return widget.render(self.html_name, data, attrs=attrs)
@@ -301,8 +314,8 @@ class BoundField(StrAndUnicode):
         associated Form has specified auto_id. Returns an empty string otherwise.
         """
         auto_id = self.form.auto_id
-        if auto_id and '%s' in str(auto_id):
-            return str(auto_id) % self.html_name
+        if auto_id and '%s' in smart_unicode(auto_id):
+            return smart_unicode(auto_id) % self.html_name
         elif auto_id:
             return self.html_name
         return ''

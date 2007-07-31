@@ -91,9 +91,12 @@ Filters can be "chained." The output of one filter is applied to the next.
 ``{{ text|escape|linebreaks }}`` is a common idiom for escaping text contents,
 then converting line breaks to ``<p>`` tags.
 
-Some filters take arguments. A filter argument looks like this:
-``{{ bio|truncatewords:"30" }}``. This will display the first 30 words of the
-``bio`` variable. Filter arguments always are in double quotes.
+Some filters take arguments. A filter argument looks like this: ``{{
+bio|truncatewords:30 }}``. This will display the first 30 words of the ``bio``
+variable.
+
+Filter arguments that contain spaces must be quoted; for example, to join a list
+with commas and spaced you'd use ``{{ list|join:", " }}``.
 
 The `Built-in filter reference`_ below describes all the built-in filters.
 
@@ -112,7 +115,7 @@ know how to write Python code.
 Comments
 ========
 
-To comment-out part of a template, use the comment syntax: ``{# #}``.
+To comment-out part of a line in a template, use the comment syntax: ``{# #}``.
 
 For example, this template would render as ``'hello'``::
 
@@ -121,6 +124,12 @@ For example, this template would render as ``'hello'``::
 A comment can contain any template code, invalid or not. For example::
 
     {# {% if foo %}bar{% else %} #}
+
+This syntax can only be used for single-line comments (no newlines are
+permitted between the ``{#`` and ``#}`` delimiters). If you need to comment
+out a multiline portion of the template, see the ``comment`` tag, below__.
+
+__ comment_
 
 Template inheritance
 ====================
@@ -438,7 +447,7 @@ for
 ~~~
 
 Loop over each item in an array.  For example, to display a list of athletes
-given ``athlete_list``::
+provided in ``athlete_list``::
 
     <ul>
     {% for athlete in athlete_list %}
@@ -446,7 +455,25 @@ given ``athlete_list``::
     {% endfor %}
     </ul>
 
-You can also loop over a list in reverse by using ``{% for obj in list reversed %}``.
+You can loop over a list in reverse by using ``{% for obj in list reversed %}``.
+
+**New in Django development version**
+If you need to loop over a list of lists, you can unpack the values
+in eachs sub-list into a set of known names. For example, if your context contains
+a list of (x,y) coordinates called ``points``, you could use the following
+to output the list of points:: 
+
+    {% for x, y in points %}
+        There is a point at {{ x }},{{ y }}
+    {% endfor %}
+    
+This can also be useful if you need to access the items in a dictionary. 
+For example, if your context contained a dictionary ``data``, the following
+would display the keys and values of the dictionary::
+
+    {% for key, value in data.items %}
+        {{ key }}: {{ value }}
+    {% endfor %}
 
 The for loop sets a number of variables available within the loop:
 
@@ -702,11 +729,11 @@ Example::
 Note that you can backslash-escape a format string if you want to use the
 "raw" value. In this example, "f" is backslash-escaped, because otherwise
 "f" is a format string that displays the time. The "o" doesn't need to be
-escaped, because it's not a format character.::
+escaped, because it's not a format character::
 
     It is the {% now "jS o\f F" %}
 
-(Displays "It is the 4th of September" %}
+This would display as "It is the 4th of September".
 
 regroup
 ~~~~~~~
@@ -714,8 +741,19 @@ regroup
 Regroup a list of alike objects by a common attribute.
 
 This complex tag is best illustrated by use of an example:  say that ``people``
-is a list of ``Person`` objects that have ``first_name``, ``last_name``, and
-``gender`` attributes, and you'd like to display a list that looks like:
+is a list of people represented by dictionaries with ``first_name``,
+``last_name``, and ``gender`` keys::
+
+    people = [
+        {'first_name': 'George', 'last_name': 'Bush', 'gender': 'Male'},
+        {'first_name': 'Bill', 'last_name': 'Clinton', 'gender': 'Male'},
+        {'first_name': 'Margaret', 'last_name': 'Thatcher', 'gender': 'Female'},
+        {'first_name': 'Condoleezza', 'last_name': 'Rice', 'gender': 'Female'},
+        {'first_name': 'Pat', 'last_name': 'Smith', 'gender': 'Unknown'},
+    ]
+
+...and you'd like to display a hierarchical list that is ordered by gender,
+like this:
 
     * Male:
         * George Bush
@@ -726,37 +764,77 @@ is a list of ``Person`` objects that have ``first_name``, ``last_name``, and
     * Unknown:
         * Pat Smith
 
-The following snippet of template code would accomplish this dubious task::
+You can use the ``{% regroup %}`` tag to group the list of people by gender.
+The following snippet of template code would accomplish this::
 
-    {% regroup people by gender as grouped %}
+    {% regroup people by gender as gender_list %}
+
     <ul>
-    {% for group in grouped %}
-        <li>{{ group.grouper }}
+    {% for gender in gender_list %}
+        <li>{{ gender.grouper }}
         <ul>
-            {% for item in group.list %}
-            <li>{{ item }}</li>
+            {% for item in gender.list %}
+            <li>{{ item.first_name }} {{ item.last_name }}</li>
             {% endfor %}
         </ul>
+        </li>
     {% endfor %}
     </ul>
 
-As you can see, ``{% regroup %}`` populates a variable with a list of objects
-with ``grouper`` and ``list`` attributes.  ``grouper`` contains the item that
-was grouped by; ``list`` contains the list of objects that share that
-``grouper``.  In this case, ``grouper`` would be ``Male``, ``Female`` and
-``Unknown``, and ``list`` is the list of people with those genders.
+Let's walk through this example. ``{% regroup %}`` takes three arguments: the
+list you want to regroup, the attribute to group by, and the name of the
+resulting list. Here, we're regrouping the ``people`` list by the ``gender``
+attribute and calling the result ``gender_list``.
 
-Note that ``{% regroup %}`` does not work when the list to be grouped is not
-sorted by the key you are grouping by!  This means that if your list of people
-was not sorted by gender, you'd need to make sure it is sorted before using it,
-i.e.::
+``{% regroup %}`` produces a list (in this case, ``gender_list``) of
+**group objects**. Each group object has two attributes:
 
-    {% regroup people|dictsort:"gender" by gender as grouped %}
+    * ``grouper`` -- the item that was grouped by (e.g., the string "Male" or
+      "Female").
+    * ``list`` -- a list of all items in this group (e.g., a list of all people
+      with gender='Male').
+
+Note that ``{% regroup %}`` does not order its input! Our example relies on
+the fact that the ``people`` list was ordered by ``gender`` in the first place.
+If the ``people`` list did *not* order its members by ``gender``, the regrouping
+would naively display more than one group for a single gender. For example,
+say the ``people`` list was set to this (note that the males are not grouped
+together)::
+
+    people = [
+        {'first_name': 'Bill', 'last_name': 'Clinton', 'gender': 'Male'},
+        {'first_name': 'Pat', 'last_name': 'Smith', 'gender': 'Unknown'},
+        {'first_name': 'Margaret', 'last_name': 'Thatcher', 'gender': 'Female'},
+        {'first_name': 'George', 'last_name': 'Bush', 'gender': 'Male'},
+        {'first_name': 'Condoleezza', 'last_name': 'Rice', 'gender': 'Female'},
+    ]
+
+With this input for ``people``, the example ``{% regroup %}`` template code
+above would result in the following output:
+
+    * Male:
+        * Bill Clinton
+    * Unknown:
+        * Pat Smith
+    * Female:
+        * Margaret Thatcher
+    * Male:
+        * George Bush
+    * Female:
+        * Condoleezza Rice
+
+The easiest solution to this gotcha is to make sure in your view code that the
+data is ordered according to how you want to display it.
+
+Another solution is to sort the data in the template using the ``dictsort``
+filter, if your data is in a list of dictionaries::
+
+    {% regroup people|dictsort:"gender" by gender as gender_list %}
 
 spaceless
 ~~~~~~~~~
 
-Normalizes whitespace between HTML tags to a single space. This includes tab
+Removes whitespace between HTML tags. This includes tab
 characters and newlines.
 
 Example usage::
@@ -769,9 +847,9 @@ Example usage::
 
 This example would return this HTML::
 
-    <p> <a href="foo/">Foo</a> </p>
+    <p><a href="foo/">Foo</a></p>
 
-Only space between *tags* is normalized -- not space between tags and text. In
+Only space between *tags* is removed -- not space between tags and text. In
 this example, the space around ``Hello`` won't be stripped::
 
     {% spaceless %}
@@ -842,10 +920,11 @@ The first argument is a path to a view function in the format
 should be comma-separated values that will be used as positional and keyword
 arguments in the URL. All arguments required by the URLconf should be present.
 
-For example, suppose you have a view, ``app_name.client``, whose URLconf takes
-a client ID. The URLconf line might look like this::
+For example, suppose you have a view, ``app_views.client``, whose URLconf
+takes a client ID (here, ``client()`` is a method inside the views file
+``app_views.py``). The URLconf line might look like this::
 
-    ('^client/(\d+)/$', 'app_name.client')
+    ('^client/(\d+)/$', 'app_views.client')
 
 If this app's URLconf is included into the project's URLconf under a path
 such as this::
@@ -854,7 +933,7 @@ such as this::
 
 ...then, in a template, you can create a link to this view like this::
 
-    {% url app_name.client client.id %}
+    {% url app_views.client client.id %}
 
 The template tag will output the string ``/clients/client/123/``.
 
@@ -871,6 +950,23 @@ For example::
 Above, if ``this_value`` is 175 and ``max_value`` is 200, the the image in the
 above example will be 88 pixels wide (because 175/200 = .875; .875 * 100 = 87.5
 which is rounded up to 88).
+
+with
+~~~~
+
+**New in Django development version**
+
+Caches a complex variable under a simpler name. This is useful when accessing
+an "expensive" method (e.g., one that hits the database) multiple times.
+
+For example::
+
+    {% with business.employees.count as total %}
+        {{ total }} employee{{ total|pluralize }}
+    {% endwith %}
+
+The populated variable (in the example above, ``total``) is only available
+between the ``{% with %}`` and ``{% endwith %}`` tags.
 
 Built-in filter reference
 -------------------------
@@ -904,7 +1000,7 @@ Removes all values of arg from the given string.
 date
 ~~~~
 
-Formats a date according to the given format (same as the ``now`` tag).
+Formats a date according to the given format (same as the `now`_ tag).
 
 default
 ~~~~~~~
@@ -919,14 +1015,14 @@ If value is ``None``, use given default.
 dictsort
 ~~~~~~~~
 
-Takes a list of dicts, returns that list sorted by the property given in the
-argument.
+Takes a list of dictionaries, returns that list sorted by the key given in
+the argument.
 
 dictsortreversed
 ~~~~~~~~~~~~~~~~
 
-Takes a list of dicts, returns that list sorted in reverse order by the
-property given in the argument.
+Takes a list of dictionaries, returns that list sorted in reverse order by the
+key given in the argument.
 
 divisibleby
 ~~~~~~~~~~~
@@ -970,7 +1066,7 @@ place -- but only if there's a decimal part to be displayed. For example:
     * ``36.15`` gets converted to ``36.2``
     * ``36`` gets converted to ``36``
 
-If used with a numeric integer argument, ``floatformat`` rounds a number to that 
+If used with a numeric integer argument, ``floatformat`` rounds a number to that
 many decimal places.  For example:
 
     * ``36.1234`` with floatformat:3 gets converted to ``36.123``
@@ -983,7 +1079,7 @@ For example:
     * ``36.1234`` with floatformat:-3 gets converted to ``36.123``
     * ``36`` with floatformat:-4 gets converted to ``36``
 
-Using ``floatformat`` with no argument is equivalent to using ``floatformat`` with 
+Using ``floatformat`` with no argument is equivalent to using ``floatformat`` with
 an argument of ``-1``.
 
 get_digit
@@ -993,6 +1089,16 @@ Given a whole number, returns the requested digit of it, where 1 is the
 right-most digit, 2 is the second-right-most digit, etc. Returns the original
 value for invalid input (if input or argument is not an integer, or if argument
 is less than 1). Otherwise, output is always an integer.
+
+iriencode
+~~~~~~~~~
+
+Converts an IRI (Internationalized Resource Identifier) to a string that is
+suitable for including in a URL. This is necessary if you're trying to use
+strings containing non-ASCII characters in a URL.
+
+It's safe to use this filter on a string that has already gone through the
+``urlencode`` filter.
 
 join
 ~~~~
@@ -1133,7 +1239,10 @@ Strips all [X]HTML tags.
 time
 ~~~~
 
-Formats a time according to the given format (same as the ``now`` tag).
+Formats a time according to the given format (same as the `now`_ tag).
+The time filter will only accept parameters in the format string that relate
+to the time of day, not the date (for obvious reasons). If you need to
+format a date, use the `date`_ filter.
 
 timesince
 ~~~~~~~~~
@@ -1220,7 +1329,8 @@ Converts URLs in plain text into clickable links.
 urlizetrunc
 ~~~~~~~~~~~
 
-Converts URLs into clickable links, truncating URLs to the given character limit.
+Converts URLs into clickable links, truncating URLs longer than the given
+character limit.
 
 **Argument:** Length to truncate URLs to
 
@@ -1275,3 +1385,11 @@ A collection of template filters that implement these common markup languages:
     * Textile
     * Markdown
     * ReST (ReStructured Text)
+
+django.contrib.webdesign
+------------------------
+
+A collection of template tags that can be useful while designing a website,
+such as a generator of Lorem Ipsum text. See the `webdesign documentation`_.
+
+.. _webdesign documentation: ../webdesign/

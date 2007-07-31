@@ -9,6 +9,7 @@ from django.http import Http404, get_host
 from django.core import urlresolvers
 from django.contrib.admin import utils
 from django.contrib.sites.models import Site
+from django.utils.translation import ugettext as _
 import inspect, os, re
 
 # Exclude methods starting with these strings from documentation
@@ -294,10 +295,11 @@ DATA_TYPE_MAPPING = {
     'CommaSeparatedIntegerField': _('Comma-separated integers'),
     'DateField'                 : _('Date (without time)'),
     'DateTimeField'             : _('Date (with time)'),
+    'DecimalField'              : _('Decimal number'),
     'EmailField'                : _('E-mail address'),
     'FileField'                 : _('File path'),
     'FilePathField'             : _('File path'),
-    'FloatField'                : _('Decimal number'),
+    'FloatField'                : _('Floating point number'),
     'ForeignKey'                : _('Integer'),
     'ImageField'                : _('File path'),
     'IntegerField'              : _('Integer'),

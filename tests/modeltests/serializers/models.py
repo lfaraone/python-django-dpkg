@@ -13,7 +13,7 @@ class Category(models.Model):
     class Meta:
        ordering = ('name',)
 
-    def __str__(self):
+    def __unicode__(self):
         return self.name
 
 class Author(models.Model):
@@ -22,7 +22,7 @@ class Author(models.Model):
     class Meta:
         ordering = ('name',)
     
-    def __str__(self):
+    def __unicode__(self):
         return self.name
 
 class Article(models.Model):
@@ -34,15 +34,15 @@ class Article(models.Model):
     class Meta:
        ordering = ('pub_date',)
 
-    def __str__(self):
+    def __unicode__(self):
         return self.headline
 
 class AuthorProfile(models.Model):
     author = models.OneToOneField(Author)
     date_of_birth = models.DateField()
     
-    def __str__(self):
-        return "Profile of %s" % self.author
+    def __unicode__(self):
+        return u"Profile of %s" % self.author
 
 __test__ = {'API_TESTS':"""
 # Create some data:
@@ -158,5 +158,9 @@ __test__ = {'API_TESTS':"""
 [<Category: Reference>, <Category: Sports>]
 >>> article.author
 <Author: Agnes>
+
+# Serializer output can be restricted to a subset of fields
+>>> print serializers.serialize("json", Article.objects.all(), fields=('headline','pub_date'))
+[{"pk": "1", "model": "serializers.article", "fields": {"headline": "Just kidding; I love TV poker", "pub_date": "2006-06-16 11:00:00"}}, {"pk": "2", "model": "serializers.article", "fields": {"headline": "Time to reform copyright", "pub_date": "2006-06-16 13:00:00"}}, {"pk": "3", "model": "serializers.article", "fields": {"headline": "Forward references pose no problem", "pub_date": "2006-06-16 15:00:00"}}]
 
 """}

@@ -7,11 +7,13 @@ Requires psycopg 2: http://initd.org/projects/psycopg2
 from django.db.backends import util
 try:
     import psycopg2 as Database
+    import psycopg2.extensions
 except ImportError, e:
     from django.core.exceptions import ImproperlyConfigured
     raise ImproperlyConfigured, "Error loading psycopg2 module: %s" % e
 
 DatabaseError = Database.DatabaseError
+IntegrityError = Database.IntegrityError
 
 try:
     # Only exists in Python 2.4+
@@ -19,6 +21,8 @@ try:
 except ImportError:
     # Import copy of _thread_local.py from Python 2.4
     from django.utils._threading_local import local
+
+psycopg2.extensions.register_type(psycopg2.extensions.UNICODE)
 
 postgres_version = None
 
@@ -47,6 +51,7 @@ class DatabaseWrapper(local):
                 conn_string += " port=%s" % settings.DATABASE_PORT
             self.connection = Database.connect(conn_string, **self.options)
             self.connection.set_isolation_level(1) # make transactions transparent to all cursors
+            self.connection.set_client_encoding('UTF8')
         cursor = self.connection.cursor()
         cursor.tzinfo_factory = None
         if set_tz:
@@ -54,7 +59,7 @@ class DatabaseWrapper(local):
         global postgres_version
         if not postgres_version:
             cursor.execute("SELECT version()")
-            postgres_version = [int(val) for val in cursor.fetchone()[0].split()[1].split('.')]        
+            postgres_version = [int(val) for val in cursor.fetchone()[0].split()[1].split('.')]
         if settings.DEBUG:
             return util.CursorDebugWrapper(cursor, self)
         return cursor
@@ -72,7 +77,14 @@ class DatabaseWrapper(local):
             self.connection.close()
             self.connection = None
 
+allows_group_by_ordinal = True
+allows_unique_and_pk = True
+autoindexes_primary_keys = True
+needs_datetime_string_cast = False
+needs_upper_for_iops = False
 supports_constraints = True
+supports_tablespaces = False
+uses_case_insensitive_names = False
 
 def quote_name(name):
     if name.startswith('"') and name.endswith('"'):
@@ -97,6 +109,9 @@ def get_date_trunc_sql(lookup_type, field_name):
     # http://www.postgresql.org/docs/8.0/static/functions-datetime.html#FUNCTIONS-DATETIME-TRUNC
     return "DATE_TRUNC('%s', %s)" % (lookup_type, field_name)
 
+def get_datetime_cast_sql():
+    return None
+
 def get_limit_offset_sql(limit, offset=None):
     sql = "LIMIT %s" % limit
     if offset and offset != 0:
@@ -118,6 +133,15 @@ def get_drop_foreignkey_sql():
 def get_pk_default_value():
     return "DEFAULT"
 
+def get_max_name_length():
+    return None
+
+def get_start_transaction_sql():
+    return "BEGIN;"
+
+def get_autoinc_sql(table):
+    return None
+
 def get_sql_flush(style, tables, sequences):
     """Return a list of SQL statements required to remove all data from
     all tables in the database (without actually removing the tables
@@ -138,7 +162,7 @@ def get_sql_flush(style, tables, sequences):
                      style.SQL_KEYWORD('FROM'),
                      style.SQL_FIELD(quote_name(table))
                      ) for table in tables]
-                     
+
         # 'ALTER SEQUENCE sequence_name RESTART WITH 1;'... style SQL statements
         # to reset sequence indices
         for sequence in sequences:
@@ -149,7 +173,7 @@ def get_sql_flush(style, tables, sequences):
                 sql.append("%s %s %s %s %s %s;" % \
                     (style.SQL_KEYWORD('ALTER'),
                      style.SQL_KEYWORD('SEQUENCE'),
-                     style.SQL_FIELD('%s_%s_seq' % (table_name, column_name)),
+                     style.SQL_FIELD(quote_name('%s_%s_seq' % (table_name, column_name))),
                      style.SQL_KEYWORD('RESTART'),
                      style.SQL_KEYWORD('WITH'),
                      style.SQL_FIELD('1')
@@ -160,7 +184,7 @@ def get_sql_flush(style, tables, sequences):
                 sql.append("%s %s %s %s %s %s;" % \
                     (style.SQL_KEYWORD('ALTER'),
                      style.SQL_KEYWORD('SEQUENCE'),
-                     style.SQL_FIELD('%s_id_seq' % table_name),
+                     style.SQL_FIELD(quote_name('%s_id_seq' % table_name)),
                      style.SQL_KEYWORD('RESTART'),
                      style.SQL_KEYWORD('WITH'),
                      style.SQL_FIELD('1')
@@ -169,12 +193,44 @@ def get_sql_flush(style, tables, sequences):
         return sql
     else:
         return []
-        
+
+def get_sql_sequence_reset(style, model_list):
+    "Returns a list of the SQL statements to reset sequences for the given models."
+    from django.db import models
+    output = []
+    for model in model_list:
+        # Use `coalesce` to set the sequence for each model to the max pk value if there are records,
+        # or 1 if there are none. Set the `is_called` property (the third argument to `setval`) to true
+        # if there are records (as the max pk value is already in use), otherwise set it to false.
+        for f in model._meta.fields:
+            if isinstance(f, models.AutoField):
+                output.append("%s setval('%s', coalesce(max(%s), 1), max(%s) %s null) %s %s;" % \
+                    (style.SQL_KEYWORD('SELECT'),
+                    style.SQL_FIELD(quote_name('%s_%s_seq' % (model._meta.db_table, f.column))),
+                    style.SQL_FIELD(quote_name(f.column)),
+                    style.SQL_FIELD(quote_name(f.column)),
+                    style.SQL_KEYWORD('IS NOT'),
+                    style.SQL_KEYWORD('FROM'),
+                    style.SQL_TABLE(quote_name(model._meta.db_table))))
+                break # Only one AutoField is allowed per model, so don't bother continuing.
+        for f in model._meta.many_to_many:
+            output.append("%s setval('%s', coalesce(max(%s), 1), max(%s) %s null) %s %s;" % \
+                (style.SQL_KEYWORD('SELECT'),
+                style.SQL_FIELD(quote_name('%s_id_seq' % f.m2m_db_table())),
+                style.SQL_FIELD(quote_name('id')),
+                style.SQL_FIELD(quote_name('id')),
+                style.SQL_KEYWORD('IS NOT'),
+                style.SQL_KEYWORD('FROM'),
+                style.SQL_TABLE(f.m2m_db_table())))
+    return output
+
 OPERATOR_MAPPING = {
     'exact': '= %s',
     'iexact': 'ILIKE %s',
     'contains': 'LIKE %s',
     'icontains': 'ILIKE %s',
+    'regex': '~ %s',
+    'iregex': '~* %s',
     'gt': '> %s',
     'gte': '>= %s',
     'lt': '< %s',

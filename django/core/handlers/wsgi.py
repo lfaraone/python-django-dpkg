@@ -2,6 +2,7 @@ from django.core.handlers.base import BaseHandler
 from django.core import signals
 from django.dispatch import dispatcher
 from django.utils import datastructures
+from django.utils.encoding import force_unicode
 from django import http
 from pprint import pformat
 from shutil import copyfileobj
@@ -73,7 +74,7 @@ def safe_copyfileobj(fsrc, fdst, length=16*1024, size=0):
 class WSGIRequest(http.HttpRequest):
     def __init__(self, environ):
         self.environ = environ
-        self.path = environ['PATH_INFO']
+        self.path = force_unicode(environ['PATH_INFO'])
         self.META = environ
         self.method = environ['REQUEST_METHOD'].upper()
 
@@ -103,7 +104,7 @@ class WSGIRequest(http.HttpRequest):
         return '%s%s' % (self.path, self.environ.get('QUERY_STRING', '') and ('?' + self.environ.get('QUERY_STRING', '')) or '')
 
     def is_secure(self):
-        return self.environ.has_key('HTTPS') and self.environ['HTTPS'] == 'on'
+        return 'HTTPS' in self.environ and self.environ['HTTPS'] == 'on'
 
     def _load_post_and_files(self):
         # Populates self._post and self._files
@@ -113,9 +114,9 @@ class WSGIRequest(http.HttpRequest):
                 header_dict['Content-Type'] = self.environ.get('CONTENT_TYPE', '')
                 self._post, self._files = http.parse_file_upload(header_dict, self.raw_post_data)
             else:
-                self._post, self._files = http.QueryDict(self.raw_post_data), datastructures.MultiValueDict()
+                self._post, self._files = http.QueryDict(self.raw_post_data, encoding=self._encoding), datastructures.MultiValueDict()
         else:
-            self._post, self._files = http.QueryDict(''), datastructures.MultiValueDict()
+            self._post, self._files = http.QueryDict('', encoding=self._encoding), datastructures.MultiValueDict()
 
     def _get_request(self):
         if not hasattr(self, '_request'):
@@ -125,7 +126,7 @@ class WSGIRequest(http.HttpRequest):
     def _get_get(self):
         if not hasattr(self, '_get'):
             # The WSGI spec says 'QUERY_STRING' may be absent.
-            self._get = http.QueryDict(self.environ.get('QUERY_STRING', ''))
+            self._get = http.QueryDict(self.environ.get('QUERY_STRING', ''), encoding=self._encoding)
         return self._get
 
     def _set_get(self, get):
@@ -200,8 +201,8 @@ class WSGIHandler(BaseHandler):
         except KeyError:
             status_text = 'UNKNOWN STATUS CODE'
         status = '%s %s' % (response.status_code, status_text)
-        response_headers = response.headers.items()
+        response_headers = [(str(k), str(v)) for k, v in response.headers.items()]
         for c in response.cookies.values():
-            response_headers.append(('Set-Cookie', c.output(header='')))
+            response_headers.append(('Set-Cookie', str(c.output(header=''))))
         start_response(status, response_headers)
         return response

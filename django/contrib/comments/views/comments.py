@@ -11,7 +11,8 @@ from django.contrib.auth.forms import AuthenticationForm
 from django.http import HttpResponseRedirect
 from django.utils.text import normalize_newlines
 from django.conf import settings
-from django.utils.translation import ngettext
+from django.utils.translation import ungettext, ugettext as _
+from django.utils.encoding import smart_unicode
 import base64, datetime
 
 COMMENTS_PER_PAGE = 20
@@ -108,7 +109,7 @@ class PublicCommentManipulator(AuthenticationForm):
         # If the commentor has posted fewer than COMMENTS_FIRST_FEW comments,
         # send the comment to the managers.
         if self.user_cache.comment_set.count() <= settings.COMMENTS_FIRST_FEW:
-            message = ngettext('This comment was posted by a user who has posted fewer than %(count)s comment:\n\n%(text)s',
+            message = ungettext('This comment was posted by a user who has posted fewer than %(count)s comment:\n\n%(text)s',
                 'This comment was posted by a user who has posted fewer than %(count)s comments:\n\n%(text)s', settings.COMMENTS_FIRST_FEW) % \
                 {'count': settings.COMMENTS_FIRST_FEW, 'text': c.get_as_text()}
             mail_managers("Comment posted by rookie user", message)
@@ -217,10 +218,10 @@ def post_comment(request):
     errors = manipulator.get_validation_errors(new_data)
     # If user gave correct username/password and wasn't already logged in, log them in
     # so they don't have to enter a username/password again.
-    if manipulator.get_user() and not manipulator.get_user().is_authenticated() and new_data.has_key('password') and manipulator.get_user().check_password(new_data['password']):
+    if manipulator.get_user() and not manipulator.get_user().is_authenticated() and 'password' in new_data and manipulator.get_user().check_password(new_data['password']):
         from django.contrib.auth import login
         login(request, manipulator.get_user())
-    if errors or request.POST.has_key('preview'):
+    if errors or 'preview' in request.POST:
         class CommentFormWrapper(oldforms.FormWrapper):
             def __init__(self, manipulator, new_data, errors, rating_choices):
                 oldforms.FormWrapper.__init__(self, manipulator, new_data, errors)
@@ -244,11 +245,11 @@ def post_comment(request):
             'rating_range': rating_range,
             'rating_choices': rating_choices,
         }, context_instance=RequestContext(request))
-    elif request.POST.has_key('post'):
+    elif 'post' in request.POST:
         # If the IP is banned, mail the admins, do NOT save the comment, and
         # serve up the "Thanks for posting" page as if the comment WAS posted.
         if request.META['REMOTE_ADDR'] in settings.BANNED_IPS:
-            mail_admins("Banned IP attempted to post comment", str(request.POST) + "\n\n" + str(request.META))
+            mail_admins("Banned IP attempted to post comment", smart_unicode(request.POST) + "\n\n" + str(request.META))
         else:
             manipulator.do_html2python(new_data)
             comment = manipulator.save(new_data)
@@ -298,7 +299,7 @@ def post_free_comment(request):
     new_data['is_public'] = IS_PUBLIC in option_list
     manipulator = PublicFreeCommentManipulator()
     errors = manipulator.get_validation_errors(new_data)
-    if errors or request.POST.has_key('preview'):
+    if errors or 'preview' in request.POST:
         comment = errors and '' or manipulator.get_comment(new_data)
         return render_to_response('comments/free_preview.html', {
             'comment': comment,
@@ -307,12 +308,12 @@ def post_free_comment(request):
             'target': target,
             'hash': security_hash,
         }, context_instance=RequestContext(request))
-    elif request.POST.has_key('post'):
+    elif 'post' in request.POST:
         # If the IP is banned, mail the admins, do NOT save the comment, and
         # serve up the "Thanks for posting" page as if the comment WAS posted.
         if request.META['REMOTE_ADDR'] in settings.BANNED_IPS:
             from django.core.mail import mail_admins
-            mail_admins("Practical joker", str(request.POST) + "\n\n" + str(request.META))
+            mail_admins("Practical joker", smart_unicode(request.POST) + "\n\n" + str(request.META))
         else:
             manipulator.do_html2python(new_data)
             comment = manipulator.save(new_data)
@@ -330,7 +331,7 @@ def comment_was_posted(request):
             The object the comment was posted on
     """
     obj = None
-    if request.GET.has_key('c'):
+    if 'c' in request.GET:
         content_type_id, object_id = request.GET['c'].split(':')
         try:
             content_type = ContentType.objects.get(pk=content_type_id)
