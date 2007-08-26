@@ -4,6 +4,7 @@ from regressions import regression_tests
 
 form_tests = r"""
 >>> from django.newforms import *
+>>> from django.newforms.widgets import RadioFieldRenderer
 >>> import datetime
 >>> import time
 >>> import re
@@ -172,27 +173,29 @@ u'<input type="hidden" class="special" value="foo@example.com" name="email" />'
 
 # FileInput Widget ############################################################
 
+FileInput widgets don't ever show the value, because the old value is of no use
+if you are updating the form or if the provided file generated an error.
 >>> w = FileInput()
 >>> w.render('email', '')
 u'<input type="file" name="email" />'
 >>> w.render('email', None)
 u'<input type="file" name="email" />'
 >>> w.render('email', 'test@example.com')
-u'<input type="file" name="email" value="test@example.com" />'
+u'<input type="file" name="email" />'
 >>> w.render('email', 'some "quoted" & ampersanded value')
-u'<input type="file" name="email" value="some &quot;quoted&quot; &amp; ampersanded value" />'
+u'<input type="file" name="email" />'
 >>> w.render('email', 'test@example.com', attrs={'class': 'fun'})
-u'<input type="file" name="email" value="test@example.com" class="fun" />'
+u'<input type="file" name="email" class="fun" />'
 
 You can also pass 'attrs' to the constructor:
 >>> w = FileInput(attrs={'class': 'fun'})
 >>> w.render('email', '')
 u'<input type="file" class="fun" name="email" />'
 >>> w.render('email', 'foo@example.com')
-u'<input type="file" class="fun" value="foo@example.com" name="email" />'
+u'<input type="file" class="fun" name="email" />'
 
 >>> w.render('email', 'ŠĐĆŽćžšđ', attrs={'class': 'fun'})
-u'<input type="file" class="fun" value="\u0160\u0110\u0106\u017d\u0107\u017e\u0161\u0111" name="email" />'
+u'<input type="file" class="fun" name="email" />'
 
 # Textarea Widget #############################################################
 
@@ -614,11 +617,11 @@ If 'choices' is passed to both the constructor and render(), then they'll both b
 <li><label><input type="radio" name="num" value="5" /> 5</label></li>
 </ul>
 
-The render() method returns a RadioFieldRenderer object, whose str() is a <ul>.
+RadioSelect uses a RadioFieldRenderer to render the individual radio inputs.
 You can manipulate that object directly to customize the way the RadioSelect
 is rendered.
 >>> w = RadioSelect()
->>> r = w.render('beatle', 'J', choices=(('J', 'John'), ('P', 'Paul'), ('G', 'George'), ('R', 'Ringo')))
+>>> r = w.get_renderer('beatle', 'J', choices=(('J', 'John'), ('P', 'Paul'), ('G', 'George'), ('R', 'Ringo')))
 >>> for inp in r:
 ...     print inp
 <label><input checked="checked" type="radio" name="beatle" value="J" /> John</label>
@@ -644,10 +647,21 @@ beatle J P Paul False
 beatle J G George False
 beatle J R Ringo False
 
+You can create your own custom renderers for RadioSelect to use.
+>>> class MyRenderer(RadioFieldRenderer):
+...    def render(self):
+...        return u'<br />\n'.join([unicode(choice) for choice in self])
+>>> w = RadioSelect(renderer=MyRenderer)
+>>> print w.render('beatle', 'G', choices=(('J', 'John'), ('P', 'Paul'), ('G', 'George'), ('R', 'Ringo')))
+<label><input type="radio" name="beatle" value="J" /> John</label><br />
+<label><input type="radio" name="beatle" value="P" /> Paul</label><br />
+<label><input checked="checked" type="radio" name="beatle" value="G" /> George</label><br />
+<label><input type="radio" name="beatle" value="R" /> Ringo</label>
+
 A RadioFieldRenderer object also allows index access to individual RadioInput
 objects.
 >>> w = RadioSelect()
->>> r = w.render('beatle', 'J', choices=(('J', 'John'), ('P', 'Paul'), ('G', 'George'), ('R', 'Ringo')))
+>>> r = w.get_renderer('beatle', 'J', choices=(('J', 'John'), ('P', 'Paul'), ('G', 'George'), ('R', 'Ringo')))
 >>> print r[1]
 <label><input type="radio" name="beatle" value="P" /> Paul</label>
 >>> print r[0]
@@ -1519,6 +1533,42 @@ u'alf@foo.com'
 Traceback (most recent call last):
 ...
 ValidationError: [u'Ensure this value has at most 15 characters (it has 20).']
+
+# FileField ##################################################################
+
+>>> f = FileField()
+>>> f.clean('')
+Traceback (most recent call last):
+...
+ValidationError: [u'This field is required.']
+
+>>> f.clean(None)
+Traceback (most recent call last):
+...
+ValidationError: [u'This field is required.']
+
+>>> f.clean({})
+Traceback (most recent call last):
+...
+ValidationError: [u'No file was submitted.']
+
+>>> f.clean('some content that is not a file')
+Traceback (most recent call last):
+...
+ValidationError: [u'No file was submitted. Check the encoding type on the form.']
+
+>>> f.clean({'filename': 'name', 'content':None})
+Traceback (most recent call last):
+...
+ValidationError: [u'The submitted file is empty.']
+
+>>> f.clean({'filename': 'name', 'content':''})
+Traceback (most recent call last):
+...
+ValidationError: [u'The submitted file is empty.']
+
+>>> type(f.clean({'filename': 'name', 'content':'Some File Content'}))
+<class 'django.newforms.fields.UploadedFile'>
 
 # URLField ##################################################################
 
@@ -2561,7 +2611,7 @@ Instances of a dynamic Form do not persist fields from one Form instance to
 the next.
 >>> class MyForm(Form):
 ...     def __init__(self, data=None, auto_id=False, field_list=[]):
-...         Form.__init__(self, data, auto_id)
+...         Form.__init__(self, data, auto_id=auto_id)
 ...         for field in field_list:
 ...             self.fields[field[0]] = field[1]
 >>> field_list = [('field1', CharField()), ('field2', CharField())]
@@ -2579,7 +2629,7 @@ the next.
 ...     default_field_1 = CharField()
 ...     default_field_2 = CharField()
 ...     def __init__(self, data=None, auto_id=False, field_list=[]):
-...         Form.__init__(self, data, auto_id)
+...         Form.__init__(self, data, auto_id=auto_id)
 ...         for field in field_list:
 ...             self.fields[field[0]] = field[1]
 >>> field_list = [('field1', CharField()), ('field2', CharField())]
@@ -3234,6 +3284,35 @@ is different than its data. This is handled transparently, though.
 <option value="3" selected="selected">No</option>
 </select>
 
+# Forms with FileFields ################################################
+
+FileFields are a special case because they take their data from the request.FILES,
+not request.POST. 
+
+>>> class FileForm(Form):
+...     file1 = FileField()
+>>> f = FileForm(auto_id=False)
+>>> print f
+<tr><th>File1:</th><td><input type="file" name="file1" /></td></tr>
+
+>>> f = FileForm(data={}, files={}, auto_id=False)
+>>> print f
+<tr><th>File1:</th><td><ul class="errorlist"><li>This field is required.</li></ul><input type="file" name="file1" /></td></tr>
+
+>>> f = FileForm(data={}, files={'file1': {'filename': 'name', 'content':''}}, auto_id=False)
+>>> print f
+<tr><th>File1:</th><td><ul class="errorlist"><li>The submitted file is empty.</li></ul><input type="file" name="file1" /></td></tr>
+
+>>> f = FileForm(data={}, files={'file1': 'something that is not a file'}, auto_id=False)
+>>> print f
+<tr><th>File1:</th><td><ul class="errorlist"><li>No file was submitted. Check the encoding type on the form.</li></ul><input type="file" name="file1" /></td></tr>
+
+>>> f = FileForm(data={}, files={'file1': {'filename': 'name', 'content':'some content'}}, auto_id=False)
+>>> print f
+<tr><th>File1:</th><td><input type="file" name="file1" /></td></tr>
+>>> f.is_valid()
+True
+
 # Basic form processing in a view #############################################
 
 >>> from django.template import Template, Context
@@ -3555,6 +3634,29 @@ True
 <option value="2015">2015</option>
 <option value="2016">2016</option>
 </select>
+
+Using a SelectDateWidget in a form:
+
+>>> class GetDate(Form):
+...     mydate = DateField(widget=SelectDateWidget)
+>>> a = GetDate({'mydate_month':'4', 'mydate_day':'1', 'mydate_year':'2008'})
+>>> print a.is_valid()
+True
+>>> print a.cleaned_data['mydate']
+2008-04-01
+
+As with any widget that implements get_value_from_datadict,
+we must be prepared to accept the input from the "as_hidden"
+rendering as well.
+
+>>> print a['mydate'].as_hidden()
+<input type="hidden" name="mydate" value="2008-4-1" id="id_mydate" />
+>>> b=GetDate({'mydate':'2008-4-1'})
+>>> print b.is_valid()
+True
+>>> print b.cleaned_data['mydate']
+2008-04-01
+
 
 # MultiWidget and MultiValueField #############################################
 # MultiWidgets are widgets composed of other widgets. They are usually

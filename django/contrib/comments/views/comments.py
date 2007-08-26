@@ -29,7 +29,7 @@ class PublicCommentManipulator(AuthenticationForm):
             else:
                 return []
         self.fields.extend([
-            oldforms.LargeTextField(field_name="comment", maxlength=3000, is_required=True,
+            oldforms.LargeTextField(field_name="comment", max_length=3000, is_required=True,
                 validator_list=[self.hasNoProfanities]),
             oldforms.RadioSelectField(field_name="rating1", choices=choices,
                 is_required=ratings_required and num_rating_choices > 0,
@@ -113,7 +113,7 @@ class PublicCommentManipulator(AuthenticationForm):
                 'This comment was posted by a user who has posted fewer than %(count)s comments:\n\n%(text)s', settings.COMMENTS_FIRST_FEW) % \
                 {'count': settings.COMMENTS_FIRST_FEW, 'text': c.get_as_text()}
             mail_managers("Comment posted by rookie user", message)
-        if settings.COMMENTS_SKETCHY_USERS_GROUP and settings.COMMENTS_SKETCHY_USERS_GROUP in [g.id for g in self.user_cache.get_group_list()]:
+        if settings.COMMENTS_SKETCHY_USERS_GROUP and settings.COMMENTS_SKETCHY_USERS_GROUP in [g.id for g in self.user_cache.groups.all()]:
             message = _('This comment was posted by a sketchy user:\n\n%(text)s') % {'text': c.get_as_text()}
             mail_managers("Comment posted by sketchy user (%s)" % self.user_cache.username, c.get_as_text())
         return c
@@ -122,9 +122,9 @@ class PublicFreeCommentManipulator(oldforms.Manipulator):
     "Manipulator that handles public free (unregistered) comments"
     def __init__(self):
         self.fields = (
-            oldforms.TextField(field_name="person_name", maxlength=50, is_required=True,
+            oldforms.TextField(field_name="person_name", max_length=50, is_required=True,
                 validator_list=[self.hasNoProfanities]),
-            oldforms.LargeTextField(field_name="comment", maxlength=3000, is_required=True,
+            oldforms.LargeTextField(field_name="comment", max_length=3000, is_required=True,
                 validator_list=[self.hasNoProfanities]),
         )
 

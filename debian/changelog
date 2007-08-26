@@ -1,3 +1,9 @@
+python-django (0.96+svn6020-1) experimental; urgency=low
+
+  * New SVN snapshot (rev 6020).
+
+ -- Raphael Hertzog <hertzog@debian.org>  Sun, 26 Aug 2007 18:16:08 +0200
+
 python-django (0.96+svn5779-1) experimental; urgency=low
 
   * SVN snapshot (rev 5779) packaged to experimental as many interesting
