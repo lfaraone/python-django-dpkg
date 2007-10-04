@@ -5,7 +5,9 @@ Maintainer: Brett Parker <iDunno@sommitrealweird.co.uk>
 Uploaders: Raphael Hertzog <hertzog@debian.org>, Debian Python Modules Team <python-modules-team@lists.alioth.debian.org>
 Standards-Version: 3.7.2
 Build-Depends: debhelper (>= 5.0.37.2), python-dev, cdbs (>= 0.4.42), python-setuptools (>= 0.6b3-1), python-support (>= 0.3)
-XS-Vcs-Svn: svn://svn.debian.org/python-modules/packages/python-django/trunk/
+Homepage: http://www.djangoproject.com/
+Vcs-Svn: svn://svn.debian.org/python-modules/packages/python-django/trunk/
+Vcs-Browser: http://svn.debian.org/wsvn/python-modules/packages/python-django/?op=log
 
 Package: python-django
 Architecture: all
@@ -29,5 +31,3 @@ Description: A high-level Python Web framework
   * a template system
   * a cache system
   * internationalization support
- .
-  Homepage: http://www.djangoproject.com/

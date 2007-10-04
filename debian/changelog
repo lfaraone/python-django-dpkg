@@ -1,3 +1,28 @@
+python-django (0.96+svn6373-1) experimental; urgency=low
+
+  [ Raphael Hertzog ]
+  * New SVN snapshot (rev 6373, a few days after the last Django sprint).
+  * Note: The version 0.96+svn6034-1 never got uploaded.
+  * Rename XS-Vcs* fields to Vcs-* since they are now supported by dpkg.
+
+  [ Piotr Ożarowski ]
+  * XS-Vcs-Browser and Homepage fields added
+
+ -- Raphael Hertzog <hertzog@debian.org>  Thu, 04 Oct 2007 14:59:01 +0200
+
+python-django (0.96+svn6034-1) experimental; urgency=low
+
+  [ Brett Parker]
+  * New SVN snapshot (rev 6034).
+     * validate and runserver commands now display the number of errors
+       (returning back to previous functionality).
+     * Small documentation fixes
+     * assertRedirects handling for paths with get data
+     * start{project,app} no make sure files created are writable
+  * Add man page for django-admin to the debian package
+
+ -- Brett Parker <iDunno@sommitrealweird.co.uk>  Sat,  8 Sep 2007 10:37:00 +0100
+
 python-django (0.96+svn6020-1) experimental; urgency=low
 
   * New SVN snapshot (rev 6020).
