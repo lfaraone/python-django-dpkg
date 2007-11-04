@@ -1,3 +1,11 @@
+python-django (0.96-1.1) unstable; urgency=high
+
+  * Non-maintainer upload by testing security team.
+  * Added patch to fix remote denial of service via multiple crafted HTTP
+    requests (CVE-2007-5712) (Closes: #448838).
+
+ -- Nico Golde <nion@debian.org>  Sun, 04 Nov 2007 13:56:02 +0100
+
 python-django (0.96-1) unstable; urgency=low
 
   [ Brett Parker ]
