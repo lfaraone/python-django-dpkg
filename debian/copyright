@@ -1,3 +1,8 @@
+This package was debianized by Brett Parker <iDunno@sommitrealweird.co.uk> with
+the assistance of Raphael Hertzog <hertzog@debian.org>
+
+The upstream source is available from http://www.djangoproject.com/download/
+
 Main Django Code Licence:
 =========================
 

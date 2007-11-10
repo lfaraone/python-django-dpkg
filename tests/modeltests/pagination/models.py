@@ -9,10 +9,10 @@ objects into easily readable pages.
 from django.db import models
 
 class Article(models.Model):
-    headline = models.CharField(max_length=100, default='Default headline')
+    headline = models.CharField(maxlength=100, default='Default headline')
     pub_date = models.DateTimeField()
 
-    def __unicode__(self):
+    def __str__(self):
         return self.headline
 
 __test__ = {'API_TESTS':"""
@@ -77,8 +77,4 @@ True
 >>> paginator = ObjectPaginator(Article.objects.all(), 10, orphans=1)
 >>> paginator.pages
 2
-
-# The paginator can provide a list of all available pages
->>> paginator.page_range
-[1, 2]
 """}

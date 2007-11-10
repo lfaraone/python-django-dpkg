@@ -82,6 +82,9 @@ that 90% of Django can be considered forwards-compatible at this point.
 That said, these APIs should *not* be considered stable, and are likely to
 change:
 
+   - `Forms and validation`_ will most likely be completely rewritten to
+     deemphasize Manipulators in favor of validation-aware models.
+
    - `Serialization`_ is under heavy development; changes are likely.
 
    - The `authentication`_ framework is changing to be far more flexible, and
@@ -97,21 +100,21 @@ change:
      
 .. _caching: ../cache/
 .. _custom template tags and libraries: ../templates_python/
-.. _database lookup: ../db-api/
-.. _django-admin utility: ../django-admin/
+.. _database lookup: ../db_api/
+.. _django-admin utility: ../django_admin/
 .. _fastcgi integration: ../fastcgi/
 .. _flatpages: ../flatpages/
 .. _generic views: ../generic_views/
 .. _internationalization: ../i18n/
 .. _legacy database integration: ../legacy_databases/
-.. _model definition: ../model-api/
+.. _model definition: ../model_api/
 .. _mod_python integration: ../modpython/
 .. _redirects: ../redirects/
 .. _request/response objects: ../request_response/
 .. _sending email: ../email/
 .. _sessions: ../sessions/
 .. _settings: ../settings/
-.. _syndication: ../syndication_feeds/
+.. _syndication: ../syndication/
 .. _template language: ../templates/
 .. _transactions: ../transactions/
 .. _url dispatch: ../url_dispatch/

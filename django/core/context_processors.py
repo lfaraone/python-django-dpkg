@@ -13,19 +13,11 @@ def auth(request):
     """
     Returns context variables required by apps that use Django's authentication
     system.
-
-    If there is no 'user' attribute in the request, uses AnonymousUser (from
-    django.contrib.auth).
     """
-    if hasattr(request, 'user'):
-        user = request.user
-    else:
-        from django.contrib.auth.models import AnonymousUser
-        user = AnonymousUser()
     return {
-        'user': user,
-        'messages': user.get_and_delete_messages(),
-        'perms': PermWrapper(user),
+        'user': request.user,
+        'messages': request.user.get_and_delete_messages(),
+        'perms': PermWrapper(request.user),
     }
 
 def debug(request):
@@ -49,13 +41,6 @@ def i18n(request):
     context_extras['LANGUAGE_BIDI'] = translation.get_language_bidi()
 
     return context_extras
-
-def media(request):
-    """
-    Adds media-related context variables to the context.
-
-    """
-    return {'MEDIA_URL': settings.MEDIA_URL}
 
 def request(request):
     return {'request': request}

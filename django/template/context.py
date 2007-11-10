@@ -35,7 +35,7 @@ class Context(object):
     def __getitem__(self, key):
         "Get a variable's value, starting at the current context and going upward"
         for d in self.dicts:
-            if key in d:
+            if d.has_key(key):
                 return d[key]
         raise KeyError(key)
 
@@ -45,15 +45,16 @@ class Context(object):
 
     def has_key(self, key):
         for d in self.dicts:
-            if key in d:
+            if d.has_key(key):
                 return True
         return False
 
-    __contains__ = has_key
+    def __contains__(self, key):
+        return self.has_key(key)
 
     def get(self, key, otherwise=None):
         for d in self.dicts:
-            if key in d:
+            if d.has_key(key):
                 return d[key]
         return otherwise
 

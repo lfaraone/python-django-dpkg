@@ -34,9 +34,6 @@ AttributeError: This QueryDict instance is immutable
 >>> q.has_key('foo')
 False
 
->>> 'foo' in q
-False
-
 >>> q.items()
 []
 
@@ -94,22 +91,16 @@ MultiValueDictKeyError: "Key 'foo' not found in <MultiValueDict: {}>"
 >>> q['name'] = 'john'
 
 >>> q['name']
-u'john'
-
->>> del q['name']
->>> 'name' in q
-False
-
->>> q['name'] = 'john'
+'john'
 
 >>> q.get('foo', 'default')
 'default'
 
 >>> q.get('name', 'default')
-u'john'
+'john'
 
 >>> q.getlist('name')
-[u'john']
+['john']
 
 >>> q.getlist('foo')
 []
@@ -117,36 +108,33 @@ u'john'
 >>> q.setlist('foo', ['bar', 'baz'])
 
 >>> q.get('foo', 'default')
-u'baz'
+'baz'
 
 >>> q.getlist('foo')
-[u'bar', u'baz']
+['bar', 'baz']
 
 >>> q.appendlist('foo', 'another')
 
 >>> q.getlist('foo')
-[u'bar', u'baz', u'another']
+['bar', 'baz', 'another']
 
 >>> q['foo']
-u'another'
+'another'
 
 >>> q.has_key('foo')
 True
 
->>> 'foo' in q
-True
-
 >>> q.items()
-[(u'foo', u'another'), (u'name', u'john')]
+[('foo', 'another'), ('name', 'john')]
 
 >>> q.lists()
-[(u'foo', [u'bar', u'baz', u'another']), (u'name', [u'john'])]
+[('foo', ['bar', 'baz', 'another']), ('name', ['john'])]
 
 >>> q.keys()
-[u'foo', u'name']
+['foo', 'name']
 
 >>> q.values()
-[u'another', u'john']
+['another', 'john']
 
 >>> len(q)
 2
@@ -155,31 +143,28 @@ True
 
 # Displays last value
 >>> q['foo']
-u'hello'
+'hello'
 
 >>> q.get('foo', 'not available')
-u'hello'
+'hello'
 
 >>> q.getlist('foo')
-[u'bar', u'baz', u'another', u'hello']
+['bar', 'baz', 'another', 'hello']
 
 >>> q.pop('foo')
-[u'bar', u'baz', u'another', u'hello']
-
->>> q.pop('foo', 'not there')
-'not there'
+['bar', 'baz', 'another', 'hello']
 
 >>> q.get('foo', 'not there')
 'not there'
 
 >>> q.setdefault('foo', 'bar')
-u'bar'
+'bar'
 
 >>> q['foo']
-u'bar'
+'bar'
 
 >>> q.getlist('foo')
-[u'bar']
+['bar']
 
 >>> q.urlencode()
 'foo=bar&name=john'
@@ -196,12 +181,12 @@ u'bar'
 >>> q = QueryDict('foo=bar')
 
 >>> q['foo']
-u'bar'
+'bar'
 
 >>> q['bar']
 Traceback (most recent call last):
 ...
-MultiValueDictKeyError: "Key 'bar' not found in <MultiValueDict: {u'foo': [u'bar']}>"
+MultiValueDictKeyError: "Key 'bar' not found in <MultiValueDict: {'foo': ['bar']}>"
 
 >>> q['something'] = 'bar'
 Traceback (most recent call last):
@@ -209,13 +194,13 @@ Traceback (most recent call last):
 AttributeError: This QueryDict instance is immutable
 
 >>> q.get('foo', 'default')
-u'bar'
+'bar'
 
 >>> q.get('bar', 'default')
 'default'
 
 >>> q.getlist('foo')
-[u'bar']
+['bar']
 
 >>> q.getlist('bar')
 []
@@ -233,26 +218,20 @@ AttributeError: This QueryDict instance is immutable
 >>> q.has_key('foo')
 True
 
->>> 'foo' in q
-True
-
 >>> q.has_key('bar')
 False
 
->>> 'bar' in q
-False
-
 >>> q.items()
-[(u'foo', u'bar')]
+[('foo', 'bar')]
 
 >>> q.lists()
-[(u'foo', [u'bar'])]
+[('foo', ['bar'])]
 
 >>> q.keys()
-[u'foo']
+['foo']
 
 >>> q.values()
-[u'bar']
+['bar']
 
 >>> len(q)
 1
@@ -292,7 +271,7 @@ AttributeError: This QueryDict instance is immutable
 >>> q = QueryDict('vote=yes&vote=no')
 
 >>> q['vote']
-u'no'
+'no'
 
 >>> q['something'] = 'bar'
 Traceback (most recent call last):
@@ -300,13 +279,13 @@ Traceback (most recent call last):
 AttributeError: This QueryDict instance is immutable
 
 >>> q.get('vote', 'default')
-u'no'
+'no'
 
 >>> q.get('foo', 'default')
 'default'
 
 >>> q.getlist('vote')
-[u'yes', u'no']
+['yes', 'no']
 
 >>> q.getlist('foo')
 []
@@ -324,26 +303,20 @@ AttributeError: This QueryDict instance is immutable
 >>> q.has_key('vote')
 True
 
->>> 'vote' in q
-True
-
 >>> q.has_key('foo')
 False
 
->>> 'foo' in q
-False
-
 >>> q.items()
-[(u'vote', u'no')]
+[('vote', 'no')]
 
 >>> q.lists()
-[(u'vote', [u'yes', u'no'])]
+[('vote', ['yes', 'no'])]
 
 >>> q.keys()
-[u'vote']
+['vote']
 
 >>> q.values()
-[u'no']
+['no']
 
 >>> len(q)
 1
@@ -375,21 +348,6 @@ AttributeError: This QueryDict instance is immutable
 
 >>> q.urlencode()
 'vote=yes&vote=no'
-
->>> del q['vote']
-Traceback (most recent call last):
-...
-AttributeError: This QueryDict instance is immutable
-
-# QueryDicts must be able to handle invalid input encoding (in this case, bad
-# UTF-8 encoding).
->>> q = QueryDict('foo=bar&foo=\xff')
-
->>> q['foo']
-u'\ufffd'
-
->>> q.getlist('foo')
-[u'bar', u'\ufffd']
 
 """
 

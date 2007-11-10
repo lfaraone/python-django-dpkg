@@ -2,7 +2,6 @@ from django.http import HttpResponse, Http404
 from django.template import loader
 from django.contrib.sites.models import Site
 from django.core import urlresolvers
-from django.utils.encoding import smart_str
 
 def index(request, sitemaps):
     current_site = Site.objects.get_current()
@@ -17,7 +16,7 @@ def index(request, sitemaps):
 def sitemap(request, sitemaps, section=None):
     maps, urls = [], []
     if section is not None:
-        if section not in sitemaps:
+        if not sitemaps.has_key(section):
             raise Http404("No sitemap available for section: %r" % section)
         maps.append(sitemaps[section])
     else:
@@ -27,5 +26,5 @@ def sitemap(request, sitemaps, section=None):
             urls.extend(site().get_urls())
         else:
             urls.extend(site.get_urls())
-    xml = smart_str(loader.render_to_string('sitemap.xml', {'urlset': urls}))
+    xml = loader.render_to_string('sitemap.xml', {'urlset': urls})
     return HttpResponse(xml, mimetype='application/xml')

@@ -38,16 +38,6 @@ All attributes except ``session`` should be considered read-only.
         elif request.method == 'POST':
             do_something_else()
 
-``encoding``
-    **New in Django development version**
-
-    A string representing the current encoding used to decode form submission
-    data (or ``None``, which means the ``DEFAULT_CHARSET`` setting is used).
-    You can write to this attribute to change the encoding used when accessing
-    the form data. Any subsequent attribute accesses (such as reading from
-    ``GET`` or ``POST``) will use the new ``encoding`` value.  Useful if you
-    know the form data is not in the ``DEFAULT_CHARSET`` encoding.
-
 ``GET``
     A dictionary-like object containing all given HTTP GET parameters. See the
     ``QueryDict`` documentation below.
@@ -103,7 +93,6 @@ All attributes except ``session`` should be considered read-only.
         * ``CONTENT_TYPE``
         * ``HTTP_ACCEPT_ENCODING``
         * ``HTTP_ACCEPT_LANGUAGE``
-        * ``HTTP_HOST`` -- The HTTP Host header sent by the client.
         * ``HTTP_REFERER`` -- The referring page, if any.
         * ``HTTP_USER_AGENT`` -- The client's user-agent string.
         * ``QUERY_STRING`` -- The query string, as a single (unparsed) string.
@@ -161,18 +150,6 @@ Methods
 
    Example: ``"/music/bands/the_beatles/?print=true"``
 
-``build_absolute_uri(location)``
-   **New in Django development version**
-
-   Returns the absolute URI form of ``location``. If no location is provided,
-   the location will be set to ``request.get_full_path()``.
-
-   If the location is already an absolute URI, it will not be altered.
-   Otherwise the absolute URI is built using the server variables available in
-   this request.
-
-   Example: ``"http://example.com/music/bands/the_beatles/?print=true"``
-
 ``is_secure()``
    Returns ``True`` if the request is secure; that is, if it was made with
    HTTPS.
@@ -195,9 +172,6 @@ subclass of dictionary. Exceptions are outlined here:
 
     * ``__getitem__(key)`` -- Returns the value for the given key. If the key
       has more than one value, ``__getitem__()`` returns the last value.
-      Raises ``django.utils.datastructure.MultiValueDictKeyError`` if the key
-      does not exist. (This is a subclass of Python's standard ``KeyError``,
-      so you can stick to catching ``KeyError``.)
 
     * ``__setitem__(key, value)`` -- Sets the given key to ``[value]``
       (a Python list whose single element is ``value``). Note that this, as
@@ -322,7 +296,7 @@ In contrast to ``HttpRequest`` objects, which are created automatically by
 Django, ``HttpResponse`` objects are your responsibility. Each view you write
 is responsible for instantiating, populating and returning an ``HttpResponse``.
 
-The ``HttpResponse`` class lives in the ``django.http`` module.
+The ``HttpResponse`` class lives at ``django.http.HttpResponse``.
 
 Usage
 -----
@@ -367,23 +341,13 @@ hard-coded strings. If you use this technique, follow these guidelines:
 Methods
 -------
 
-``__init__(content='', mimetype=None, status=200, content_type=DEFAULT_CONTENT_TYPE)``
+``__init__(content='', mimetype=DEFAULT_CONTENT_TYPE)``
     Instantiates an ``HttpResponse`` object with the given page content (a
     string) and MIME type. The ``DEFAULT_CONTENT_TYPE`` is ``'text/html'``.
 
     ``content`` can be an iterator or a string. If it's an iterator, it should
     return strings, and those strings will be joined together to form the
     content of the response.
-
-    ``status`` is the `HTTP Status code`_ for the response.
-
-    **(New in Django development version)** ``content_type`` is an alias for
-    ``mimetype``. Historically, the parameter was only called ``mimetype``,
-    but since this is actually the value included in the HTTP ``Content-Type``
-    header, it can also include the character set encoding, which makes it
-    more than just a MIME type specification. If ``mimetype`` is specifiedi
-    (not None), that value is used.  Otherwise, ``content_type`` is used. If
-    neither is given, the ``DEFAULT_CONTENT_TYPE`` setting is used.
 
 ``__setitem__(header, value)``
     Sets the given header name to the given value. Both ``header`` and
@@ -431,8 +395,6 @@ Methods
 ``write(content)``, ``flush()`` and ``tell()``
     These methods make an ``HttpResponse`` instance a file-like object.
 
-.. _HTTP Status code: http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10
-
 HttpResponse subclasses
 -----------------------
 
@@ -453,10 +415,6 @@ types of HTTP responses. Like ``HttpResponse``, these subclasses live in
 ``HttpResponseNotModified``
     The constructor doesn't take any arguments. Use this to designate that a
     page hasn't been modified since the user's last request.
-
-``HttpResponseBadRequest``
-    **New in Django development version.**
-    Acts just like ``HttpResponse`` but uses a 400 status code.
 
 ``HttpResponseNotFound``
     Acts just like ``HttpResponse`` but uses a 404 status code.
@@ -521,8 +479,8 @@ In order to use the ``Http404`` exception to its fullest, you should create a
 template that is displayed when a 404 error is raised. This template should be
 called ``404.html`` and located in the top level of your template tree.
 
-Customizing error views
------------------------
+Customing error views
+---------------------
 
 The 404 (page not found) view
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

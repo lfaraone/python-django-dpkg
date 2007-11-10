@@ -1,4 +1,4 @@
-from email.Utils import formatdate
+import datetime
 
 class ConditionalGetMiddleware(object):
     """
@@ -11,7 +11,8 @@ class ConditionalGetMiddleware(object):
     Also sets the Date and Content-Length response-headers.
     """
     def process_response(self, request, response):
-        response['Date'] = formatdate()[:26] + "GMT"
+        now = datetime.datetime.utcnow()
+        response['Date'] = now.strftime('%a, %d %b %Y %H:%M:%S GMT')
         if not response.has_header('Content-Length'):
             response['Content-Length'] = str(len(response.content))
 
@@ -55,7 +56,6 @@ class SetRemoteAddrFromForwardedFor(object):
             return None
         else:
             # HTTP_X_FORWARDED_FOR can be a comma-separated list of IPs.
-            # Take just the last one.
-            # See http://bob.pythonmac.org/archives/2005/09/23/apache-x-forwarded-for-caveat/
-            real_ip = real_ip.split(",")[-1].strip()
+            # Take just the first one.
+            real_ip = real_ip.split(",")[0]
             request.META['REMOTE_ADDR'] = real_ip

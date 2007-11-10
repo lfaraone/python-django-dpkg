@@ -8,10 +8,10 @@ from django.db import models
 import datetime
 
 class Article(models.Model):
-    headline = models.CharField(max_length=100)
+    headline = models.CharField(maxlength=100)
     pub_date = models.DateField()
 
-    def __unicode__(self):
+    def __str__(self):
         return self.headline
 
     def was_published_today(self):

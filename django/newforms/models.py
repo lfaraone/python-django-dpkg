@@ -3,70 +3,59 @@ Helper functions for creating Form classes from Django models
 and database field objects.
 """
 
-from django.utils.translation import ugettext
-from django.utils.encoding import smart_unicode
-
-
+from django.utils.translation import gettext
 from util import ValidationError
-from forms import BaseForm, SortedDictFromList
+from forms import BaseForm, DeclarativeFieldsMetaclass, SortedDictFromList
 from fields import Field, ChoiceField
 from widgets import Select, SelectMultiple, MultipleHiddenInput
 
-__all__ = (
-    'save_instance', 'form_for_model', 'form_for_instance', 'form_for_fields',
-    'ModelChoiceField', 'ModelMultipleChoiceField'
-)
+__all__ = ('save_instance', 'form_for_model', 'form_for_instance', 'form_for_fields',
+           'ModelChoiceField', 'ModelMultipleChoiceField')
 
-def save_instance(form, instance, fields=None, fail_message='saved', commit=True):
+def model_save(self, commit=True):
     """
-    Saves bound Form ``form``'s cleaned_data into model instance ``instance``.
+    Creates and returns model instance according to self.clean_data.
 
-    If commit=True, then the changes to ``instance`` will be saved to the
-    database. Returns ``instance``.
+    This method is created for any form_for_model Form.
+    """
+    if self.errors:
+        raise ValueError("The %s could not be created because the data didn't validate." % self._model._meta.object_name)
+    return save_instance(self, self._model(), commit)
+
+def save_instance(form, instance, commit=True):
+    """
+    Saves bound Form ``form``'s clean_data into model instance ``instance``.
+
+    Assumes ``form`` has a field for every non-AutoField database field in
+    ``instance``. If commit=True, then the changes to ``instance`` will be
+    saved to the database. Returns ``instance``.
     """
     from django.db import models
     opts = instance.__class__._meta
     if form.errors:
-        raise ValueError("The %s could not be %s because the data didn't validate." % (opts.object_name, fail_message))
-    cleaned_data = form.cleaned_data
+        raise ValueError("The %s could not be changed because the data didn't validate." % opts.object_name)
+    clean_data = form.clean_data
     for f in opts.fields:
-        if not f.editable or isinstance(f, models.AutoField) or not f.name in cleaned_data:
+        if not f.editable or isinstance(f, models.AutoField):
             continue
-        if fields and f.name not in fields:
-            continue
-        f.save_form_data(instance, cleaned_data[f.name])        
-    # Wrap up the saving of m2m data as a function
-    def save_m2m():
-        opts = instance.__class__._meta
-        cleaned_data = form.cleaned_data
-        for f in opts.many_to_many:
-            if fields and f.name not in fields:
-                continue
-            if f.name in cleaned_data:
-                f.save_form_data(instance, cleaned_data[f.name])
+        setattr(instance, f.name, clean_data[f.name])
     if commit:
-        # If we are committing, save the instance and the m2m data immediately
         instance.save()
-        save_m2m()
-    else:
-        # We're not committing. Add a method to the form to allow deferred 
-        # saving of m2m data
-        form.save_m2m = save_m2m
+        for f in opts.many_to_many:
+            setattr(instance, f.attname, clean_data[f.name])
+    # GOTCHA: If many-to-many data is given and commit=False, the many-to-many
+    # data will be lost. This happens because a many-to-many options cannot be
+    # set on an object until after it's saved. Maybe we should raise an
+    # exception in that case.
     return instance
 
-def make_model_save(model, fields, fail_message):
-    "Returns the save() method for a Form."
+def make_instance_save(instance):
+    "Returns the save() method for a form_for_instance Form."
     def save(self, commit=True):
-        return save_instance(self, model(), fields, fail_message, commit)
-    return save
-    
-def make_instance_save(instance, fields, fail_message):
-    "Returns the save() method for a Form."
-    def save(self, commit=True):
-        return save_instance(self, instance, fields, fail_message, commit)
+        return save_instance(self, instance, commit)
     return save
 
-def form_for_model(model, form=BaseForm, fields=None, formfield_callback=lambda f: f.formfield()):
+def form_for_model(model, form=BaseForm, formfield_callback=lambda f: f.formfield()):
     """
     Returns a Form class for the given Django model class.
 
@@ -81,16 +70,13 @@ def form_for_model(model, form=BaseForm, fields=None, formfield_callback=lambda 
     for f in opts.fields + opts.many_to_many:
         if not f.editable:
             continue
-        if fields and not f.name in fields:
-            continue
         formfield = formfield_callback(f)
         if formfield:
             field_list.append((f.name, formfield))
-    base_fields = SortedDictFromList(field_list)
-    return type(opts.object_name + 'Form', (form,), 
-        {'base_fields': base_fields, '_model': model, 'save': make_model_save(model, fields, 'created')})
+    fields = SortedDictFromList(field_list)
+    return type(opts.object_name + 'Form', (form,), {'base_fields': fields, '_model': model, 'save': model_save})
 
-def form_for_instance(instance, form=BaseForm, fields=None, formfield_callback=lambda f, **kwargs: f.formfield(**kwargs)):
+def form_for_instance(instance, form=BaseForm, formfield_callback=lambda f, **kwargs: f.formfield(**kwargs)):
     """
     Returns a Form class for the given Django model instance.
 
@@ -107,15 +93,13 @@ def form_for_instance(instance, form=BaseForm, fields=None, formfield_callback=l
     for f in opts.fields + opts.many_to_many:
         if not f.editable:
             continue
-        if fields and not f.name in fields:
-            continue
         current_value = f.value_from_object(instance)
         formfield = formfield_callback(f, initial=current_value)
         if formfield:
             field_list.append((f.name, formfield))
-    base_fields = SortedDictFromList(field_list)
+    fields = SortedDictFromList(field_list)
     return type(opts.object_name + 'InstanceForm', (form,),
-        {'base_fields': base_fields, '_model': model, 'save': make_instance_save(instance, fields, 'changed')})
+        {'base_fields': fields, '_model': model, 'save': make_instance_save(instance)})
 
 def form_for_fields(field_list):
     "Returns a Form class for the given list of Django database field instances."
@@ -130,7 +114,7 @@ class QuerySetIterator(object):
         if self.empty_label is not None:
             yield (u"", self.empty_label)
         for obj in self.queryset:
-            yield (obj._get_pk_val(), smart_unicode(obj))
+            yield (obj._get_pk_val(), str(obj))
         # Clear the QuerySet cache if required.
         if not self.cache_choices:
             self.queryset._result_cache = None
@@ -177,7 +161,7 @@ class ModelChoiceField(ChoiceField):
         try:
             value = self.queryset.model._default_manager.get(pk=value)
         except self.queryset.model.DoesNotExist:
-            raise ValidationError(ugettext(u'Select a valid choice. That choice is not one of the available choices.'))
+            raise ValidationError(gettext(u'Select a valid choice. That choice is not one of the available choices.'))
         return value
 
 class ModelMultipleChoiceField(ModelChoiceField):
@@ -190,17 +174,17 @@ class ModelMultipleChoiceField(ModelChoiceField):
 
     def clean(self, value):
         if self.required and not value:
-            raise ValidationError(ugettext(u'This field is required.'))
+            raise ValidationError(gettext(u'This field is required.'))
         elif not self.required and not value:
             return []
         if not isinstance(value, (list, tuple)):
-            raise ValidationError(ugettext(u'Enter a list of values.'))
+            raise ValidationError(gettext(u'Enter a list of values.'))
         final_values = []
         for val in value:
             try:
                 obj = self.queryset.model._default_manager.get(pk=val)
             except self.queryset.model.DoesNotExist:
-                raise ValidationError(ugettext(u'Select a valid choice. %s is not one of the available choices.') % val)
+                raise ValidationError(gettext(u'Select a valid choice. %s is not one of the available choices.') % val)
             else:
                 final_values.append(obj)
         return final_values

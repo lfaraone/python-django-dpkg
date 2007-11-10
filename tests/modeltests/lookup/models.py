@@ -5,15 +5,14 @@ This demonstrates features of the database API.
 """
 
 from django.db import models
-from django.conf import settings
 
 class Article(models.Model):
-    headline = models.CharField(max_length=100)
+    headline = models.CharField(maxlength=100)
     pub_date = models.DateTimeField()
     class Meta:
         ordering = ('-pub_date', 'headline')
 
-    def __unicode__(self):
+    def __str__(self):
         return self.headline
 
 __test__ = {'API_TESTS':r"""
@@ -100,7 +99,7 @@ TypeError: in_bulk() got an unexpected keyword argument 'headline__startswith'
 # values() returns a list of dictionaries instead of object instances -- and
 # you can specify which fields you want to retrieve.
 >>> Article.objects.values('headline')
-[{'headline': u'Article 5'}, {'headline': u'Article 6'}, {'headline': u'Article 4'}, {'headline': u'Article 2'}, {'headline': u'Article 3'}, {'headline': u'Article 7'}, {'headline': u'Article 1'}]
+[{'headline': 'Article 5'}, {'headline': 'Article 6'}, {'headline': 'Article 4'}, {'headline': 'Article 2'}, {'headline': 'Article 3'}, {'headline': 'Article 7'}, {'headline': 'Article 1'}]
 >>> Article.objects.filter(pub_date__exact=datetime(2005, 7, 27)).values('id')
 [{'id': 2}, {'id': 3}, {'id': 7}]
 >>> list(Article.objects.values('id', 'headline')) == [{'id': 5, 'headline': 'Article 5'}, {'id': 6, 'headline': 'Article 6'}, {'id': 4, 'headline': 'Article 4'}, {'id': 2, 'headline': 'Article 2'}, {'id': 3, 'headline': 'Article 3'}, {'id': 7, 'headline': 'Article 7'}, {'id': 1, 'headline': 'Article 1'}]
@@ -110,13 +109,13 @@ True
 ...     i = d.items()
 ...     i.sort()
 ...     i
-[('headline', u'Article 5'), ('id', 5)]
-[('headline', u'Article 6'), ('id', 6)]
-[('headline', u'Article 4'), ('id', 4)]
-[('headline', u'Article 2'), ('id', 2)]
-[('headline', u'Article 3'), ('id', 3)]
-[('headline', u'Article 7'), ('id', 7)]
-[('headline', u'Article 1'), ('id', 1)]
+[('headline', 'Article 5'), ('id', 5)]
+[('headline', 'Article 6'), ('id', 6)]
+[('headline', 'Article 4'), ('id', 4)]
+[('headline', 'Article 2'), ('id', 2)]
+[('headline', 'Article 3'), ('id', 3)]
+[('headline', 'Article 7'), ('id', 7)]
+[('headline', 'Article 1'), ('id', 1)]
 
 # You can use values() with iterator() for memory savings, because iterator()
 # uses database-level iteration.
@@ -124,44 +123,15 @@ True
 ...     i = d.items()
 ...     i.sort()
 ...     i
-[('headline', u'Article 5'), ('id', 5)]
-[('headline', u'Article 6'), ('id', 6)]
-[('headline', u'Article 4'), ('id', 4)]
-[('headline', u'Article 2'), ('id', 2)]
-[('headline', u'Article 3'), ('id', 3)]
-[('headline', u'Article 7'), ('id', 7)]
-[('headline', u'Article 1'), ('id', 1)]
+[('headline', 'Article 5'), ('id', 5)]
+[('headline', 'Article 6'), ('id', 6)]
+[('headline', 'Article 4'), ('id', 4)]
+[('headline', 'Article 2'), ('id', 2)]
+[('headline', 'Article 3'), ('id', 3)]
+[('headline', 'Article 7'), ('id', 7)]
+[('headline', 'Article 1'), ('id', 1)]
 
-# The values() method works with "extra" fields specified in extra(select).
->>> for d in Article.objects.extra(select={'id_plus_one': 'id + 1'}).values('id', 'id_plus_one'):
-...     i = d.items()
-...     i.sort()
-...     i
-[('id', 5), ('id_plus_one', 6)]
-[('id', 6), ('id_plus_one', 7)]
-[('id', 4), ('id_plus_one', 5)]
-[('id', 2), ('id_plus_one', 3)]
-[('id', 3), ('id_plus_one', 4)]
-[('id', 7), ('id_plus_one', 8)]
-[('id', 1), ('id_plus_one', 2)]
->>> data = {'id_plus_one': 'id+1', 'id_plus_two': 'id+2', 'id_plus_three': 'id+3',
-...         'id_plus_four': 'id+4', 'id_plus_five': 'id+5', 'id_plus_six': 'id+6',
-...         'id_plus_seven': 'id+7', 'id_plus_eight': 'id+8'}
->>> result = list(Article.objects.filter(id=1).extra(select=data).values(*data.keys()))[0]
->>> result = result.items()
->>> result.sort()
->>> result
-[('id_plus_eight', 9), ('id_plus_five', 6), ('id_plus_four', 5), ('id_plus_one', 2), ('id_plus_seven', 8), ('id_plus_six', 7), ('id_plus_three', 4), ('id_plus_two', 3)]
-
-# However, an exception FieldDoesNotExist will be thrown if you specify a
-# non-existent field name in values() (a field that is neither in the model
-# nor in extra(select)).
->>> Article.objects.extra(select={'id_plus_one': 'id + 1'}).values('id', 'id_plus_two')
-Traceback (most recent call last):
-    ...
-FieldDoesNotExist: Article has no field named 'id_plus_two'
-
-# If you don't specify field names to values(), all are returned.
+# if you don't specify which fields, all are returned
 >>> list(Article.objects.filter(id=5).values()) == [{'id': 5, 'headline': 'Article 5', 'pub_date': datetime(2005, 8, 1, 9, 0)}]
 True
 
@@ -253,107 +223,11 @@ DoesNotExist: Article matching query does not exist.
 >>> Article.objects.filter(pub_date_year='2005').count()
 Traceback (most recent call last):
     ...
-TypeError: Cannot resolve keyword 'pub_date_year' into field. Choices are: id, headline, pub_date
+TypeError: Cannot resolve keyword 'pub_date_year' into field
 
 >>> Article.objects.filter(headline__starts='Article')
 Traceback (most recent call last):
     ...
-TypeError: Cannot resolve keyword 'headline__starts' into field. Choices are: id, headline, pub_date
+TypeError: Cannot resolve keyword 'headline__starts' into field
 
-# Create some articles with a bit more interesting headlines for testing field lookups:
->>> now = datetime.now()
->>> for a in Article.objects.all():
-...     a.delete()
->>> a1 = Article(pub_date=now, headline='f')
->>> a1.save()
->>> a2 = Article(pub_date=now, headline='fo')
->>> a2.save()
->>> a3 = Article(pub_date=now, headline='foo')
->>> a3.save()
->>> a4 = Article(pub_date=now, headline='fooo')
->>> a4.save()
->>> a5 = Article(pub_date=now, headline='hey-Foo')
->>> a5.save()
-
-# zero-or-more
->>> Article.objects.filter(headline__regex=r'fo*')
-[<Article: f>, <Article: fo>, <Article: foo>, <Article: fooo>]
->>> Article.objects.filter(headline__iregex=r'fo*')
-[<Article: f>, <Article: fo>, <Article: foo>, <Article: fooo>, <Article: hey-Foo>]
-
-# one-or-more
->>> Article.objects.filter(headline__regex=r'fo+')
-[<Article: fo>, <Article: foo>, <Article: fooo>]
-
-# wildcard
->>> Article.objects.filter(headline__regex=r'fooo?')
-[<Article: foo>, <Article: fooo>]
-
-# and some more:
->>> a6 = Article(pub_date=now, headline='bar')
->>> a6.save()
->>> a7 = Article(pub_date=now, headline='AbBa')
->>> a7.save()
->>> a8 = Article(pub_date=now, headline='baz')
->>> a8.save()
->>> a9 = Article(pub_date=now, headline='baxZ')
->>> a9.save()
-
-# leading anchor
->>> Article.objects.filter(headline__regex=r'^b')
-[<Article: bar>, <Article: baxZ>, <Article: baz>]
->>> Article.objects.filter(headline__iregex=r'^a')
-[<Article: AbBa>]
-
-# trailing anchor
->>> Article.objects.filter(headline__regex=r'z$')
-[<Article: baz>]
->>> Article.objects.filter(headline__iregex=r'z$')
-[<Article: baxZ>, <Article: baz>]
-
-# character sets
->>> Article.objects.filter(headline__regex=r'ba[rz]')
-[<Article: bar>, <Article: baz>]
->>> Article.objects.filter(headline__regex=r'ba.[RxZ]')
-[<Article: baxZ>]
->>> Article.objects.filter(headline__iregex=r'ba[RxZ]')
-[<Article: bar>, <Article: baxZ>, <Article: baz>]
-
-# and yet more:
->>> a10 = Article(pub_date=now, headline='foobar')
->>> a10.save()
->>> a11 = Article(pub_date=now, headline='foobaz')
->>> a11.save()
->>> a12 = Article(pub_date=now, headline='ooF')
->>> a12.save()
->>> a13 = Article(pub_date=now, headline='foobarbaz')
->>> a13.save()
->>> a14 = Article(pub_date=now, headline='zoocarfaz')
->>> a14.save()
->>> a15 = Article(pub_date=now, headline='barfoobaz')
->>> a15.save()
->>> a16 = Article(pub_date=now, headline='bazbaRFOO')
->>> a16.save()
-
-# alternation
->>> Article.objects.filter(headline__regex=r'oo(f|b)')
-[<Article: barfoobaz>, <Article: foobar>, <Article: foobarbaz>, <Article: foobaz>]
->>> Article.objects.filter(headline__iregex=r'oo(f|b)')
-[<Article: barfoobaz>, <Article: foobar>, <Article: foobarbaz>, <Article: foobaz>, <Article: ooF>]
->>> Article.objects.filter(headline__regex=r'^foo(f|b)')
-[<Article: foobar>, <Article: foobarbaz>, <Article: foobaz>]
-
-# greedy matching
->>> Article.objects.filter(headline__regex=r'b.*az')
-[<Article: barfoobaz>, <Article: baz>, <Article: bazbaRFOO>, <Article: foobarbaz>, <Article: foobaz>]
->>> Article.objects.filter(headline__iregex=r'b.*ar')
-[<Article: bar>, <Article: barfoobaz>, <Article: bazbaRFOO>, <Article: foobar>, <Article: foobarbaz>]
 """}
-
-
-if settings.DATABASE_ENGINE not in ('mysql', 'mysql_old'):
-    __test__['API_TESTS'] += r"""
-# grouping and backreferences
->>> Article.objects.filter(headline__regex=r'b(.).*b\1')
-[<Article: barfoobaz>, <Article: bazbaRFOO>, <Article: foobarbaz>]
-"""

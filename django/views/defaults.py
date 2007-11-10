@@ -21,7 +21,7 @@ def shortcut(request, content_type_id, object_id):
     # if necessary.
 
     # If the object actually defines a domain, we're done.
-    if absurl.startswith('http://') or absurl.startswith('https://'):
+    if absurl.startswith('http://'):
         return http.HttpResponseRedirect(absurl)
 
     object_domain = None
@@ -61,8 +61,7 @@ def shortcut(request, content_type_id, object_id):
     # If all that malarkey found an object domain, use it; otherwise fall back
     # to whatever get_absolute_url() returned.
     if object_domain is not None:
-        protocol = request.is_secure() and 'https' or 'http'
-        return http.HttpResponseRedirect('%s://%s%s' % (protocol, object_domain, absurl))
+        return http.HttpResponseRedirect('http://%s%s' % (object_domain, absurl))
     else:
         return http.HttpResponseRedirect(absurl)
 

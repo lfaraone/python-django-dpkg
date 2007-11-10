@@ -13,10 +13,10 @@ from django.db import models
 from datetime import datetime
 
 class Article(models.Model):
-    headline = models.CharField(max_length=100, default='Default headline')
+    headline = models.CharField(maxlength=100, default='Default headline')
     pub_date = models.DateTimeField(default=datetime.now)
 
-    def __unicode__(self):
+    def __str__(self):
         return self.headline
 
 __test__ = {'API_TESTS':"""

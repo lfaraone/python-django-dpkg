@@ -1,40 +1,11 @@
-python-django (0.96+svn6373-1) experimental; urgency=low
+python-django (0.96.1-1) unstable; urgency=low
 
-  [ Raphael Hertzog ]
-  * New SVN snapshot (rev 6373, a few days after the last Django sprint).
-  * Note: The version 0.96+svn6034-1 never got uploaded.
-  * Rename XS-Vcs* fields to Vcs-* since they are now supported by dpkg.
+  * New upstream release with security fix for CVE-2007-5712
+    Closes: #448838
+  * Add note for upstream sources to copyright file
+    Closes: #450659
 
-  [ Piotr Ożarowski ]
-  * XS-Vcs-Browser and Homepage fields added
-
- -- Raphael Hertzog <hertzog@debian.org>  Thu, 04 Oct 2007 14:59:01 +0200
-
-python-django (0.96+svn6034-1) experimental; urgency=low
-
-  [ Brett Parker]
-  * New SVN snapshot (rev 6034).
-     * validate and runserver commands now display the number of errors
-       (returning back to previous functionality).
-     * Small documentation fixes
-     * assertRedirects handling for paths with get data
-     * start{project,app} no make sure files created are writable
-  * Add man page for django-admin to the debian package
-
- -- Brett Parker <iDunno@sommitrealweird.co.uk>  Sat,  8 Sep 2007 10:37:00 +0100
-
-python-django (0.96+svn6020-1) experimental; urgency=low
-
-  * New SVN snapshot (rev 6020).
-
- -- Raphael Hertzog <hertzog@debian.org>  Sun, 26 Aug 2007 18:16:08 +0200
-
-python-django (0.96+svn5779-1) experimental; urgency=low
-
-  * SVN snapshot (rev 5779) packaged to experimental as many interesting
-    Django applications rely on newer unreleased features.
-
- -- Raphael Hertzog <hertzog@debian.org>  Tue, 31 Jul 2007 13:40:18 +0200
+ -- Brett Parker <iDunno@sommitrealweird.co.uk>  Sat, 10 Nov 2007 13:51:07 +0000
 
 python-django (0.96-1) unstable; urgency=low
 

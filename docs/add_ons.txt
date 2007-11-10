@@ -6,16 +6,8 @@ Django aims to follow Python's `"batteries included" philosophy`_. It ships
 with a variety of extra, optional tools that solve common Web-development
 problems.
 
-This code lives in ``django/contrib`` in the Django distribution. This document
-gives a rundown of the packages in ``contrib``, along with any dependencies
-those packages have.
-
-.. admonition:: Note
-
-    For most of these add-ons -- specifically, the add-ons that include either
-    models or template tags -- you'll need to add the package name (e.g.,
-    ``'django.contrib.admin'``) to your ``INSTALLED_APPS`` setting and re-run
-    ``manage.py syncdb``.
+This code lives in ``django/contrib`` in the Django distribution. Here's a
+rundown of the packages in ``contrib``:
 
 .. _"batteries included" philosophy: http://docs.python.org/tut/node12.html#batteries-included
 
@@ -25,9 +17,7 @@ admin
 The automatic Django administrative interface. For more information, see
 `Tutorial 2`_.
 
-.. _Tutorial 2: ../tutorial02/
-
-Requires the auth_ and contenttypes_ contrib packages to be installed.
+.. _Tutorial 2: ../tutorial2/
 
 auth
 ====
@@ -70,9 +60,8 @@ An abstraction of the following workflow:
 
 "Display an HTML form, force a preview, then do something with the submission."
 
-See the `form preview documentation`_.
-
-.. _form preview documentation: ../form_preview/
+Full documentation for this feature does not yet exist, but you can read the
+code and docstrings in ``django/contrib/formtools/preview.py`` for a start.
 
 humanize
 ========
@@ -139,29 +128,6 @@ Examples:
 
 You can pass in either an integer or a string representation of an integer.
 
-naturalday
-----------
-
-**New in Django development version**
-
-For dates that are the current day or within one day, return "today",
-"tomorrow" or "yesterday", as appropriate. Otherwise, format the date using
-the passed in format string.
-
-**Argument:** Date formatting string as described in default tag now_.
-
-.. _now: ../templates/#now
-
-Examples (when 'today' is 17 Feb 2007):
-
-    * ``16 Feb 2007`` becomes ``yesterday``.
-    * ``17 Feb 2007`` becomes ``today``.
-    * ``18 Feb 2007`` becomes ``tomorrow``.
-    * Any other day is formatted according to given argument or the
-      `DATE_FORMAT`_ setting if no argument is given.
-
-.. _DATE_FORMAT: ../settings/#date_format
-
 flatpages
 =========
 
@@ -170,8 +136,6 @@ A framework for managing simple "flat" HTML content in a database.
 See the `flatpages documentation`_.
 
 .. _flatpages documentation: ../flatpages/
-
-Requires the sites_ contrib package to be installed as well.
 
 localflavor
 ===========
@@ -183,20 +147,13 @@ contains a ``USZipCodeField`` that you can use to validate U.S. zip codes.
 markup
 ======
 
-A collection of template filters that implement common markup languages:
+A collection of template filters that implement these common markup languages:
 
-    * ``textile`` -- implements `Textile`_
-    * ``markdown`` -- implements `Markdown`_
-    * ``restructuredtext`` -- implements `ReST (ReStructured Text)`_
+    * `Textile`_
+    * `Markdown`_
+    * `ReST (ReStructured Text)`_
 
-In each case, the filter expects formatted markup as a string and returns a
-string representing the marked-up text. For example, the ``textile`` filter
-converts text that is marked-up in Textile format to HTML.
-
-To activate these filters, add ``'django.contrib.markup'`` to your
-``INSTALLED_APPS`` setting. Once you've done that, use ``{% load markup %}`` in
-a template, and you'll have access to these filters. For more documentation,
-read the source code in django/contrib/markup/templatetags/markup.py.
+For documentation, read the source code in django/contrib/markup/templatetags/markup.py.
 
 .. _Textile: http://en.wikipedia.org/wiki/Textile_%28markup_language%29
 .. _Markdown: http://en.wikipedia.org/wiki/Markdown
@@ -238,7 +195,7 @@ A framework for generating syndication feeds, in RSS and Atom, quite easily.
 
 See the `syndication documentation`_.
 
-.. _syndication documentation: ../syndication_feeds/
+.. _syndication documentation: ../syndication/
 
 Other add-ons
 =============

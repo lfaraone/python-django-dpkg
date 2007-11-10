@@ -1,20 +1,18 @@
-from django.db import connection, transaction
+from django.db import backend, transaction
 from django.db.models import signals, get_model
-from django.db.models.fields import AutoField, Field, IntegerField, PositiveIntegerField, PositiveSmallIntegerField, get_ul_class
+from django.db.models.fields import AutoField, Field, IntegerField, get_ul_class
 from django.db.models.related import RelatedObject
 from django.utils.text import capfirst
-from django.utils.translation import ugettext_lazy, string_concat, ungettext, ugettext as _
+from django.utils.translation import gettext_lazy, string_concat, ngettext
 from django.utils.functional import curry
-from django.utils.encoding import smart_unicode
 from django.core import validators
 from django import oldforms
 from django import newforms as forms
 from django.dispatch import dispatcher
 
-try:
-    set
-except NameError:
-    from sets import Set as set   # Python 2.3 fallback
+# For Python 2.3
+if not hasattr(__builtins__, 'set'):
+    from sets import Set as set
 
 # Values for Relation.edit_inline.
 TABULAR, STACKED = 1, 2
@@ -319,6 +317,7 @@ def create_many_related_manager(superclass):
             # source_col_name: the PK colname in join_table for the source object
             # target_col_name: the PK colname in join_table for the target object
             # *objs - objects to add. Either object instances, or primary keys of object instances.
+            from django.db import connection
 
             # If there aren't any objects, there is nothing to do.
             if objs:
@@ -336,7 +335,10 @@ def create_many_related_manager(superclass):
                     (target_col_name, self.join_table, source_col_name,
                     target_col_name, ",".join(['%s'] * len(new_ids))),
                     [self._pk_val] + list(new_ids))
-                existing_ids = set([row[0] for row in cursor.fetchall()])
+                if cursor.rowcount is not None and cursor.rowcount != 0:
+                    existing_ids = set([row[0] for row in cursor.fetchmany(cursor.rowcount)])
+                else:
+                    existing_ids = set()
 
                 # Add the ones that aren't there already
                 for obj_id in (new_ids - existing_ids):
@@ -349,6 +351,7 @@ def create_many_related_manager(superclass):
             # source_col_name: the PK colname in join_table for the source object
             # target_col_name: the PK colname in join_table for the target object
             # *objs - objects to remove
+            from django.db import connection
 
             # If there aren't any objects, there is nothing to do.
             if objs:
@@ -369,6 +372,7 @@ def create_many_related_manager(superclass):
 
         def _clear_items(self, source_col_name):
             # source_col_name: the PK colname in join_table for the source object
+            from django.db import connection
             cursor = connection.cursor()
             cursor.execute("DELETE FROM %s WHERE %s = %%s" % \
                 (self.join_table, source_col_name),
@@ -397,7 +401,7 @@ class ManyRelatedObjectsDescriptor(object):
         superclass = rel_model._default_manager.__class__
         RelatedManager = create_many_related_manager(superclass)
 
-        qn = connection.ops.quote_name
+        qn = backend.quote_name
         manager = RelatedManager(
             model=rel_model,
             core_filters={'%s__pk' % self.related.field.name: instance._get_pk_val()},
@@ -438,7 +442,7 @@ class ReverseManyRelatedObjectsDescriptor(object):
         superclass = rel_model._default_manager.__class__
         RelatedManager = create_many_related_manager(superclass)
 
-        qn = connection.ops.quote_name
+        qn = backend.quote_name
         manager = RelatedManager(
             model=rel_model,
             core_filters={'%s__pk' % self.field.related_query_name(): instance._get_pk_val()},
@@ -470,7 +474,7 @@ class ForeignKey(RelatedField, Field):
             to_field = to_field or to._meta.pk.name
         kwargs['verbose_name'] = kwargs.get('verbose_name', '')
 
-        if 'edit_inline_type' in kwargs:
+        if kwargs.has_key('edit_inline_type'):
             import warnings
             warnings.warn("edit_inline_type is deprecated. Use edit_inline instead.")
             kwargs['edit_inline'] = kwargs.pop('edit_inline_type')
@@ -549,19 +553,9 @@ class ForeignKey(RelatedField, Field):
         setattr(cls, related.get_accessor_name(), ForeignRelatedObjectsDescriptor(related))
 
     def formfield(self, **kwargs):
-        defaults = {'form_class': forms.ModelChoiceField, 'queryset': self.rel.to._default_manager.all()}
+        defaults = {'queryset': self.rel.to._default_manager.all(), 'required': not self.blank, 'label': capfirst(self.verbose_name), 'help_text': self.help_text}
         defaults.update(kwargs)
-        return super(ForeignKey, self).formfield(**defaults)
-
-    def db_type(self):
-        # The database column type of a ForeignKey is the column type
-        # of the field to which it points. An exception is if the ForeignKey
-        # points to an AutoField/PositiveIntegerField/PositiveSmallIntegerField,
-        # in which case the column type is simply that of an IntegerField.
-        rel_field = self.rel.get_related_field()
-        if isinstance(rel_field, (AutoField, PositiveIntegerField, PositiveSmallIntegerField)):
-            return IntegerField().db_type()
-        return rel_field.db_type()
+        return forms.ModelChoiceField(**defaults)
 
 class OneToOneField(RelatedField, IntegerField):
     def __init__(self, to, to_field=None, **kwargs):
@@ -573,7 +567,7 @@ class OneToOneField(RelatedField, IntegerField):
             to_field = to_field or to._meta.pk.name
         kwargs['verbose_name'] = kwargs.get('verbose_name', '')
 
-        if 'edit_inline_type' in kwargs:
+        if kwargs.has_key('edit_inline_type'):
             import warnings
             warnings.warn("edit_inline_type is deprecated. Use edit_inline instead.")
             kwargs['edit_inline'] = kwargs.pop('edit_inline_type')
@@ -625,19 +619,9 @@ class OneToOneField(RelatedField, IntegerField):
             cls._meta.one_to_one_field = self
 
     def formfield(self, **kwargs):
-        defaults = {'form_class': forms.ModelChoiceField, 'queryset': self.rel.to._default_manager.all()}
+        defaults = {'queryset': self.rel.to._default_manager.all(), 'required': not self.blank, 'label': capfirst(self.verbose_name), 'help_text': self.help_text}
         defaults.update(kwargs)
-        return super(OneToOneField, self).formfield(**defaults)
-
-    def db_type(self):
-        # The database column type of a OneToOneField is the column type
-        # of the field to which it points. An exception is if the OneToOneField
-        # points to an AutoField/PositiveIntegerField/PositiveSmallIntegerField,
-        # in which case the column type is simply that of an IntegerField.
-        rel_field = self.rel.get_related_field()
-        if isinstance(rel_field, (AutoField, PositiveIntegerField, PositiveSmallIntegerField)):
-            return IntegerField().db_type()
-        return rel_field.db_type()
+        return forms.ModelChoiceField(**defaults)
 
 class ManyToManyField(RelatedField, Field):
     def __init__(self, to, **kwargs):
@@ -655,9 +639,9 @@ class ManyToManyField(RelatedField, Field):
         Field.__init__(self, **kwargs)
 
         if self.rel.raw_id_admin:
-            msg = ugettext_lazy('Separate multiple IDs with commas.')
+            msg = gettext_lazy('Separate multiple IDs with commas.')
         else:
-            msg = ugettext_lazy('Hold down "Control", or "Command" on a Mac, to select more than one.')
+            msg = gettext_lazy('Hold down "Control", or "Command" on a Mac, to select more than one.')
         self.help_text = string_concat(self.help_text, ' ', msg)
 
     def get_manipulator_field_objs(self):
@@ -704,7 +688,7 @@ class ManyToManyField(RelatedField, Field):
         objects = mod._default_manager.in_bulk(pks)
         if len(objects) != len(pks):
             badkeys = [k for k in pks if k not in objects]
-            raise validators.ValidationError, ungettext("Please enter valid %(self)s IDs. The value %(value)r is invalid.",
+            raise validators.ValidationError, ngettext("Please enter valid %(self)s IDs. The value %(value)r is invalid.",
                     "Please enter valid %(self)s IDs. The values %(value)r are invalid.", len(badkeys)) % {
                 'self': self.verbose_name,
                 'value': len(badkeys) == 1 and badkeys[0] or tuple(badkeys),
@@ -715,7 +699,7 @@ class ManyToManyField(RelatedField, Field):
         if obj:
             instance_ids = [instance._get_pk_val() for instance in getattr(obj, self.name).all()]
             if self.rel.raw_id_admin:
-                new_data[self.name] = u",".join([smart_unicode(id) for id in instance_ids])
+                new_data[self.name] = ",".join([str(id) for id in instance_ids])
             else:
                 new_data[self.name] = instance_ids
         else:
@@ -753,22 +737,14 @@ class ManyToManyField(RelatedField, Field):
         "Returns the value of this field in the given model instance."
         return getattr(obj, self.attname).all()
 
-    def save_form_data(self, instance, data):
-        setattr(instance, self.attname, data)
-        
     def formfield(self, **kwargs):
-        defaults = {'form_class': forms.ModelMultipleChoiceField, 'queryset': self.rel.to._default_manager.all()}
-        defaults.update(kwargs)
         # If initial is passed in, it's a list of related objects, but the
         # MultipleChoiceField takes a list of IDs.
-        if defaults.get('initial') is not None:
-            defaults['initial'] = [i._get_pk_val() for i in defaults['initial']]
-        return super(ManyToManyField, self).formfield(**defaults)
-
-    def db_type(self):
-        # A ManyToManyField is not represented by a single column,
-        # so return None.
-        return None
+        if kwargs.get('initial') is not None:
+            kwargs['initial'] = [i._get_pk_val() for i in kwargs['initial']]
+        defaults = {'queryset' : self.rel.to._default_manager.all(), 'required': not self.blank, 'label': capfirst(self.verbose_name), 'help_text': self.help_text}
+        defaults.update(kwargs)
+        return forms.ModelMultipleChoiceField(**defaults)
 
 class ManyToOneRel(object):
     def __init__(self, to, field_name, num_in_admin=3, min_num_in_admin=None,

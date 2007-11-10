@@ -6,7 +6,6 @@ from django import oldforms, template
 from django.shortcuts import render_to_response, get_object_or_404
 from django.http import HttpResponseRedirect
 from django.utils.html import escape
-from django.utils.translation import ugettext as _
 
 def user_add_stage(request):
     if not request.user.has_perm('auth.change_user'):
@@ -18,7 +17,7 @@ def user_add_stage(request):
         if not errors:
             new_user = manipulator.save(new_data)
             msg = _('The %(name)s "%(obj)s" was added successfully.') % {'name': 'user', 'obj': new_user}
-            if "_addanother" in request.POST:
+            if request.POST.has_key("_addanother"):
                 request.user.message_set.create(message=msg)
                 return HttpResponseRedirect(request.path)
             else:
@@ -30,7 +29,7 @@ def user_add_stage(request):
     return render_to_response('admin/auth/user/add_form.html', {
         'title': _('Add user'),
         'form': form,
-        'is_popup': '_popup' in request.REQUEST,
+        'is_popup': request.REQUEST.has_key('_popup'),
         'add': True,
         'change': False,
         'has_delete_permission': False,
@@ -64,7 +63,7 @@ def user_change_password(request, id):
     return render_to_response('admin/auth/user/change_password.html', {
         'title': _('Change password: %s') % escape(user.username),
         'form': form,
-        'is_popup': '_popup' in request.REQUEST,
+        'is_popup': request.REQUEST.has_key('_popup'),
         'add': True,
         'change': False,
         'has_delete_permission': False,
