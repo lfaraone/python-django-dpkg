@@ -37,6 +37,8 @@ class LazySettings(object):
             # __setattr__(), which would be an infinite loop.
             self.__dict__['_target'] = value
         else:
+            if self._target is None:
+                self._import_settings()
             setattr(self._target, name, value)
 
     def _import_settings(self):
@@ -110,6 +112,7 @@ class Settings(object):
             # Move the time zone info into os.environ. See ticket #2315 for why
             # we don't do this unconditionally (breaks Windows).
             os.environ['TZ'] = self.TIME_ZONE
+            time.tzset()
 
     def get_all_members(self):
         return dir(self)
@@ -137,13 +140,3 @@ class UserSettingsHolder(object):
 
 settings = LazySettings()
 
-# This function replaces itself with django.utils.translation.gettext() the
-# first time it's run. This is necessary because the import of
-# django.utils.translation requires a working settings module, and loading it
-# from within this file would cause a circular import.
-def first_time_gettext(*args):
-    from django.utils.translation import gettext
-    __builtins__['_'] = gettext
-    return gettext(*args)
-
-__builtins__['_'] = first_time_gettext

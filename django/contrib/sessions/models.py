@@ -1,7 +1,14 @@
-import base64, md5, random, sys, datetime
+import os
+import sys
+import time
+import datetime
+import base64
+import md5
+import random
 import cPickle as pickle
+
 from django.db import models
-from django.utils.translation import gettext_lazy as _
+from django.utils.translation import ugettext_lazy as _
 from django.conf import settings
 
 class SessionManager(models.Manager):
@@ -14,9 +21,14 @@ class SessionManager(models.Manager):
     def get_new_session_key(self):
         "Returns session key that isn't being used."
         # The random module is seeded when this Apache child is created.
-        # Use person_id and SECRET_KEY as added salt.
+        # Use SECRET_KEY as added salt.
+        try:
+            pid = os.getpid()
+        except AttributeError:
+            # No getpid() in Jython, for example
+            pid = 1
         while 1:
-            session_key = md5.new(str(random.randint(0, sys.maxint - 1)) + str(random.randint(0, sys.maxint - 1)) + settings.SECRET_KEY).hexdigest()
+            session_key = md5.new("%s%s%s%s" % (random.randint(0, sys.maxint - 1), pid, time.time(), settings.SECRET_KEY)).hexdigest()
             try:
                 self.get(session_key=session_key)
             except self.model.DoesNotExist:
@@ -65,10 +77,11 @@ class Session(models.Model):
     the sessions documentation that is shipped with Django (also available
     on the Django website).
     """
-    session_key = models.CharField(_('session key'), maxlength=40, primary_key=True)
+    session_key = models.CharField(_('session key'), max_length=40, primary_key=True)
     session_data = models.TextField(_('session data'))
     expire_date = models.DateTimeField(_('expire date'))
     objects = SessionManager()
+
     class Meta:
         db_table = 'django_session'
         verbose_name = _('session')

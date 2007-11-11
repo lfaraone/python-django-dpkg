@@ -1,7 +1,8 @@
 "File-based cache backend"
 
 from django.core.cache.backends.simple import CacheClass as SimpleCacheClass
-import os, time, urllib
+from django.utils.http import urlquote_plus
+import os, time
 try:
     import cPickle as pickle
 except ImportError:
@@ -15,6 +16,26 @@ class CacheClass(SimpleCacheClass):
         SimpleCacheClass.__init__(self, dir, params)
         del self._cache
         del self._expire_info
+
+    def add(self, key, value, timeout=None):
+        fname = self._key_to_file(key)
+        if timeout is None:
+            timeout = self.default_timeout
+        try:
+            filelist = os.listdir(self._dir)
+        except (IOError, OSError):
+            self._createdir()
+            filelist = []
+        if len(filelist) > self._max_entries:
+            self._cull(filelist)
+        if os.path.basename(fname) not in filelist:
+            try:
+                f = open(fname, 'wb')
+                now = time.time()
+                pickle.dump(now + timeout, f, 2)
+                pickle.dump(value, f, 2)
+            except (IOError, OSError):
+                pass
 
     def get(self, key, default=None):
         fname = self._key_to_file(key)
@@ -77,4 +98,4 @@ class CacheClass(SimpleCacheClass):
             raise EnvironmentError, "Cache directory '%s' does not exist and could not be created'" % self._dir
 
     def _key_to_file(self, key):
-        return os.path.join(self._dir, urllib.quote_plus(key))
+        return os.path.join(self._dir, urlquote_plus(key))

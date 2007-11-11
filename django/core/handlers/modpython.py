@@ -2,6 +2,7 @@ from django.core.handlers.base import BaseHandler
 from django.core import signals
 from django.dispatch import dispatcher
 from django.utils import datastructures
+from django.utils.encoding import force_unicode
 from django import http
 from pprint import pformat
 import os
@@ -13,7 +14,7 @@ import os
 class ModPythonRequest(http.HttpRequest):
     def __init__(self, req):
         self._req = req
-        self.path = req.uri
+        self.path = force_unicode(req.uri)
 
     def __repr__(self):
         # Since this is called as part of error handling, we need to be very
@@ -41,15 +42,18 @@ class ModPythonRequest(http.HttpRequest):
         return '%s%s' % (self.path, self._req.args and ('?' + self._req.args) or '')
 
     def is_secure(self):
-        # Note: modpython 3.2.10+ has req.is_https(), but we need to support previous versions
-        return self._req.subprocess_env.has_key('HTTPS') and self._req.subprocess_env['HTTPS'] == 'on'
+        try:
+            return self._req.is_https()
+        except AttributeError:
+            # mod_python < 3.2.10 doesn't have req.is_https().
+            return self._req.subprocess_env.get('HTTPS', '').lower() in ('on', '1')
 
     def _load_post_and_files(self):
         "Populates self._post and self._files"
-        if self._req.headers_in.has_key('content-type') and self._req.headers_in['content-type'].startswith('multipart'):
+        if 'content-type' in self._req.headers_in and self._req.headers_in['content-type'].startswith('multipart'):
             self._post, self._files = http.parse_file_upload(self._req.headers_in, self.raw_post_data)
         else:
-            self._post, self._files = http.QueryDict(self.raw_post_data), datastructures.MultiValueDict()
+            self._post, self._files = http.QueryDict(self.raw_post_data, encoding=self._encoding), datastructures.MultiValueDict()
 
     def _get_request(self):
         if not hasattr(self, '_request'):
@@ -58,7 +62,7 @@ class ModPythonRequest(http.HttpRequest):
 
     def _get_get(self):
         if not hasattr(self, '_get'):
-            self._get = http.QueryDict(self._req.args)
+            self._get = http.QueryDict(self._req.args, encoding=self._encoding)
         return self._get
 
     def _set_get(self, get):
@@ -132,6 +136,8 @@ class ModPythonRequest(http.HttpRequest):
     method = property(_get_method)
 
 class ModPythonHandler(BaseHandler):
+    request_class = ModPythonRequest
+
     def __call__(self, req):
         # mod_python fakes the environ, and thus doesn't process SetEnv.  This fixes that
         os.environ.update(req.subprocess_env)
@@ -146,21 +152,25 @@ class ModPythonHandler(BaseHandler):
 
         dispatcher.send(signal=signals.request_started)
         try:
-            request = ModPythonRequest(req)
-            response = self.get_response(request)
+            try:
+                request = self.request_class(req)
+            except UnicodeDecodeError:
+                response = http.HttpResponseBadRequest()
+            else:
+                response = self.get_response(request)
 
-            # Apply response middleware
-            for middleware_method in self._response_middleware:
-                response = middleware_method(request, response)
-
+                # Apply response middleware
+                for middleware_method in self._response_middleware:
+                    response = middleware_method(request, response)
+                response = self.apply_response_fixes(request, response)
         finally:
             dispatcher.send(signal=signals.request_finished)
 
         # Convert our custom HttpResponse object back into the mod_python req.
         req.content_type = response['Content-Type']
-        for key, value in response.headers.items():
-            if key != 'Content-Type':
-                req.headers_out[key] = value
+        for key, value in response.items():
+            if key != 'content-type':
+                req.headers_out[str(key)] = str(value)
         for c in response.cookies.values():
             req.headers_out.add('Set-Cookie', c.output(header=''))
         req.status = response.status_code

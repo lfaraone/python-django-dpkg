@@ -1,4 +1,6 @@
-from django.template import Node, resolve_variable
+import re
+
+from django.template import Node, Variable
 from django.template import TemplateSyntaxError, TokenParser, Library
 from django.template import TOKEN_TEXT, TOKEN_VAR
 from django.utils import translation
@@ -11,7 +13,7 @@ class GetAvailableLanguagesNode(Node):
 
     def render(self, context):
         from django.conf import settings
-        context[self.variable] = [(k, translation.gettext(v)) for k, v in settings.LANGUAGES]
+        context[self.variable] = [(k, translation.ugettext(v)) for k, v in settings.LANGUAGES]
         return ''
 
 class GetCurrentLanguageNode(Node):
@@ -32,15 +34,15 @@ class GetCurrentLanguageBidiNode(Node):
 
 class TranslateNode(Node):
     def __init__(self, value, noop):
-        self.value = value
+        self.value = Variable(value)
         self.noop = noop
 
     def render(self, context):
-        value = resolve_variable(self.value, context)
+        value = self.value.resolve(context)
         if self.noop:
             return value
         else:
-            return translation.gettext(value)
+            return translation.ugettext(value)
 
 class BlockTranslateNode(Node):
     def __init__(self, extra_context, singular, plural=None, countervar=None, counter=None):
@@ -68,9 +70,11 @@ class BlockTranslateNode(Node):
             count = self.counter.resolve(context)
             context[self.countervar] = count
             plural = self.render_token_list(self.plural)
-            result = translation.ngettext(singular, plural, count) % context
+            result = translation.ungettext(singular, plural, count)
         else:
-            result = translation.gettext(singular) % context
+            result = translation.ugettext(singular)
+        # Escape all isolated '%' before substituting in the context.
+        result = re.sub('%(?!\()', '%%', result) % context
         context.pop()
         return result
 

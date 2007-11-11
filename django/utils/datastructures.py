@@ -14,11 +14,8 @@ class MergeDict(object):
                 pass
         raise KeyError
 
-    def __contains__(self, key):
-        return self.has_key(key)
-        
-    def __copy__(self): 
-        return self.__class__(*self.dicts) 
+    def __copy__(self):
+        return self.__class__(*self.dicts)
 
     def get(self, key, default=None):
         try:
@@ -42,20 +39,35 @@ class MergeDict(object):
 
     def has_key(self, key):
         for dict in self.dicts:
-            if dict.has_key(key):
+            if key in dict:
                 return True
         return False
-        
-    def copy(self): 
-        """ returns a copy of this object""" 
+
+    __contains__ = has_key
+
+    def copy(self):
+        """Returns a copy of this object."""
         return self.__copy__()
 
 class SortedDict(dict):
-    "A dictionary that keeps its keys in the order in which they're inserted."
+    """
+    A dictionary that keeps its keys in the order in which they're inserted.
+    """
     def __init__(self, data=None):
-        if data is None: data = {}
+        if data is None:
+            data = {}
         dict.__init__(self, data)
-        self.keyOrder = data.keys()
+        if isinstance(data, dict):
+            self.keyOrder = data.keys()
+        else:
+            self.keyOrder = [key for key, value in data]
+
+    def __deepcopy__(self,memo):
+        from copy import deepcopy
+        obj = self.__class__()
+        for k, v in self.items():
+            obj[k] = deepcopy(v, memo)
+        return obj
 
     def __setitem__(self, key, value):
         dict.__setitem__(self, key, value)
@@ -70,14 +82,39 @@ class SortedDict(dict):
         for k in self.keyOrder:
             yield k
 
+    def pop(self, k, *args):
+        result = dict.pop(self, k, *args)
+        try:
+            self.keyOrder.remove(k)
+        except ValueError:
+            # Key wasn't in the dictionary in the first place. No problem.
+            pass
+        return result
+
+    def popitem(self):
+        result = dict.popitem(self)
+        self.keyOrder.remove(result[0])
+        return result
+
     def items(self):
         return zip(self.keyOrder, self.values())
+
+    def iteritems(self):
+        for key in self.keyOrder:
+            yield key, dict.__getitem__(self, key)
 
     def keys(self):
         return self.keyOrder[:]
 
+    def iterkeys(self):
+        return iter(self.keyOrder)
+
     def values(self):
         return [dict.__getitem__(self, k) for k in self.keyOrder]
+
+    def itervalues(self):
+        for key in self.keyOrder:
+            yield dict.__getitem__(self, key)
 
     def update(self, dict):
         for k, v in dict.items():
@@ -89,22 +126,40 @@ class SortedDict(dict):
         return dict.setdefault(self, key, default)
 
     def value_for_index(self, index):
-        "Returns the value of the item at the given zero-based index."
+        """Returns the value of the item at the given zero-based index."""
         return self[self.keyOrder[index]]
 
+    def insert(self, index, key, value):
+        """Inserts the key, value pair before the item with the given index."""
+        if key in self.keyOrder:
+            n = self.keyOrder.index(key)
+            del self.keyOrder[n]
+            if n < index:
+                index -= 1
+        self.keyOrder.insert(index, key)
+        dict.__setitem__(self, key, value)
+
     def copy(self):
-        "Returns a copy of this object."
+        """Returns a copy of this object."""
         # This way of initializing the copy means it works for subclasses, too.
         obj = self.__class__(self)
         obj.keyOrder = self.keyOrder
         return obj
+
+    def __repr__(self):
+        """
+        Replaces the normal dict.__repr__ with a version that returns the keys
+        in their sorted order.
+        """
+        return '{%s}' % ', '.join(['%r: %r' % (k, v) for k, v in self.items()])
 
 class MultiValueDictKeyError(KeyError):
     pass
 
 class MultiValueDict(dict):
     """
-    A subclass of dictionary customized to handle multiple values for the same key.
+    A subclass of dictionary customized to handle multiple values for the
+    same key.
 
     >>> d = MultiValueDict({'name': ['Adrian', 'Simon'], 'position': ['Developer']})
     >>> d['name']
@@ -123,7 +178,7 @@ class MultiValueDict(dict):
         dict.__init__(self, key_to_list_mapping)
 
     def __repr__(self):
-        return "<MultiValueDict: %s>" % dict.__repr__(self)
+        return "<%s: %s>" % (self.__class__.__name__, dict.__repr__(self))
 
     def __getitem__(self, key):
         """
@@ -147,15 +202,17 @@ class MultiValueDict(dict):
 
     def __deepcopy__(self, memo=None):
         import copy
-        if memo is None: memo = {}
+        if memo is None:
+            memo = {}
         result = self.__class__()
         memo[id(self)] = result
         for key, value in dict.items(self):
-            dict.__setitem__(result, copy.deepcopy(key, memo), copy.deepcopy(value, memo))
+            dict.__setitem__(result, copy.deepcopy(key, memo),
+                             copy.deepcopy(value, memo))
         return result
 
     def get(self, key, default=None):
-        "Returns the default value if the requested data doesn't exist"
+        """Returns the default value if the requested data doesn't exist."""
         try:
             val = self[key]
         except KeyError:
@@ -165,7 +222,7 @@ class MultiValueDict(dict):
         return val
 
     def getlist(self, key):
-        "Returns an empty list if the requested data doesn't exist"
+        """Returns an empty list if the requested data doesn't exist."""
         try:
             return dict.__getitem__(self, key)
         except KeyError:
@@ -185,7 +242,7 @@ class MultiValueDict(dict):
         return self.getlist(key)
 
     def appendlist(self, key, value):
-        "Appends an item to the internal list associated with key"
+        """Appends an item to the internal list associated with key."""
         self.setlistdefault(key, [])
         dict.__setitem__(self, key, self.getlist(key) + [value])
 
@@ -197,21 +254,24 @@ class MultiValueDict(dict):
         return [(key, self[key]) for key in self.keys()]
 
     def lists(self):
-        "Returns a list of (key, list) pairs."
+        """Returns a list of (key, list) pairs."""
         return dict.items(self)
 
     def values(self):
-        "Returns a list of the last value on every key list."
+        """Returns a list of the last value on every key list."""
         return [self[key] for key in self.keys()]
 
     def copy(self):
-        "Returns a copy of this object."
+        """Returns a copy of this object."""
         return self.__deepcopy__()
 
     def update(self, *args, **kwargs):
-        "update() extends rather than replaces existing key lists. Also accepts keyword args."
+        """
+        update() extends rather than replaces existing key lists.
+        Also accepts keyword args.
+        """
         if len(args) > 1:
-            raise TypeError, "update expected at most 1 arguments, got %d", len(args)
+            raise TypeError, "update expected at most 1 arguments, got %d" % len(args)
         if args:
             other_dict = args[0]
             if isinstance(other_dict, MultiValueDict):
@@ -232,22 +292,20 @@ class DotExpandedDict(dict):
     may contain dots to specify inner dictionaries. It's confusing, but this
     example should make sense.
 
-    >>> d = DotExpandedDict({'person.1.firstname': ['Simon'],
-            'person.1.lastname': ['Willison'],
-            'person.2.firstname': ['Adrian'],
+    >>> d = DotExpandedDict({'person.1.firstname': ['Simon'], \
+            'person.1.lastname': ['Willison'], \
+            'person.2.firstname': ['Adrian'], \
             'person.2.lastname': ['Holovaty']})
     >>> d
-    {'person': {'1': {'lastname': ['Willison'], 'firstname': ['Simon']},
-    '2': {'lastname': ['Holovaty'], 'firstname': ['Adrian']}}}
+    {'person': {'1': {'lastname': ['Willison'], 'firstname': ['Simon']}, '2': {'lastname': ['Holovaty'], 'firstname': ['Adrian']}}}
     >>> d['person']
-    {'1': {'firstname': ['Simon'], 'lastname': ['Willison'],
-    '2': {'firstname': ['Adrian'], 'lastname': ['Holovaty']}
+    {'1': {'lastname': ['Willison'], 'firstname': ['Simon']}, '2': {'lastname': ['Holovaty'], 'firstname': ['Adrian']}}
     >>> d['person']['1']
-    {'firstname': ['Simon'], 'lastname': ['Willison']}
+    {'lastname': ['Willison'], 'firstname': ['Simon']}
 
     # Gotcha: Results are unpredictable if the dots are "uneven":
     >>> DotExpandedDict({'c.1': 2, 'c.2': 3, 'c': 1})
-    >>> {'c': 1}
+    {'c': 1}
     """
     def __init__(self, key_to_list_mapping):
         for k, v in key_to_list_mapping.items():
@@ -260,3 +318,15 @@ class DotExpandedDict(dict):
                 current[bits[-1]] = v
             except TypeError: # Special-case if current isn't a dict.
                 current = {bits[-1] : v}
+
+class FileDict(dict):
+    """
+    A dictionary used to hold uploaded file contents. The only special feature
+    here is that repr() of this object won't dump the entire contents of the
+    file to the output. A handy safeguard for a large file upload.
+    """
+    def __repr__(self):
+        if 'content' in self:
+            d = dict(self, content='<omitted>')
+            return dict.__repr__(d)
+        return dict.__repr__(self)

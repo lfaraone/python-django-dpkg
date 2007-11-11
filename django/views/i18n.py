@@ -9,20 +9,26 @@ def set_language(request):
     """
     Redirect to a given url while setting the chosen language in the
     session or cookie. The url and the language code need to be
-    specified in the GET parameters.
+    specified in the request parameters.
+
+    Since this view changes how the user will see the rest of the site, it must
+    only be accessed as a POST request. If called as a GET request, it will
+    redirect to the page in the request (the 'next' parameter) without changing
+    any state.
     """
-    lang_code = request.GET.get('language', None)
-    next = request.GET.get('next', None)
+    next = request.REQUEST.get('next', None)
     if not next:
         next = request.META.get('HTTP_REFERER', None)
     if not next:
         next = '/'
     response = http.HttpResponseRedirect(next)
-    if lang_code and check_for_language(lang_code):
-        if hasattr(request, 'session'):
-            request.session['django_language'] = lang_code
-        else:
-            response.set_cookie('django_language', lang_code)
+    if request.method == 'POST':
+        lang_code = request.POST.get('language', None)
+        if lang_code and check_for_language(lang_code):
+            if hasattr(request, 'session'):
+                request.session['django_language'] = lang_code
+            else:
+                response.set_cookie('django_language', lang_code)
     return response
 
 NullSource = """
@@ -69,9 +75,9 @@ function pluralidx(count) { return (count == 1) ? 0 : 1; }
 InterPolate = r"""
 function interpolate(fmt, obj, named) {
   if (named) {
-    return fmt.replace(/%\(\w+\)s/, function(match){return String(obj[match.slice(2,-2)])});
+    return fmt.replace(/%\(\w+\)s/g, function(match){return String(obj[match.slice(2,-2)])});
   } else {
-    return fmt.replace(/%s/, function(match){return String(obj.shift())});
+    return fmt.replace(/%s/g, function(match){return String(obj.shift())});
   }
 }
 """
@@ -97,7 +103,7 @@ def javascript_catalog(request, domain='djangojs', packages=None):
     deliver your JavaScript source from Django templates.
     """
     if request.GET:
-        if request.GET.has_key('language'):
+        if 'language' in request.GET:
             if check_for_language(request.GET['language']):
                 activate(request.GET['language'])
     if packages is None:
@@ -136,7 +142,7 @@ def javascript_catalog(request, domain='djangojs', packages=None):
                 t.update(catalog._catalog)
     src = [LibHead]
     plural = None
-    if t.has_key(''):
+    if '' in t:
         for l in t[''].split('\n'):
             if l.startswith('Plural-Forms:'):
                 plural = l.split(':',1)[1].strip()
@@ -155,7 +161,7 @@ def javascript_catalog(request, domain='djangojs', packages=None):
         if type(k) in (str, unicode):
             csrc.append("catalog['%s'] = '%s';\n" % (javascript_quote(k), javascript_quote(v)))
         elif type(k) == tuple:
-            if not pdict.has_key(k[0]):
+            if k[0] not in pdict:
                 pdict[k[0]] = k[1]
             else:
                 pdict[k[0]] = max(k[1], pdict[k[0]])
