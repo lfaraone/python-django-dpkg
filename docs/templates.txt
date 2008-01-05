@@ -2,9 +2,11 @@
 The Django template language: For template authors
 ==================================================
 
-This document explains the language syntax of the Django template system.  If
-you're looking for a more technical perspective on how it works and how to
-extend it, see `The Django template language: For Python programmers`_.
+.. admonition:: About this document
+
+    This document explains the language syntax of the Django template system. If
+    you're looking for a more technical perspective on how it works and how to
+    extend it, see `The Django template language: For Python programmers`_.
 
 Django's template language is designed to strike a balance between power and
 ease. It's designed to feel comfortable to those used to working with HTML. If
@@ -280,7 +282,9 @@ Here are some tips for working with inheritance:
     * If you need to get the content of the block from the parent template,
       the ``{{ block.super }}`` variable will do the trick. This is useful
       if you want to add to the contents of a parent block instead of
-      completely overriding it.
+      completely overriding it. Data inserted using ``{{ block.super }}`` will
+      not be automatically escaped (see the `next section`_), since it was
+      already escaped, if necessary, in the parent template.
 
     * For extra readability, you can optionally give a *name* to your
       ``{% endblock %}`` tag. For example::
@@ -298,6 +302,188 @@ name in the same template. This limitation exists because a block tag works in
 it also defines the content that fills the hole in the *parent*. If there were
 two similarly-named ``{% block %}`` tags in a template, that template's parent
 wouldn't know which one of the blocks' content to use.
+
+.. _next section: #automatic-html-escaping
+
+Automatic HTML escaping
+=======================
+
+**New in Django development version**
+
+When generating HTML from templates, there's always a risk that a variable will
+include characters that affect the resulting HTML. For example, consider this
+template fragment::
+
+    Hello, {{ name }}.
+
+At first, this seems like a harmless way to display a user's name, but consider
+what would happen if the user entered his name as this::
+
+    <script>alert('hello')</script>
+
+With this name value, the template would be rendered as::
+
+    Hello, <script>alert('hello')</script>
+
+...which means the browser would pop-up a JavaScript alert box!
+
+Similarly, what if the name contained a ``'<'`` symbol, like this?
+
+    <b>username
+
+That would result in a rendered template like this::
+
+    Hello, <b>username
+
+...which, in turn, would result in the remainder of the Web page being bolded!
+
+Clearly, user-submitted data shouldn't be trusted blindly and inserted directly
+into your Web pages, because a malicious user could use this kind of hole to
+do potentially bad things. This type of security exploit is called a
+`Cross Site Scripting`_ (XSS) attack.
+
+To avoid this problem, you have two options:
+
+    * One, you can make sure to run each untrusted variable through the
+      ``escape`` filter (documented below), which converts potentially harmful
+      HTML characters to unharmful ones. This was default the default solution
+      in Django for its first few years, but the problem is that it puts the
+      onus on *you*, the developer / template author, to ensure you're escaping
+      everything. It's easy to forget to escape data.
+
+    * Two, you can take advantage of Django's automatic HTML escaping. The
+      remainder of this section describes how auto-escaping works.
+
+By default in the Django development version, every template automatically
+escapes the output of every variable tag. Specifically, these five characters
+are escaped:
+
+    * ``<`` is converted to ``&lt;``
+    * ``>`` is converted to ``&gt;``
+    * ``'`` (single quote) is converted to ``&#39;``
+    * ``"`` (double quote) is converted to ``&quot;``
+    * ``&`` is converted to ``&amp;``
+
+Again, we stress that this behavior is on by default. If you're using Django's
+template system, you're protected.
+
+.. _Cross Site Scripting: http://en.wikipedia.org/wiki/Cross-site_scripting
+
+How to turn it off
+------------------
+
+If you don't want data to be auto-escaped, on a per-site, per-template level or
+per-variable level, you can turn it off in several ways.
+
+Why would you want to turn it off? Because sometimes, template variables
+contain data that you *intend* to be rendered as raw HTML, in which case you
+don't want their contents to be escaped. For example, you might store a blob of
+HTML in your database and want to embed that directly into your template. Or,
+you might be using Django's template system to produce text that is *not* HTML
+-- like an e-mail message, for instance.
+
+For individual variables
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+To disable auto-escaping for an individual variable, use the ``safe`` filter::
+
+    This will be escaped: {{ data }}
+    This will not be escaped: {{ data|safe }}
+
+Think of *safe* as shorthand for *safe from further escaping* or *can be
+safely interpreted as HTML*. In this example, if ``data`` contains ``'<b>'``,
+the output will be::
+
+    This will be escaped: &lt;b&gt;
+    This will not be escaped: <b>
+
+For template blocks
+~~~~~~~~~~~~~~~~~~~
+
+To control auto-escaping for a template, wrap the template (or just a
+particular section of the template) in the ``autoescape`` tag, like so::
+
+    {% autoescape off %}
+        Hello {{ name }}
+    {% endautoescape %}
+
+The ``autoescape`` tag takes either ``on`` or ``off`` as its argument. At
+times, you might want to force auto-escaping when it would otherwise be
+disabled. Here is an example template::
+
+    Auto-escaping is on by default. Hello {{ name }}
+
+    {% autoescape off %}
+        This will not be auto-escaped: {{ data }}.
+
+        Nor this: {{ other_data }}
+        {% autoescape on %}
+            Auto-escaping applies again: {{ name }}
+        {% endautoescape %}
+    {% endautoescape %}
+
+The auto-escaping tag passes its effect onto templates that extend the
+current one as well as templates included via the ``include`` tag, just like
+all block tags. For example::
+
+    # base.html
+
+    {% autoescape off %}
+    <h1>{% block title %}</h1>
+    {% block content %}
+    {% endautoescape %}
+
+
+    # child.html
+
+    {% extends "base.html" %}
+    {% block title %}This & that{% endblock %}
+    {% block content %}<b>Hello!</b>{% endblock %}
+
+Because auto-escaping is turned off in the base template, it will also be
+turned off in the child template, resulting in the following rendered HTML::
+
+    <h1>This & that</h1>
+    <b>Hello!</b>
+
+Notes
+-----
+
+Generally, template authors don't need to worry about auto-escaping very much.
+Developers on the Python side (people writing views and custom filters) need to
+think about the cases in which data shouldn't be escaped, and mark data
+appropriately, so things Just Work in the template.
+
+If you're creating a template that might be used in situations where you're
+not sure whether auto-escaping is enabled, then add an ``escape`` filter to any
+variable that needs escaping. When auto-escaping is on, there's no danger of
+the ``escape`` filter *double-escaping* data -- the ``escape`` filter does not
+affect auto-escaped variables.
+
+String literals and automatic escaping
+--------------------------------------
+
+As we mentioned earlier, filter arguments can be strings::
+
+    {{ data|default:"This is a string literal." }}
+
+All string literals are inserted **without** any automatic escaping into the
+template -- they act as if they were all passed through the ``safe`` filter.
+The reasoning behind this is that the template author is in control of what
+goes into the string literal, so they can make sure the text is correctly
+escaped when the template is written.
+
+This means you would write ::
+
+    {{ data|default:"3 &gt; 2" }}
+
+...rather than ::
+
+    {{ data|default:"3 > 2" }}  <-- Bad! Don't do this.
+
+This doesn't affect what happens to data coming from the variable itself.
+The variable's contents are still automatically escaped, if necessary, because
+they're beyond the control of the template author.
 
 Using the built-in reference
 ============================
@@ -373,6 +559,24 @@ available, and what they do.
 
 Built-in tag reference
 ----------------------
+
+autoescape
+~~~~~~~~~~
+
+**New in Django development version**
+
+Control the current auto-escaping behavior. This tag takes either ``on`` or
+``off`` as an argument and that determines whether auto-escaping is in effect
+inside the block.
+
+When auto-escaping is in effect, all variable content has HTML escaping applied
+to it before placing the result into the output (but after any filters have
+been applied). This is equivalent to manually applying the ``escape`` filter
+to each variable.
+
+The only exceptions are variables that are already marked as "safe" from
+escaping, either by the code that populated the variable, or because it has had
+the ``safe`` or ``escape`` filters applied.
 
 block
 ~~~~~
@@ -452,7 +656,7 @@ just like in variable syntax.
 
 Sample usage::
 
-    {% filter escape|lower %}
+    {% filter force_escape|lower %}
         This text will be HTML-escaped, and will appear in all lowercase.
     {% endfilter %}
 
@@ -1023,8 +1227,10 @@ Adds the arg to the value.
 addslashes
 ~~~~~~~~~~
 
-Adds slashes. Useful for passing strings to JavaScript, for example.
+Adds slashes before quotes. Useful for escaping strings in CSV, for example.
 
+**New in Django development version**: for escaping data in JavaScript strings,
+use the `escapejs` filter instead.
 
 capfirst
 ~~~~~~~~
@@ -1076,13 +1282,36 @@ Returns true if the value is divisible by the argument.
 escape
 ~~~~~~
 
+**New in Django development version:** The behaviour of this filter has
+changed slightly in the development version (the affects are only applied
+once, after all other filters).
+
 Escapes a string's HTML. Specifically, it makes these replacements:
 
-    * ``"&"`` to ``"&amp;"``
-    * ``<`` to ``"&lt;"``
-    * ``>`` to ``"&gt;"``
-    * ``'"'`` (double quote) to ``'&quot;'``
-    * ``"'"`` (single quote) to ``'&#39;'``
+    * ``<`` is converted to ``&lt;``
+    * ``>`` is converted to ``&gt;``
+    * ``'`` (single quote) is converted to ``&#39;``
+    * ``"`` (double quote) is converted to ``&quot;``
+    * ``&`` is converted to ``&amp;``
+
+The escaping is only applied when the string is output, so it does not matter
+where in a chained sequence of filters you put ``escape``: it will always be
+applied as though it were the last filter. If you want escaping to be applied
+immediately, use the ``force_escape`` filter.
+
+Applying ``escape`` to a variable that would normally have auto-escaping
+applied to the result will only result in one round of escaping being done. So
+it is safe to use this function even in auto-escaping environments. If you want
+multiple escaping passes to be applied, use the ``force_escape`` filter.
+
+escapejs
+~~~~~~~~
+
+**New in Django development version**
+
+Escapes characters for use in JavaScript strings. This does *not* make the
+string safe for use in HTML, but does protect you from syntax errors when using
+templates to generate JavaScript/JSON.
 
 filesizeformat
 ~~~~~~~~~~~~~~
@@ -1106,39 +1335,50 @@ floatformat
 When used without an argument, rounds a floating-point number to one decimal
 place -- but only if there's a decimal part to be displayed. For example:
 
-========  =======================  ======
-value     Template                 Output
-========  =======================  ======
-34.23234  {{ value|floatformat }}  34.2
-34.00000  {{ value|floatformat }}  34
-34.26000  {{ value|floatformat }}  34.3
-========  =======================  ======
+============  ===========================  ========
+``value``     Template                     Output
+============  ===========================  ========
+``34.23234``  ``{{ value|floatformat }}``  ``34.2``
+``34.00000``  ``{{ value|floatformat }}``  ``34``
+``34.26000``  ``{{ value|floatformat }}``  ``34.3``
+============  ===========================  ========
 
 If used with a numeric integer argument, ``floatformat`` rounds a number to
-that many decimal places.  For example:
+that many decimal places. For example:
 
-========  =========================  ======
-value     Template                   Output
-========  =========================  ======
-34.23234  {{ value|floatformat:3 }}  34.232
-34.00000  {{ value|floatformat:3 }}  34.000
-34.26000  {{ value|floatformat:3 }}  34.260
-========  =========================  ======
+============  =============================  ==========
+``value``     Template                       Output
+============  =============================  ==========
+``34.23234``  ``{{ value|floatformat:3 }}``  ``34.232``
+``34.00000``  ``{{ value|floatformat:3 }}``  ``34.000``
+``34.26000``  ``{{ value|floatformat:3 }}``  ``34.260``
+============  =============================  ==========
 
 If the argument passed to ``floatformat`` is negative, it will round a number
 to that many decimal places -- but only if there's a decimal part to be
 displayed. For example:
 
-========  ============================  ======
-value     Template                      Output
-========  ============================  ======
-34.23234  {{ value|floatformat:"-3" }}  34.232
-34.00000  {{ value|floatformat:"-3" }}  34
-34.26000  {{ value|floatformat:"-3" }}  34.260
-========  ============================  ======
+============  ================================  ==========
+``value``     Template                          Output
+============  ================================  ==========
+``34.23234``  ``{{ value|floatformat:"-3" }}``  ``34.232``
+``34.00000``  ``{{ value|floatformat:"-3" }}``  ``34``
+``34.26000``  ``{{ value|floatformat:"-3" }}``  ``34.260``
+============  ================================  ==========
 
 Using ``floatformat`` with no argument is equivalent to using ``floatformat``
 with an argument of ``-1``.
+
+force_escape
+~~~~~~~~~~~~
+
+**New in Django development version**
+
+Applies HTML escaping to a string (see the ``escape`` filter for details).
+This filter is applied *immediately* and returns a new, escaped string. This
+is useful in the rare cases where you need multiple escaping or want to apply
+other filters to the escaped results. Normally, you want to use the ``escape``
+filter.
 
 get_digit
 ~~~~~~~~~
@@ -1263,6 +1503,12 @@ rjust
 Right-aligns the value in a field of a given width.
 
 **Argument:** field size
+
+safe
+~~~~
+
+Marks a string as not requiring further HTML escaping prior to output. When
+autoescaping is off, this filter has no effect.
 
 slice
 ~~~~~

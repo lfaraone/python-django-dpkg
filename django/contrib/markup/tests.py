@@ -1,8 +1,10 @@
 # Quick tests for the markup templatetags (django.contrib.markup)
 
-from django.template import Template, Context, add_to_builtins
 import re
 import unittest
+
+from django.template import Template, Context, add_to_builtins
+from django.utils.html import escape
 
 add_to_builtins('django.contrib.markup.templatetags.markup')
 
@@ -24,7 +26,7 @@ Paragraph 2 with "quotes" and @code@"""
 
 <p>Paragraph 2 with &#8220;quotes&#8221; and <code>code</code></p>""")
         else:
-            self.assertEqual(rendered, textile_content)
+            self.assertEqual(rendered, escape(textile_content))
 
     def test_markdown(self):
         try:
@@ -59,8 +61,15 @@ Paragraph 2 with a link_
         t = Template("{{ rest_content|restructuredtext }}")
         rendered = t.render(Context(locals())).strip()
         if docutils:
-            self.assertEqual(rendered, """<p>Paragraph 1</p>
+            # Different versions of docutils return slightly different HTML
+            try:
+                # Docutils v0.4 and earlier
+                self.assertEqual(rendered, """<p>Paragraph 1</p>
 <p>Paragraph 2 with a <a class="reference" href="http://www.example.com/">link</a></p>""")
+            except AssertionError, e:
+                # Docutils from SVN (which will become 0.5)
+                self.assertEqual(rendered, """<p>Paragraph 1</p>
+<p>Paragraph 2 with a <a class="reference external" href="http://www.example.com/">link</a></p>""")
         else:
             self.assertEqual(rendered, rest_content)
 

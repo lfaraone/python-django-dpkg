@@ -14,8 +14,24 @@ from django.template import get_library, Library, InvalidTemplateLibrary
 from django.conf import settings
 from django.utils.encoding import smart_str, smart_unicode
 from django.utils.itercompat import groupby
+from django.utils.safestring import mark_safe
 
 register = Library()
+
+class AutoEscapeControlNode(Node):
+    """Implements the actions of the autoescape tag."""
+    def __init__(self, setting, nodelist):
+        self.setting, self.nodelist = setting, nodelist
+
+    def render(self, context):
+        old_setting = context.autoescape
+        context.autoescape = self.setting
+        output = self.nodelist.render(context)
+        context.autoescape = old_setting
+        if self.setting:
+            return mark_safe(output)
+        else:
+            return output
 
 class CommentNode(Node):
     def render(self, context):
@@ -68,19 +84,16 @@ class FirstOfNode(Node):
         return u''
 
 class ForNode(Node):
-    def __init__(self, loopvars, sequence, reversed, nodelist_loop):
+    def __init__(self, loopvars, sequence, is_reversed, nodelist_loop):
         self.loopvars, self.sequence = loopvars, sequence
-        self.reversed = reversed
+        self.is_reversed = is_reversed
         self.nodelist_loop = nodelist_loop
 
     def __repr__(self):
-        if self.reversed:
-            reversed = ' reversed'
-        else:
-            reversed = ''
+        reversed_text = self.is_reversed and ' reversed' or ''
         return "<For Node: for %s in %s, tail_len: %d%s>" % \
             (', '.join(self.loopvars), self.sequence, len(self.nodelist_loop),
-             reversed)
+             reversed_text)
 
     def __iter__(self):
         for node in self.nodelist_loop:
@@ -109,22 +122,23 @@ class ForNode(Node):
         if not hasattr(values, '__len__'):
             values = list(values)
         len_values = len(values)
-        if self.reversed:
+        if self.is_reversed:
             values = reversed(values)
         unpack = len(self.loopvars) > 1
+        # Create a forloop value in the context.  We'll update counters on each
+        # iteration just below.
+        loop_dict = context['forloop'] = {'parentloop': parentloop}
         for i, item in enumerate(values):
-            context['forloop'] = {
-                # Shortcuts for current loop iteration number.
-                'counter0': i,
-                'counter': i+1,
-                # Reverse counter iteration numbers.
-                'revcounter': len_values - i,
-                'revcounter0': len_values - i - 1,
-                # Boolean values designating first and last times through loop.
-                'first': (i == 0),
-                'last': (i == len_values - 1),
-                'parentloop': parentloop,
-            }
+            # Shortcuts for current loop iteration number.
+            loop_dict['counter0'] = i
+            loop_dict['counter'] = i+1
+            # Reverse counter iteration numbers.
+            loop_dict['revcounter'] = len_values - i
+            loop_dict['revcounter0'] = len_values - i - 1
+            # Boolean values designating first and last times through loop.
+            loop_dict['first'] = (i == 0)
+            loop_dict['last'] = (i == len_values - 1)
+
             if unpack:
                 # If there are multiple loop variables, unpack the item into
                 # them.
@@ -393,6 +407,22 @@ class WithNode(Node):
         return output
 
 #@register.tag
+def autoescape(parser, token):
+    """
+    Force autoescape behaviour for this block.
+    """
+    args = token.contents.split()
+    if len(args) != 2:
+        raise TemplateSyntaxError("'Autoescape' tag requires exactly one argument.")
+    arg = args[1]
+    if arg not in (u'on', u'off'):
+        raise TemplateSyntaxError("'Autoescape' argument should be 'on' or 'off'")
+    nodelist = parser.parse(('endautoescape',))
+    parser.delete_first_token()
+    return AutoEscapeControlNode((arg == 'on'), nodelist)
+autoescape = register.tag(autoescape)
+
+#@register.tag
 def comment(parser, token):
     """
     Ignores everything between ``{% comment %}`` and ``{% endcomment %}``.
@@ -492,12 +522,15 @@ def do_filter(parser, token):
 
     Sample usage::
 
-        {% filter escape|lower %}
+        {% filter force_escape|lower %}
             This text will be HTML-escaped, and will appear in lowercase.
         {% endfilter %}
     """
     _, rest = token.contents.split(None, 1)
     filter_expr = parser.compile_filter("var|%s" % (rest))
+    for func, unused in filter_expr.filters:
+        if getattr(func, '_decorated_function', func).__name__ in ('escape', 'safe'):
+            raise TemplateSyntaxError('"filter %s" is not permitted.  Use the "autoescape" tag instead.' % func.__name__)
     nodelist = parser.parse(('endfilter',))
     parser.delete_first_token()
     return FilterNode(filter_expr, nodelist)
@@ -584,8 +617,8 @@ def do_for(parser, token):
         raise TemplateSyntaxError("'for' statements should have at least four"
                                   " words: %s" % token.contents)
 
-    reversed = bits[-1] == 'reversed'
-    in_index = reversed and -3 or -2
+    is_reversed = bits[-1] == 'reversed'
+    in_index = is_reversed and -3 or -2
     if bits[in_index] != 'in':
         raise TemplateSyntaxError("'for' statements should use the format"
                                   " 'for x in y': %s" % token.contents)
@@ -599,7 +632,7 @@ def do_for(parser, token):
     sequence = parser.compile_filter(bits[in_index+1])
     nodelist_loop = parser.parse(('endfor',))
     parser.delete_first_token()
-    return ForNode(loopvars, sequence, reversed, nodelist_loop)
+    return ForNode(loopvars, sequence, is_reversed, nodelist_loop)
 do_for = register.tag("for", do_for)
 
 def do_ifequal(parser, token, negate):
@@ -779,7 +812,7 @@ def ssi(parser, token):
     Outputs the contents of a given file into the page.
 
     Like a simple "include" tag, the ``ssi`` tag includes the contents
-    of another file -- which must be specified using an absolute page --
+    of another file -- which must be specified using an absolute path --
     in the current page::
 
         {% ssi /home/html/ljworld.com/includes/right_generic.html %}

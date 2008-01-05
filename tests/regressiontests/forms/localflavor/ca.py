@@ -147,6 +147,10 @@ u'BC'
 u'NS'
 >>> f.clean('  manitoba ')
 u'MB'
+>>> f.clean(' new brunswick ')
+u'NB'
+>>> f.clean('NB')
+u'NB'
 >>> f.clean('T2S 2H7')
 Traceback (most recent call last):
 ...
@@ -209,13 +213,13 @@ u'046-454-286'
 >>> f.clean('046-454-287')
 Traceback (most recent call last):
 ...
-ValidationError: [u'Enter a valid Canadian Social Insurance number in XXX-XXX-XXXX format.']
+ValidationError: [u'Enter a valid Canadian Social Insurance number in XXX-XXX-XXX format.']
 >>> f.clean('046 454 286')
 Traceback (most recent call last):
 ...
-ValidationError: [u'Enter a valid Canadian Social Insurance number in XXX-XXX-XXXX format.']
+ValidationError: [u'Enter a valid Canadian Social Insurance number in XXX-XXX-XXX format.']
 >>> f.clean('046-44-286')
 Traceback (most recent call last):
 ...
-ValidationError: [u'Enter a valid Canadian Social Insurance number in XXX-XXX-XXXX format.']
+ValidationError: [u'Enter a valid Canadian Social Insurance number in XXX-XXX-XXX format.']
 """

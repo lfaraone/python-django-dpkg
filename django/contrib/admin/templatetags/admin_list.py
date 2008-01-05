@@ -4,8 +4,9 @@ from django.contrib.admin.views.main import ORDER_VAR, ORDER_TYPE_VAR, PAGE_VAR,
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 from django.utils import dateformat
-from django.utils.html import escape
+from django.utils.html import escape, conditional_escape
 from django.utils.text import capfirst
+from django.utils.safestring import mark_safe
 from django.utils.translation import get_date_formats, get_partial_date_formats, ugettext as _
 from django.utils.encoding import smart_unicode, smart_str, force_unicode
 from django.template import Library
@@ -19,9 +20,9 @@ def paginator_number(cl,i):
     if i == DOT:
         return u'... '
     elif i == cl.page_num:
-        return u'<span class="this-page">%d</span> ' % (i+1)
+        return mark_safe(u'<span class="this-page">%d</span> ' % (i+1))
     else:
-        return u'<a href="%s"%s>%d</a> ' % (cl.get_query_string({PAGE_VAR: i}), (i == cl.paginator.pages-1 and ' class="end"' or ''), i+1)
+        return mark_safe(u'<a href="%s"%s>%d</a> ' % (cl.get_query_string({PAGE_VAR: i}), (i == cl.paginator.pages-1 and ' class="end"' or ''), i+1))
 paginator_number = register.simple_tag(paginator_number)
 
 def pagination(cl):
@@ -113,11 +114,11 @@ def result_headers(cl):
         yield {"text": header,
                "sortable": True,
                "url": cl.get_query_string({ORDER_VAR: i, ORDER_TYPE_VAR: new_order_type}),
-               "class_attrib": (th_classes and ' class="%s"' % ' '.join(th_classes) or '')}
+               "class_attrib": mark_safe(th_classes and ' class="%s"' % ' '.join(th_classes) or '')}
 
 def _boolean_icon(field_val):
     BOOLEAN_MAPPING = {True: 'yes', False: 'no', None: 'unknown'}
-    return u'<img src="%simg/admin/icon-%s.gif" alt="%s" />' % (settings.ADMIN_MEDIA_PREFIX, BOOLEAN_MAPPING[field_val], field_val)
+    return mark_safe(u'<img src="%simg/admin/icon-%s.gif" alt="%s" />' % (settings.ADMIN_MEDIA_PREFIX, BOOLEAN_MAPPING[field_val], field_val))
 
 def items_for_result(cl, result):
     first = True
@@ -147,6 +148,8 @@ def items_for_result(cl, result):
                 # function has an "allow_tags" attribute set to True.
                 if not allow_tags:
                     result_repr = escape(result_repr)
+                else:
+                    result_repr = mark_safe(result_repr)
         else:
             field_val = getattr(result, f.attname)
 
@@ -184,7 +187,7 @@ def items_for_result(cl, result):
             else:
                 result_repr = escape(field_val)
         if force_unicode(result_repr) == '':
-            result_repr = '&nbsp;'
+            result_repr = mark_safe('&nbsp;')
         # If list_display_links not defined, add the link tag to the first field
         if (first and not cl.lookup_opts.admin.list_display_links) or field_name in cl.lookup_opts.admin.list_display_links:
             table_tag = {True:'th', False:'td'}[first]
@@ -193,10 +196,10 @@ def items_for_result(cl, result):
             # Convert the pk to something that can be used in Javascript.
             # Problem cases are long ints (23L) and non-ASCII strings.
             result_id = repr(force_unicode(getattr(result, pk)))[1:]
-            yield (u'<%s%s><a href="%s"%s>%s</a></%s>' % \
-                (table_tag, row_class, url, (cl.is_popup and ' onclick="opener.dismissRelatedLookupPopup(window, %s); return false;"' % result_id or ''), result_repr, table_tag))
+            yield mark_safe(u'<%s%s><a href="%s"%s>%s</a></%s>' % \
+                (table_tag, row_class, url, (cl.is_popup and ' onclick="opener.dismissRelatedLookupPopup(window, %s); return false;"' % result_id or ''), conditional_escape(result_repr), table_tag))
         else:
-            yield (u'<td%s>%s</td>' % (row_class, result_repr))
+            yield mark_safe(u'<td%s>%s</td>' % (row_class, conditional_escape(result_repr)))
 
 def results(cl):
     for res in cl.result_list:
@@ -220,7 +223,7 @@ def date_hierarchy(cl):
         day_lookup = cl.params.get(day_field)
         year_month_format, month_day_format = get_partial_date_formats()
 
-        link = lambda d: cl.get_query_string(d, [field_generic])
+        link = lambda d: mark_safe(cl.get_query_string(d, [field_generic]))
 
         if year_lookup and month_lookup and day_lookup:
             day = datetime.date(int(year_lookup), int(month_lookup), int(day_lookup))

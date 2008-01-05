@@ -132,6 +132,13 @@ If no application name is provided, all installed applications will be dumped.
 
 The output of ``dumpdata`` can be used as input for ``loaddata``.
 
+Note that ``dumpdata`` uses the default manager on the model for selecting the
+records to dump. If you're using a `custom manager`_ as the default manager
+and it filters some of the available records, not all of the objects will be
+dumped.
+
+.. _custom manager: ../model-api/#custom-managers
+
 --format
 ~~~~~~~~
 
@@ -184,9 +191,9 @@ is being executed as an unattended, automated script.
 Use ``--verbosity`` to specify the amount of notification and debug information
 that ``django-admin.py`` should print to the console.
 
-	* ``0`` means no input.
-	* ``1`` means normal input (default).
-	* ``2`` means verbose input.
+	* ``0`` means no output.
+	* ``1`` means normal output (default).
+	* ``2`` means verbose output.
 
 Example usage::
 
@@ -651,7 +658,7 @@ To run the test server on port 7000 with ``fixture1`` and ``fixture2``::
 that it doesn't matter whether the options come before or after the fixture
 arguments.)
 
-To run on 1.2.3.4:7000 with a `test` fixture::
+To run on 1.2.3.4:7000 with a ``test`` fixture::
 
     django-admin.py testserver --addrport 1.2.3.4:7000 test
 
@@ -709,8 +716,8 @@ in Python package syntax, e.g. ``mysite.settings``. If this isn't provided,
 ``django-admin.py`` will use the ``DJANGO_SETTINGS_MODULE`` environment
 variable.
 
-Note that this option is unnecessary in ``manage.py``, because it takes care of
-setting ``DJANGO_SETTINGS_MODULE`` for you.
+Note that this option is unnecessary in ``manage.py``, because it uses
+``settings.py`` from the current project by default. 
 
 Extra niceties
 ==============
