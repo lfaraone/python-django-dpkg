@@ -1,3 +1,19 @@
+python-django (0.96.1-2) unstable; urgency=low
+
+  [ Brett Parker ]
+  * Fix for postgres backend for version numbers that aren't purely numeric
+    Closes: #462058
+
+  [ Raphael Hertzog ]
+  * Updated Standards-Version to 3.7.3 (no changes).
+  * Switched XS-Vcs-Svn to Vcs-Svn. Added Vcs-Browser field.
+  * Moved project url from description into its own Homepage field.
+  * Adjusted build-dependency on python-setuptools (removed the "-1" to
+    facilitate backports).
+  * Install examples in /usr/share/doc/python-django/examples/.
+
+ -- Brett Parker <iDunno@sommitrealweird.co.uk>  Wed, 23 Jan 2008 22:14:34 +0000
+
 python-django (0.96.1-1) unstable; urgency=low
 
   * New upstream release with security fix for CVE-2007-5712
