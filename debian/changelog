@@ -1,3 +1,11 @@
+python-django (0.97~svn7047-1) experimental; urgency=low
+
+  * New upstream snapshot (rev 7047)
+  - tarball prepared by Gabriel Falcão Gonçalves de Moura
+    <gabriel@guake-terminal.org>
+
+ -- Gustavo Noronha Silva <kov@debian.org>  Tue, 29 Jan 2008 10:54:47 -0200
+
 python-django (0.97~svn6996-1) experimental; urgency=low
 
   * New upstream snapshot
