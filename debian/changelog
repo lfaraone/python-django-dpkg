@@ -1,3 +1,15 @@
+python-django (0.97~svn7047-2) experimental; urgency=low
+
+  [ Brett Parker ]
+  * Patch for postgresql version issue with 8.3 beta/rc releases
+    Closes: #462058
+
+  [ Raphael Hertzog ]
+  * Updated Standards-Version to 3.7.3.
+  * Adjusted build-dependency on python-setuptools to strip the -1 part.
+
+ -- Brett Parker <iDunno@sommitrealweird.co.uk>  Wed,  6 Feb 2008 15:15:37 +0000
+
 python-django (0.97~svn7047-1) experimental; urgency=low
 
   * New upstream snapshot (rev 7047)

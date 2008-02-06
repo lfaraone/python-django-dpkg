@@ -1,0 +1,26 @@
+--- django/db/backends/postgresql/operations.py.orig
++++ django/db/backends/postgresql/operations.py
+@@ -12,7 +12,22 @@ class DatabaseOperations(BaseDatabaseOperations):
+             from django.db import connection
+             cursor = connection.cursor()
+             cursor.execute("SELECT version()")
+-            self._postgres_version = [int(val) for val in cursor.fetchone()[0].split()[1].split('.')]
++            version_parts = cursor.fetchone()[0].split()[1].split('.')
++            postgres_version = []
++            for part in version_parts:
++                if part.isdigit():
++                    postgres_version.append(int(part))
++                else:
++                    digit = ""
++                    for c in part:
++                        if c.isdigit():
++                            digit += c
++                        else:
++                            break
++                    if digit != "":
++                        postgres_version.append(int(digit))
++                    break
++            self._postgres_version = postgres_version
+         return self._postgres_version
+     postgres_version = property(_get_postgres_version)
+
