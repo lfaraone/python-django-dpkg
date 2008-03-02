@@ -20,6 +20,19 @@
 >>> md2['chris']
 'cool'
 
+MergeDict can merge MultiValueDicts
+>>> multi1 = MultiValueDict({'key1': ['value1'], 'key2': ['value2', 'value3']})
+>>> multi2 = MultiValueDict({'key2': ['value4'], 'key4': ['value5', 'value6']})
+>>> mm = MergeDict(multi1, multi2)
+
+# Although 'key2' appears in both dictionaries, only the first value is used.
+>>> mm.getlist('key2')
+['value2', 'value3']
+>>> mm.getlist('key4')
+['value5', 'value6']
+>>> mm.getlist('undefined')
+[]
+
 ### MultiValueDict ##########################################################
 
 >>> d = MultiValueDict({'name': ['Adrian', 'Simon'], 'position': ['Developer']})
@@ -64,6 +77,8 @@ MultiValueDictKeyError: "Key 'lastname' not found in <MultiValueDict: {'position
 'not one'
 >>> d.keys() == d.copy().keys()
 True
+>>> d2 = d.copy()
+>>> d2['four'] = 'four'
 >>> print repr(d)
 {'one': 'not one', 'two': 'two', 'three': 'three'}
 >>> d.pop('one', 'missing')
@@ -85,6 +100,12 @@ Init from sequence of tuples
 ... (2, "two")))
 >>> print repr(d)
 {1: 'one', 0: 'zero', 2: 'two'}
+
+>>> d.clear()
+>>> d
+{}
+>>> d.keyOrder
+[]
 
 ### DotExpandedDict ############################################################
 

@@ -1,7 +1,5 @@
-import datetime
 import sys
 from cStringIO import StringIO
-from urlparse import urlparse
 from django.conf import settings
 from django.contrib.auth import authenticate, login
 from django.core.handlers.base import BaseHandler
@@ -262,7 +260,7 @@ class Client:
             self.cookies[settings.SESSION_COOKIE_NAME]['expires'] = None
 
             # Save the session values
-            request.session.save()   
+            request.session.save()
 
             return True
         else:
@@ -274,5 +272,5 @@ class Client:
         Causes the authenticated user to be logged out.
         """
         session = __import__(settings.SESSION_ENGINE, {}, {}, ['']).SessionStore()
-        session.delete(session_key=self.cookies['sessionid'].value)
+        session.delete(session_key=self.cookies[settings.SESSION_COOKIE_NAME].value)
         self.cookies = SimpleCookie()

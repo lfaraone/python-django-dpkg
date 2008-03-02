@@ -1,3 +1,10 @@
+python-django (0.97~svn7189-1) experimental; urgency=low
+
+  * New upstream snapshot including bash completion fix
+    Closes: #450913
+
+ -- Brett Parker <iDunno@sommitrealweird.co.uk>  Sun, 02 Mar 2008 12:59:03 +0000
+
 python-django (0.97~svn7047-2) experimental; urgency=low
 
   [ Brett Parker ]
