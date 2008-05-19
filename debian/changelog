@@ -1,3 +1,14 @@
+python-django (0.97~svn7534-1) experimental; urgency=low
+
+  * New upstream snapshot. Closes: #409565, #481051
+    - Include an XSS security fix (CVE-2008-2302). Closes: #481164
+  * Drop debian/patches/04_pg_version_fix.diff as another fix
+    has been committed upstream (see http://code.djangoproject.com/ticket/6433
+    and http://code.djangoproject.com/changeset/7415).
+  * Add some headers to the remaining patches.
+
+ -- Raphael Hertzog <hertzog@debian.org>  Mon, 19 May 2008 23:41:50 +0200
+
 python-django (0.97~svn7189-1) experimental; urgency=low
 
   * New upstream snapshot including bash completion fix

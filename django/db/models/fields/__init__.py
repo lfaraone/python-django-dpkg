@@ -1,3 +1,4 @@
+import copy
 import datetime
 import os
 import time
@@ -8,6 +9,7 @@ except ImportError:
 
 from django.db import get_creation_module
 from django.db.models import signals
+from django.db.models.query_utils import QueryWrapper
 from django.dispatch import dispatcher
 from django.conf import settings
 from django.core import validators
@@ -75,15 +77,19 @@ class Field(object):
     # database level.
     empty_strings_allowed = True
 
-    # Tracks each time a Field instance is created. Used to retain order.
+    # These track each time a Field instance is created. Used to retain order.
+    # The auto_creation_counter is used for fields that Django implicitly
+    # creates, creation_counter is used for all user-specified fields.
     creation_counter = 0
+    auto_creation_counter = -1
 
     def __init__(self, verbose_name=None, name=None, primary_key=False,
-        max_length=None, unique=False, blank=False, null=False, db_index=False,
-        core=False, rel=None, default=NOT_PROVIDED, editable=True, serialize=True,
-        prepopulate_from=None, unique_for_date=None, unique_for_month=None,
-        unique_for_year=None, validator_list=None, choices=None, radio_admin=None,
-        help_text='', db_column=None, db_tablespace=None):
+            max_length=None, unique=False, blank=False, null=False,
+            db_index=False, core=False, rel=None, default=NOT_PROVIDED,
+            editable=True, serialize=True, prepopulate_from=None,
+            unique_for_date=None, unique_for_month=None, unique_for_year=None,
+            validator_list=None, choices=None, radio_admin=None, help_text='',
+            db_column=None, db_tablespace=None, auto_created=False):
         self.name = name
         self.verbose_name = verbose_name
         self.primary_key = primary_key
@@ -109,13 +115,26 @@ class Field(object):
         # Set db_index to True if the field has a relationship and doesn't explicitly set db_index.
         self.db_index = db_index
 
-        # Increase the creation counter, and save our local copy.
-        self.creation_counter = Field.creation_counter
-        Field.creation_counter += 1
+        # Adjust the appropriate creation counter, and save our local copy.
+        if auto_created:
+            self.creation_counter = Field.auto_creation_counter
+            Field.auto_creation_counter -= 1
+        else:
+            self.creation_counter = Field.creation_counter
+            Field.creation_counter += 1
 
     def __cmp__(self, other):
         # This is needed because bisect does not take a comparison function.
         return cmp(self.creation_counter, other.creation_counter)
+
+    def __deepcopy__(self, memodict):
+        # We don't have to deepcopy very much here, since most things are not
+        # intended to be altered after initial creation.
+        obj = copy.copy(self)
+        if self.rel:
+            obj.rel = copy.copy(self.rel)
+        memodict[id(self)] = obj
+        return obj
 
     def to_python(self, value):
         """
@@ -145,11 +164,10 @@ class Field(object):
         # mapped to one of the built-in Django field types. In this case, you
         # can implement db_type() instead of get_internal_type() to specify
         # exactly which wacky database column type you want to use.
-        data_types = get_creation_module().DATA_TYPES
-        internal_type = self.get_internal_type()
-        if internal_type not in data_types:
+        try:
+            return get_creation_module().DATA_TYPES[self.get_internal_type()] % self.__dict__
+        except KeyError:
             return None
-        return data_types[internal_type] % self.__dict__
 
     def validate_full(self, field_data, all_data):
         """
@@ -209,6 +227,9 @@ class Field(object):
 
     def get_db_prep_lookup(self, lookup_type, value):
         "Returns field's value prepared for database lookup."
+        if hasattr(value, 'as_sql'):
+            sql, params = value.as_sql()
+            return QueryWrapper(('(%s)' % sql), params)
         if lookup_type in ('exact', 'regex', 'iregex', 'gt', 'gte', 'lt', 'lte', 'month', 'day', 'search'):
             return [value]
         elif lookup_type in ('range', 'in'):
@@ -230,9 +251,14 @@ class Field(object):
                 raise ValueError("The __year lookup type requires an integer argument")
             if settings.DATABASE_ENGINE == 'sqlite3':
                 first = '%s-01-01'
+                second = '%s-12-31 23:59:59.999999'
+            elif settings.DATABASE_ENGINE == 'oracle' and self.get_internal_type() == 'DateField':
+                first = '%s-01-01'
+                second = '%s-12-31'
             else:
                 first = '%s-01-01 00:00:00'
-            return [first % value, '%s-12-31 23:59:59.999999' % value]
+                second = '%s-12-31 23:59:59.999999'
+            return [first % value, second % value]
         raise TypeError("Field has invalid lookup: %s" % lookup_type)
 
     def has_default(self):
@@ -837,6 +863,16 @@ class FilePathField(Field):
         self.path, self.match, self.recursive = path, match, recursive
         kwargs['max_length'] = kwargs.get('max_length', 100)
         Field.__init__(self, verbose_name, name, **kwargs)
+    
+    def formfield(self, **kwargs):
+        defaults = {
+            'path': self.path,
+            'match': self.match,
+            'recursive': self.recursive,
+            'form_class': forms.FilePathField,
+        }
+        defaults.update(kwargs)
+        return super(FilePathField, self).formfield(**defaults)
 
     def get_manipulator_field_objs(self):
         return [curry(oldforms.FilePathField, path=self.path, match=self.match, recursive=self.recursive)]

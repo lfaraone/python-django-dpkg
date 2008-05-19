@@ -1,3 +1,11 @@
+Forwarded-Upstream: not needed
+Author: Brett Parker <iDunno@sommitrealweird.co.uk>
+Comment:
+ Update the manual page to speak of django-admin instead of
+ django-admin.py as that's the name used by the Debian package.
+ .
+ This is a Debian specific patch.
+
 --- docs/man/django-admin.1.orig	2007-09-08 10:47:27.516890257 +0100
 +++ docs/man/django-admin.1	2007-09-08 10:48:01.822845242 +0100
 @@ -1,9 +1,9 @@

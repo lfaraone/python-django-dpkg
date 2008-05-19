@@ -1,3 +1,13 @@
+Forwarded-Upstream: http://code.djangoproject.com/ticket/7268
+Author: Brett Parker <iDunno@sommitrealweird.co.uk>
+Comment: 
+ This change is required to make command line completion work for the
+ django-admin command. Upstream only recognizes django-admin.py and not
+ the variant without extension.
+ .
+ It's a Debian-specific modification to install django-admin.py as
+ /usr/bin/django-admin so this makes this patch also Debian specific.
+
 --- extras/django_bash_completion_orig
 +++ extras/django_bash_completion
 @@ -53,9 +53,10 @@ _django_completion()
