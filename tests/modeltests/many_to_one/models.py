@@ -1,7 +1,7 @@
 """
 4. Many-to-one relationships
 
-To define a many-to-one relationship, use ``ForeignKey()`` .
+To define a many-to-one relationship, use ``ForeignKey()``.
 """
 
 from django.db import models
@@ -46,8 +46,12 @@ __test__ = {'API_TESTS':"""
 
 # Article objects have access to their related Reporter objects.
 >>> r = a.reporter
+
+# These are strings instead of unicode strings because that's what was used in
+# the creation of this reporter (and we haven't refreshed the data from the
+# database, which always returns unicode strings).
 >>> r.first_name, r.last_name
-(u'John', u'Smith')
+('John', 'Smith')
 
 # Create an Article via the Reporter object.
 >>> new_article = r.article_set.create(headline="John's second story", pub_date=datetime(2005, 7, 29))
@@ -155,7 +159,7 @@ False
 [<Article: John's second story>, <Article: This is a test>]
 
 # And should work fine with the unicode that comes out of
-# newforms.Form.cleaned_data
+# forms.Form.cleaned_data
 >>> Article.objects.filter(reporter__first_name__exact='John').extra(where=["many_to_one_reporter.last_name='%s'" % u'Smith'])
 [<Article: John's second story>, <Article: This is a test>]
 
@@ -174,6 +178,12 @@ False
 [<Article: John's second story>, <Article: Paul's story>, <Article: This is a test>]
 >>> Article.objects.filter(reporter__in=[r,r2]).distinct()
 [<Article: John's second story>, <Article: Paul's story>, <Article: This is a test>]
+
+# You can also use a queryset instead of a literal list of instances.
+# The queryset must be reduced to a list of values using values(),
+# then converted into a query
+>>> Article.objects.filter(reporter__in=Reporter.objects.filter(first_name='John').values('pk').query).distinct()
+[<Article: John's second story>, <Article: This is a test>]
 
 # You need two underscores between "reporter" and "id" -- not one.
 >>> Article.objects.filter(reporter_id__exact=1)

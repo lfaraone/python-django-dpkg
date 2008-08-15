@@ -32,7 +32,7 @@ def data_create(pk, klass, data):
     instance = klass(id=pk)
     instance.data = data
     models.Model.save_base(instance, raw=True)
-    return instance
+    return [instance]
 
 def generic_create(pk, klass, data):
     instance = klass(id=pk)
@@ -40,31 +40,58 @@ def generic_create(pk, klass, data):
     models.Model.save_base(instance, raw=True)
     for tag in data[1:]:
         instance.tags.create(data=tag)
-    return instance
+    return [instance]
 
 def fk_create(pk, klass, data):
     instance = klass(id=pk)
     setattr(instance, 'data_id', data)
     models.Model.save_base(instance, raw=True)
-    return instance
+    return [instance]
 
 def m2m_create(pk, klass, data):
     instance = klass(id=pk)
     models.Model.save_base(instance, raw=True)
     instance.data = data
-    return instance
+    return [instance]
+
+def im2m_create(pk, klass, data):
+    instance = klass(id=pk)
+    models.Model.save_base(instance, raw=True)
+    return [instance]
+
+def im_create(pk, klass, data):
+    instance = klass(id=pk)
+    setattr(instance, 'right_id', data['right'])
+    setattr(instance, 'left_id', data['left'])
+    if 'extra' in data:
+        setattr(instance, 'extra', data['extra'])
+    models.Model.save_base(instance, raw=True)
+    return [instance]
 
 def o2o_create(pk, klass, data):
     instance = klass()
     instance.data_id = data
     models.Model.save_base(instance, raw=True)
-    return instance
+    return [instance]
 
 def pk_create(pk, klass, data):
     instance = klass()
     instance.data = data
     models.Model.save_base(instance, raw=True)
-    return instance
+    return [instance]
+
+def inherited_create(pk, klass, data):
+    instance = klass(id=pk,**data)
+    # This isn't a raw save because:
+    #  1) we're testing inheritance, not field behaviour, so none
+    #     of the field values need to be protected.
+    #  2) saving the child class and having the parent created
+    #     automatically is easier than manually creating both.
+    models.Model.save(instance)
+    created = [instance]
+    for klass,field in instance._meta.parents.items():
+        created.append(klass.objects.get(id=pk))
+    return created
 
 # A set of functions that can be used to compare
 # test data objects of various kinds
@@ -86,6 +113,19 @@ def m2m_compare(testcase, pk, klass, data):
     instance = klass.objects.get(id=pk)
     testcase.assertEqual(data, [obj.id for obj in instance.data.all()])
 
+def im2m_compare(testcase, pk, klass, data):
+    instance = klass.objects.get(id=pk)
+    #actually nothing else to check, the instance just should exist
+
+def im_compare(testcase, pk, klass, data):
+    instance = klass.objects.get(id=pk)
+    testcase.assertEqual(data['left'], instance.left_id)
+    testcase.assertEqual(data['right'], instance.right_id)
+    if 'extra' in data:
+        testcase.assertEqual(data['extra'], instance.extra)
+    else:
+        testcase.assertEqual("doesn't matter", instance.extra)
+
 def o2o_compare(testcase, pk, klass, data):
     instance = klass.objects.get(data=data)
     testcase.assertEqual(data, instance.data_id)
@@ -94,6 +134,11 @@ def pk_compare(testcase, pk, klass, data):
     instance = klass.objects.get(data=data)
     testcase.assertEqual(data, instance.data)
 
+def inherited_compare(testcase, pk, klass, data):
+    instance = klass.objects.get(id=pk)
+    for key,value in data.items():
+        testcase.assertEqual(value, getattr(instance,key))
+
 # Define some data types. Each data type is
 # actually a pair of functions; one to create
 # and one to compare objects of that type
@@ -101,8 +146,11 @@ data_obj = (data_create, data_compare)
 generic_obj = (generic_create, generic_compare)
 fk_obj = (fk_create, fk_compare)
 m2m_obj = (m2m_create, m2m_compare)
+im2m_obj = (im2m_create, im2m_compare)
+im_obj = (im_create, im_compare)
 o2o_obj = (o2o_create, o2o_compare)
 pk_obj = (pk_create, pk_compare)
+inherited_obj = (inherited_create, inherited_compare)
 
 test_data = [
     # Format: (data type, PK value, Model Class, data)
@@ -125,7 +173,7 @@ test_data = [
     (data_obj, 41, EmailData, None),
     (data_obj, 42, EmailData, ""),
     (data_obj, 50, FileData, 'file:///foo/bar/whiz.txt'),
-    (data_obj, 51, FileData, None),
+#     (data_obj, 51, FileData, None),
     (data_obj, 52, FileData, ""),
     (data_obj, 60, FilePathData, "/foo/bar/whiz.txt"),
     (data_obj, 61, FilePathData, None),
@@ -212,6 +260,20 @@ The end."""),
     (fk_obj, 452, FKDataToField, None),
 
     (fk_obj, 460, FKDataToO2O, 300),
+    
+    (im2m_obj, 470, M2MIntermediateData, None),
+    
+    #testing post- and prereferences and extra fields
+    (im_obj, 480, Intermediate, {'right': 300, 'left': 470}),
+    (im_obj, 481, Intermediate, {'right': 300, 'left': 490}), 
+    (im_obj, 482, Intermediate, {'right': 500, 'left': 470}), 
+    (im_obj, 483, Intermediate, {'right': 500, 'left': 490}), 
+    (im_obj, 484, Intermediate, {'right': 300, 'left': 470, 'extra': "extra"}), 
+    (im_obj, 485, Intermediate, {'right': 300, 'left': 490, 'extra': "extra"}), 
+    (im_obj, 486, Intermediate, {'right': 500, 'left': 470, 'extra': "extra"}), 
+    (im_obj, 487, Intermediate, {'right': 500, 'left': 490, 'extra': "extra"}), 
+    
+    (im2m_obj, 490, M2MIntermediateData, []),
 
     (data_obj, 500, Anchor, "Anchor 3"),
     (data_obj, 501, Anchor, "Anchor 4"),
@@ -223,7 +285,7 @@ The end."""),
 #     (pk_obj, 620, DatePKData, datetime.date(2006,6,16)),
 #     (pk_obj, 630, DateTimePKData, datetime.datetime(2006,6,16,10,42,37)),
     (pk_obj, 640, EmailPKData, "hovercraft@example.com"),
-    (pk_obj, 650, FilePKData, 'file:///foo/bar/whiz.txt'),
+#     (pk_obj, 650, FilePKData, 'file:///foo/bar/whiz.txt'),
     (pk_obj, 660, FilePathPKData, "/foo/bar/whiz.txt"),
     (pk_obj, 670, DecimalPKData, decimal.Decimal('12.345')),
     (pk_obj, 671, DecimalPKData, decimal.Decimal('-12.345')),
@@ -255,6 +317,10 @@ The end."""),
 
     (data_obj, 800, AutoNowDateTimeData, datetime.datetime(2006,6,16,10,42,37)),
     (data_obj, 810, ModifyingSaveData, 42),
+
+    (inherited_obj, 900, InheritAbstractModel, {'child_data':37,'parent_data':42}),
+    (inherited_obj, 910, ExplicitInheritBaseModel, {'child_data':37,'parent_data':42}),
+    (inherited_obj, 920, InheritBaseModel, {'child_data':37,'parent_data':42}),
 ]
 
 # Because Oracle treats the empty string as NULL, Oracle is expected to fail
@@ -277,12 +343,20 @@ def serializerTest(format, self):
 
     # Create all the objects defined in the test data
     objects = []
+    instance_count = {}
     transaction.enter_transaction_management()
-    transaction.managed(True)
-    for (func, pk, klass, datum) in test_data:
-        objects.append(func[0](pk, klass, datum))
-    transaction.commit()
-    transaction.leave_transaction_management()
+    try:
+        transaction.managed(True)
+        for (func, pk, klass, datum) in test_data:
+            objects.extend(func[0](pk, klass, datum))
+            instance_count[klass] = 0
+        transaction.commit()
+    finally:
+        transaction.leave_transaction_management()
+
+    # Get a count of the number of objects created for each class
+    for klass in instance_count:
+        instance_count[klass] = klass.objects.count()
 
     # Add the generic tagged objects to the object list
     objects.extend(Tag.objects.all())
@@ -293,16 +367,23 @@ def serializerTest(format, self):
     # Flush the database and recreate from the serialized data
     management.call_command('flush', verbosity=0, interactive=False)
     transaction.enter_transaction_management()
-    transaction.managed(True)
-    for obj in serializers.deserialize(format, serialized_data):
-        obj.save()
-    transaction.commit()
-    transaction.leave_transaction_management()
+    try:
+        transaction.managed(True)
+        for obj in serializers.deserialize(format, serialized_data):
+            obj.save()
+        transaction.commit()
+    finally:
+        transaction.leave_transaction_management()
 
     # Assert that the deserialized data is the same
     # as the original source
     for (func, pk, klass, datum) in test_data:
         func[1](self, pk, klass, datum)
+
+    # Assert that the number of objects deserialized is the
+    # same as the number that was serialized.
+    for klass, count in instance_count.items():
+        self.assertEquals(count, klass.objects.count())
 
 def fieldsTest(format, self):
     # Clear the database first

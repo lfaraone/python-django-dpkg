@@ -3,13 +3,25 @@ Various complex queries that have been problematic in the past.
 """
 
 import datetime
+import pickle
+import sys
 
 from django.db import models
-from django.db.models.query import Q
+from django.db.models.query import Q, ITER_CHUNK_SIZE
+
+# Python 2.3 doesn't have sorted()
+try:
+    sorted
+except NameError:
+    from django.utils.itercompat import sorted
 
 class Tag(models.Model):
     name = models.CharField(max_length=10)
-    parent = models.ForeignKey('self', blank=True, null=True)
+    parent = models.ForeignKey('self', blank=True, null=True,
+            related_name='children')
+
+    class Meta:
+        ordering = ['name']
 
     def __unicode__(self):
         return self.name
@@ -23,6 +35,14 @@ class Note(models.Model):
 
     def __unicode__(self):
         return self.note
+
+class Annotation(models.Model):
+    name = models.CharField(max_length=10)
+    tag = models.ForeignKey(Tag)
+    notes = models.ManyToManyField(Note)
+
+    def __unicode__(self):
+        return self.name
 
 class ExtraInfo(models.Model):
     info = models.CharField(max_length=100)
@@ -45,6 +65,7 @@ class Author(models.Model):
 class Item(models.Model):
     name = models.CharField(max_length=10)
     created = models.DateTimeField()
+    modified = models.DateTimeField(blank=True, null=True)
     tags = models.ManyToManyField(Tag, blank=True, null=True)
     creator = models.ForeignKey(Author)
     note = models.ForeignKey(Note)
@@ -57,7 +78,7 @@ class Item(models.Model):
 
 class Report(models.Model):
     name = models.CharField(max_length=10)
-    creator = models.ForeignKey(Author, to_field='num')
+    creator = models.ForeignKey(Author, to_field='num', null=True)
 
     def __unicode__(self):
         return self.name
@@ -88,6 +109,15 @@ class Number(models.Model):
 
     def __unicode__(self):
         return unicode(self.num)
+
+# Symmetrical m2m field with a normal field using the reverse accesor name
+# ("valid").
+class Valid(models.Model):
+    valid = models.CharField(max_length=10)
+    parent = models.ManyToManyField('self')
+
+    class Meta:
+        ordering = ['valid']
 
 # Some funky cross-linked models for testing a couple of infinite recursion
 # cases.
@@ -121,12 +151,12 @@ class LoopZ(models.Model):
 class CustomManager(models.Manager):
     def get_query_set(self):
         qs = super(CustomManager, self).get_query_set()
-        return qs.filter(is_public=True, tag__name='t1')
+        return qs.filter(public=True, tag__name='t1')
 
 class ManagedModel(models.Model):
     data = models.CharField(max_length=10)
     tag = models.ForeignKey(Tag)
-    is_public = models.BooleanField(default=True)
+    public = models.BooleanField(default=True)
 
     objects = CustomManager()
     normal_manager = models.Manager()
@@ -134,83 +164,111 @@ class ManagedModel(models.Model):
     def __unicode__(self):
         return self.data
 
+# An inter-related setup with multiple paths from Child to Detail.
+class Detail(models.Model):
+    data = models.CharField(max_length=10)
+
+class MemberManager(models.Manager):
+    def get_query_set(self):
+        return super(MemberManager, self).get_query_set().select_related("details")
+
+class Member(models.Model):
+    name = models.CharField(max_length=10)
+    details = models.OneToOneField(Detail, primary_key=True)
+
+    objects = MemberManager()
+
+class Child(models.Model):
+    person = models.OneToOneField(Member, primary_key=True)
+    parent = models.ForeignKey(Member, related_name="children")
+
+# Custom primary keys interfered with ordering in the past.
+class CustomPk(models.Model):
+    name = models.CharField(max_length=10, primary_key=True)
+    extra = models.CharField(max_length=10)
+
+    class Meta:
+        ordering = ['name', 'extra']
+
+class Related(models.Model):
+    custom = models.ForeignKey(CustomPk)
+
+# An inter-related setup with a model subclass that has a nullable
+# path to another model, and a return path from that model.
+
+class Celebrity(models.Model):
+    name = models.CharField("Name", max_length=20)
+    greatest_fan = models.ForeignKey("Fan", null=True, unique=True)
+
+class TvChef(Celebrity):
+    pass
+
+class Fan(models.Model):
+    fan_of = models.ForeignKey(Celebrity)
+
+# Multiple foreign keys
+class LeafA(models.Model):
+    data = models.CharField(max_length=10)
+
+    def __unicode__(self):
+        return self.data
+
+class LeafB(models.Model):
+    data = models.CharField(max_length=10)
+
+class Join(models.Model):
+    a = models.ForeignKey(LeafA)
+    b = models.ForeignKey(LeafB)
 
 __test__ = {'API_TESTS':"""
->>> t1 = Tag(name='t1')
->>> t1.save()
->>> t2 = Tag(name='t2', parent=t1)
->>> t2.save()
->>> t3 = Tag(name='t3', parent=t1)
->>> t3.save()
->>> t4 = Tag(name='t4', parent=t3)
->>> t4.save()
->>> t5 = Tag(name='t5', parent=t3)
->>> t5.save()
+>>> t1 = Tag.objects.create(name='t1')
+>>> t2 = Tag.objects.create(name='t2', parent=t1)
+>>> t3 = Tag.objects.create(name='t3', parent=t1)
+>>> t4 = Tag.objects.create(name='t4', parent=t3)
+>>> t5 = Tag.objects.create(name='t5', parent=t3)
 
->>> n1 = Note(note='n1', misc='foo')
->>> n1.save()
->>> n2 = Note(note='n2', misc='bar')
->>> n2.save()
->>> n3 = Note(note='n3', misc='foo')
->>> n3.save()
+>>> n1 = Note.objects.create(note='n1', misc='foo')
+>>> n2 = Note.objects.create(note='n2', misc='bar')
+>>> n3 = Note.objects.create(note='n3', misc='foo')
 
 Create these out of order so that sorting by 'id' will be different to sorting
 by 'info'. Helps detect some problems later.
->>> e2 = ExtraInfo(info='e2', note=n2)
->>> e2.save()
->>> e1 = ExtraInfo(info='e1', note=n1)
->>> e1.save()
+>>> e2 = ExtraInfo.objects.create(info='e2', note=n2)
+>>> e1 = ExtraInfo.objects.create(info='e1', note=n1)
 
->>> a1 = Author(name='a1', num=1001, extra=e1)
->>> a1.save()
->>> a2 = Author(name='a2', num=2002, extra=e1)
->>> a2.save()
->>> a3 = Author(name='a3', num=3003, extra=e2)
->>> a3.save()
->>> a4 = Author(name='a4', num=4004, extra=e2)
->>> a4.save()
+>>> a1 = Author.objects.create(name='a1', num=1001, extra=e1)
+>>> a2 = Author.objects.create(name='a2', num=2002, extra=e1)
+>>> a3 = Author.objects.create(name='a3', num=3003, extra=e2)
+>>> a4 = Author.objects.create(name='a4', num=4004, extra=e2)
 
 >>> time1 = datetime.datetime(2007, 12, 19, 22, 25, 0)
 >>> time2 = datetime.datetime(2007, 12, 19, 21, 0, 0)
 >>> time3 = datetime.datetime(2007, 12, 20, 22, 25, 0)
 >>> time4 = datetime.datetime(2007, 12, 20, 21, 0, 0)
->>> i1 = Item(name='one', created=time1, creator=a1, note=n3)
->>> i1.save()
+>>> i1 = Item.objects.create(name='one', created=time1, modified=time1, creator=a1, note=n3)
 >>> i1.tags = [t1, t2]
->>> i2 = Item(name='two', created=time2, creator=a2, note=n2)
->>> i2.save()
+>>> i2 = Item.objects.create(name='two', created=time2, creator=a2, note=n2)
 >>> i2.tags = [t1, t3]
->>> i3 = Item(name='three', created=time3, creator=a2, note=n3)
->>> i3.save()
->>> i4 = Item(name='four', created=time4, creator=a4, note=n3)
->>> i4.save()
+>>> i3 = Item.objects.create(name='three', created=time3, creator=a2, note=n3)
+>>> i4 = Item.objects.create(name='four', created=time4, creator=a4, note=n3)
 >>> i4.tags = [t4]
 
->>> r1 = Report(name='r1', creator=a1)
->>> r1.save()
->>> r2 = Report(name='r2', creator=a3)
->>> r2.save()
+>>> r1 = Report.objects.create(name='r1', creator=a1)
+>>> r2 = Report.objects.create(name='r2', creator=a3)
+>>> r3 = Report.objects.create(name='r3')
 
 Ordering by 'rank' gives us rank2, rank1, rank3. Ordering by the Meta.ordering
 will be rank3, rank2, rank1.
->>> rank1 = Ranking(rank=2, author=a2)
->>> rank1.save()
->>> rank2 = Ranking(rank=1, author=a3)
->>> rank2.save()
->>> rank3 = Ranking(rank=3, author=a1)
->>> rank3.save()
+>>> rank1 = Ranking.objects.create(rank=2, author=a2)
+>>> rank2 = Ranking.objects.create(rank=1, author=a3)
+>>> rank3 = Ranking.objects.create(rank=3, author=a1)
 
->>> c1 = Cover(title="first", item=i4)
->>> c1.save()
->>> c2 = Cover(title="second", item=i2)
->>> c2.save()
+>>> c1 = Cover.objects.create(title="first", item=i4)
+>>> c2 = Cover.objects.create(title="second", item=i2)
 
->>> n1 = Number(num=4)
->>> n1.save()
->>> n2 = Number(num=8)
->>> n2.save()
->>> n3 = Number(num=12)
->>> n3.save()
+>>> num1 = Number.objects.create(num=4)
+>>> num2 = Number.objects.create(num=8)
+>>> num3 = Number.objects.create(num=12)
 
 Bug #1050
 >>> Item.objects.filter(tags__isnull=True)
@@ -292,6 +350,16 @@ constraints.
 >>> Number.objects.filter(Q(num__gt=7) & Q(num__lt=12) | Q(num__lt=4))
 [<Number: 8>]
 
+Bug #7872
+Another variation on the disjunctive filtering theme.
+
+# For the purposes of this regression test, it's important that there is no
+# Join object releated to the LeafA we create.
+>>> LeafA.objects.create(data='first')
+<LeafA: first>
+>>> LeafA.objects.filter(Q(data='first')|Q(join__b__data='second'))
+[<LeafA: first>]
+
 Bug #6074
 Merging two empty result sets shouldn't leave a queryset with no constraints
 (which would match everything).
@@ -315,6 +383,10 @@ Bug #1878, #2939
 >>> Item.objects.exclude(name='two').extra(select={'foo': '%s'}, select_params=(1,)).values('creator', 'name').distinct().count()
 4
 >>> xx.delete()
+
+Bug #7323
+>>> Item.objects.values('creator', 'name').count()
+4
 
 Bug #2253
 >>> q1 = Item.objects.order_by('name')
@@ -357,6 +429,10 @@ Bug #4510
 >>> Author.objects.filter(report__name='r1')
 [<Author: a1>]
 
+Bug #7378
+>>> a1.report_set.all()
+[<Report: r1>]
+
 Bug #5324, #6704
 >>> Item.objects.filter(tags__name='t4')
 [<Item: four>]
@@ -380,9 +456,9 @@ Bug #5324, #6704
 >>> query.LOUTER not in [x[2] for x in query.alias_map.values()]
 True
 
-Similarly, when one of the joins cannot possibly, ever, involve NULL values (Author -> ExtraInfo, in the following), it should never be promoted to a left outer join. So hte following query should only involve one "left outer" join (Author -> Item is 0-to-many).
+Similarly, when one of the joins cannot possibly, ever, involve NULL values (Author -> ExtraInfo, in the following), it should never be promoted to a left outer join. So the following query should only involve one "left outer" join (Author -> Item is 0-to-many).
 >>> qs = Author.objects.filter(id=a1.id).filter(Q(extra__note=n1)|Q(item__note=n3))
->>> len([x[2] for x in qs.query.alias_map.values() if x[2] == query.LOUTER])
+>>> len([x[2] for x in qs.query.alias_map.values() if x[2] == query.LOUTER and qs.query.alias_refcount[x[1]]])
 1
 
 The previous changes shouldn't affect nullable foreign key joins.
@@ -447,23 +523,6 @@ Bug #2076
 >>> Cover.objects.all()
 [<Cover: first>, <Cover: second>]
 
-# If you're not careful, it's possible to introduce infinite loops via default
-# ordering on foreign keys in a cycle. We detect that.
->>> LoopX.objects.all()
-Traceback (most recent call last):
-...
-FieldError: Infinite loop caused by ordering.
-
->>> LoopZ.objects.all()
-Traceback (most recent call last):
-...
-FieldError: Infinite loop caused by ordering.
-
-# ... but you can still order in a non-recursive fashion amongst linked fields
-# (the previous test failed because the default ordering was recursive).
->>> LoopX.objects.all().order_by('y__x__y__x__id')
-[]
-
 # If the remote model does not have a default ordering, we order by its 'id'
 # field.
 >>> Item.objects.order_by('creator', 'name')
@@ -478,7 +537,7 @@ FieldError: Infinite loop caused by ordering.
 # Ordering by a many-valued attribute (e.g. a many-to-many or reverse
 # ForeignKey) is legal, but the results might not make sense. That isn't
 # Django's problem. Garbage in, garbage out.
->>> Item.objects.all().order_by('tags', 'id')
+>>> Item.objects.filter(tags__isnull=False).order_by('tags', 'id')
 [<Item: one>, <Item: two>, <Item: one>, <Item: two>, <Item: four>]
 
 # If we replace the default ordering, Django adjusts the required tables
@@ -503,8 +562,15 @@ True
 
 # Despite having some extra aliases in the query, we can still omit them in a
 # values() query.
->>> qs.values('id', 'rank').order_by('id')
-[{'id': 1, 'rank': 2}, {'id': 2, 'rank': 1}, {'id': 3, 'rank': 3}]
+>>> dicts = qs.values('id', 'rank').order_by('id')
+>>> [sorted(d.items()) for d in dicts]
+[[('id', 1), ('rank', 2)], [('id', 2), ('rank', 1)], [('id', 3), ('rank', 3)]]
+
+Bug #7256
+# An empty values() call includes all aliases, including those from an extra()
+>>> dicts = qs.values().order_by('id')
+>>> [sorted(d.items()) for d in dicts]
+[[('author_id', 2), ('good', 0), ('id', 1), ('rank', 2)], [('author_id', 3), ('good', 0), ('id', 2), ('rank', 1)], [('author_id', 1), ('good', 1), ('id', 3), ('rank', 3)]]
 
 Bugs #2874, #3002
 >>> qs = Item.objects.select_related().order_by('note__note', 'name')
@@ -620,6 +686,10 @@ Bug #7087 -- dates with extra select columns
 >>> Item.objects.dates('created', 'day').extra(select={'a': 1})
 [datetime.datetime(2007, 12, 19, 0, 0), datetime.datetime(2007, 12, 20, 0, 0)]
 
+Bug #7155 -- nullable dates
+>>> Item.objects.dates('modified', 'day')
+[datetime.datetime(2007, 12, 19, 0, 0)]
+
 Test that parallel iterators work.
 
 >>> qs = Tag.objects.all()
@@ -698,8 +768,159 @@ More twisted cases, involving nested negations.
 Bug #7095
 Updates that are filtered on the model being updated are somewhat tricky to get
 in MySQL. This exercises that case.
->>> mm = ManagedModel.objects.create(data='mm1', tag=t1, is_public=True)
+>>> mm = ManagedModel.objects.create(data='mm1', tag=t1, public=True)
 >>> ManagedModel.objects.update(data='mm')
+1
+
+A values() or values_list() query across joined models must use outer joins
+appropriately.
+>>> Report.objects.values_list("creator__extra__info", flat=True).order_by("name")
+[u'e1', u'e2', None]
+
+Similarly for select_related(), joins beyond an initial nullable join must
+use outer joins so that all results are included.
+>>> Report.objects.select_related("creator", "creator__extra").order_by("name")
+[<Report: r1>, <Report: r2>, <Report: r3>]
+
+When there are multiple paths to a table from another table, we have to be
+careful not to accidentally reuse an inappropriate join when using
+select_related(). We used to return the parent's Detail record here by mistake.
+
+>>> d1 = Detail.objects.create(data="d1")
+>>> d2 = Detail.objects.create(data="d2")
+>>> m1 = Member.objects.create(name="m1", details=d1)
+>>> m2 = Member.objects.create(name="m2", details=d2)
+>>> c1 = Child.objects.create(person=m2, parent=m1)
+>>> obj = m1.children.select_related("person__details")[0]
+>>> obj.person.details.data
+u'd2'
+
+Bug #7076 -- excluding shouldn't eliminate NULL entries.
+>>> Item.objects.exclude(modified=time1).order_by('name')
+[<Item: four>, <Item: three>, <Item: two>]
+>>> Tag.objects.exclude(parent__name=t1.name)
+[<Tag: t1>, <Tag: t4>, <Tag: t5>]
+
+Bug #7181 -- ordering by related tables should accomodate nullable fields (this
+test is a little tricky, since NULL ordering is database dependent. Instead, we
+just count the number of results).
+>>> len(Tag.objects.order_by('parent__name'))
+5
+
+Bug #7107 -- this shouldn't create an infinite loop.
+>>> Valid.objects.all()
+[]
+
+Empty querysets can be merged with others.
+>>> Note.objects.none() | Note.objects.all()
+[<Note: n1>, <Note: n2>, <Note: n3>]
+>>> Note.objects.all() | Note.objects.none()
+[<Note: n1>, <Note: n2>, <Note: n3>]
+>>> Note.objects.none() & Note.objects.all()
+[]
+>>> Note.objects.all() & Note.objects.none()
+[]
+
+Bug #7204, #7506 -- make sure querysets with related fields can be pickled. If
+this doesn't crash, it's a Good Thing.
+>>> out = pickle.dumps(Item.objects.all())
+
+We should also be able to pickle things that use select_related(). The only
+tricky thing here is to ensure that we do the related selections properly after
+unpickling.
+>>> qs = Item.objects.select_related()
+>>> query = qs.query.as_sql()[0]
+>>> query2 = pickle.loads(pickle.dumps(qs.query))
+>>> query2.as_sql()[0] == query
+True
+
+Bug #7277
+>>> ann1 = Annotation.objects.create(name='a1', tag=t1)
+>>> ann1.notes.add(n1)
+>>> n1.annotation_set.filter(Q(tag=t5) | Q(tag__children=t5) | Q(tag__children__children=t5))
+[<Annotation: a1>]
+
+Bug #7371
+>>> Related.objects.order_by('custom')
+[]
+
+Bug #7448, #7707 -- Complex objects should be converted to strings before being
+used in lookups.
+>>> Item.objects.filter(created__in=[time1, time2])
+[<Item: one>, <Item: two>]
+
+Bug #7698 -- People like to slice with '0' as the high-water mark.
+>>> Item.objects.all()[0:0]
+[]
+
+Bug #7411 - saving to db must work even with partially read result set in
+another cursor.
+
+>>> for num in range(2 * ITER_CHUNK_SIZE + 1):
+...     _ = Number.objects.create(num=num)
+
+>>> for i, obj in enumerate(Number.objects.all()):
+...     obj.save()
+...     if i > 10: break
+
+Bug #7759 -- count should work with a partially read result set.
+>>> count = Number.objects.count()
+>>> qs = Number.objects.all()
+>>> for obj in qs:
+...     qs.count() == count
+...     break
+True
+
+Bug #7791 -- there were "issues" when ordering and distinct-ing on fields
+related via ForeignKeys.
+>>> len(Note.objects.order_by('extrainfo__info').distinct())
+3
+
+Bug #7778 - Model subclasses could not be deleted if a nullable foreign key
+relates to a model that relates back.
+
+>>> num_celebs = Celebrity.objects.count()
+>>> tvc = TvChef.objects.create(name="Huey")
+>>> Celebrity.objects.count() == num_celebs + 1
+True
+>>> f1 = Fan.objects.create(fan_of=tvc)
+>>> f2 = Fan.objects.create(fan_of=tvc)
+>>> tvc.delete()
+
+# The parent object should have been deleted as well.
+>>> Celebrity.objects.count() == num_celebs
+True
 
 """}
 
+# In Python 2.3, exceptions raised in __len__ are swallowed (Python issue
+# 1242657), so these cases return an empty list, rather than raising an
+# exception. Not a lot we can do about that, unfortunately, due to the way
+# Python handles list() calls internally. Thus, we skip the tests for Python
+# 2.3.
+if sys.version_info >= (2, 4):
+    __test__["API_TESTS"] += """
+# If you're not careful, it's possible to introduce infinite loops via default
+# ordering on foreign keys in a cycle. We detect that.
+>>> LoopX.objects.all()
+Traceback (most recent call last):
+...
+FieldError: Infinite loop caused by ordering.
+
+>>> LoopZ.objects.all()
+Traceback (most recent call last):
+...
+FieldError: Infinite loop caused by ordering.
+
+# Note that this doesn't cause an infinite loop, since the default ordering on
+# the Tag model is empty (and thus defaults to using "id" for the related
+# field).
+>>> len(Tag.objects.order_by('parent'))
+5
+
+# ... but you can still order in a non-recursive fashion amongst linked fields
+# (the previous test failed because the default ordering was recursive).
+>>> LoopX.objects.all().order_by('y__x__y__x__id')
+[]
+
+"""

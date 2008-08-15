@@ -16,6 +16,10 @@ try:
     import thread
 except ImportError:
     import dummy_thread as thread
+try:
+    from functools import wraps
+except ImportError:
+    from django.utils.functional import wraps  # Python 2.3, 2.4 fallback.
 from django.db import connection
 from django.conf import settings
 
@@ -26,9 +30,10 @@ class TransactionManagementError(Exception):
     """
     pass
 
-# The state is a dictionary of lists. The key to the dict is the current
+# The states are dictionaries of lists. The key to the dict is the current
 # thread and the list is handled as a stack of values.
 state = {}
+savepoint_state = {}
 
 # The dirty flag is set by *_unless_managed functions to denote that the
 # code under transaction management has changed things to require a
@@ -100,6 +105,12 @@ def set_clean():
         dirty[thread_ident] = False
     else:
         raise TransactionManagementError("This code isn't under transaction management")
+    clean_savepoints()
+
+def clean_savepoints():
+    thread_ident = thread.get_ident()
+    if thread_ident in savepoint_state:
+        del savepoint_state[thread_ident]
 
 def is_managed():
     """
@@ -134,6 +145,7 @@ def commit_unless_managed():
     """
     if not is_managed():
         connection._commit()
+        clean_savepoints()
     else:
         set_dirty()
 
@@ -160,6 +172,38 @@ def rollback():
     connection._rollback()
     set_clean()
 
+def savepoint():
+    """
+    Creates a savepoint (if supported and required by the backend) inside the
+    current transaction. Returns an identifier for the savepoint that will be
+    used for the subsequent rollback or commit.
+    """
+    thread_ident = thread.get_ident()
+    if thread_ident in savepoint_state:
+        savepoint_state[thread_ident].append(None)
+    else:
+        savepoint_state[thread_ident] = [None]
+    tid = str(thread_ident).replace('-', '')
+    sid = "s%s_x%d" % (tid, len(savepoint_state[thread_ident]))
+    connection._savepoint(sid)
+    return sid
+
+def savepoint_rollback(sid):
+    """
+    Rolls back the most recent savepoint (if one exists). Does nothing if
+    savepoints are not supported.
+    """
+    if thread.get_ident() in savepoint_state:
+        connection._savepoint_rollback(sid)
+
+def savepoint_commit(sid):
+    """
+    Commits the most recent savepoint (if one exists). Does nothing if
+    savepoints are not supported.
+    """
+    if thread.get_ident() in savepoint_state:
+        connection._savepoint_commit(sid)
+
 ##############
 # DECORATORS #
 ##############
@@ -177,7 +221,7 @@ def autocommit(func):
             return func(*args, **kw)
         finally:
             leave_transaction_management()
-    return _autocommit
+    return wraps(func)(_autocommit)
 
 def commit_on_success(func):
     """
@@ -192,7 +236,10 @@ def commit_on_success(func):
             managed(True)
             try:
                 res = func(*args, **kw)
-            except Exception, e:
+            except (Exception, KeyboardInterrupt, SystemExit):
+                # (We handle KeyboardInterrupt and SystemExit specially, since
+                # they don't inherit from Exception in Python 2.5, but we
+                # should treat them uniformly here.)
                 if is_dirty():
                     rollback()
                 raise
@@ -202,7 +249,7 @@ def commit_on_success(func):
             return res
         finally:
             leave_transaction_management()
-    return _commit_on_success
+    return wraps(func)(_commit_on_success)
 
 def commit_manually(func):
     """
@@ -219,4 +266,4 @@ def commit_manually(func):
         finally:
             leave_transaction_management()
 
-    return _commit_manually
+    return wraps(func)(_commit_manually)

@@ -132,6 +132,14 @@ class FKDataToField(models.Model):
 class FKDataToO2O(models.Model):
     data = models.ForeignKey(O2OData, null=True)
 
+class M2MIntermediateData(models.Model):
+    data = models.ManyToManyField(Anchor, null=True, through='Intermediate')
+    
+class Intermediate(models.Model):
+    left = models.ForeignKey(M2MIntermediateData)
+    right = models.ForeignKey(Anchor)
+    extra = models.CharField(max_length=30, blank=True, default="doesn't matter")
+
 # The following test classes are for validating the
 # deserialization of objects that use a user-defined
 # field as the primary key.
@@ -157,8 +165,8 @@ class DecimalPKData(models.Model):
 class EmailPKData(models.Model):
     data = models.EmailField(primary_key=True)
 
-class FilePKData(models.Model):
-    data = models.FileField(primary_key=True, upload_to='/foo/bar')
+# class FilePKData(models.Model):
+#    data = models.FileField(primary_key=True, upload_to='/foo/bar')
 
 class FilePathPKData(models.Model):
     data = models.FilePathField(primary_key=True)
@@ -223,3 +231,24 @@ class ModifyingSaveData(models.Model):
         "A save method that modifies the data in the object"
         self.data = 666
         super(ModifyingSaveData, self).save(raw)
+
+# Tests for serialization of models using inheritance.
+# Regression for #7202, #7350
+class AbstractBaseModel(models.Model):
+    parent_data = models.IntegerField()
+    class Meta:
+        abstract = True
+
+class InheritAbstractModel(AbstractBaseModel):
+    child_data = models.IntegerField()
+    
+class BaseModel(models.Model):
+    parent_data = models.IntegerField()
+
+class InheritBaseModel(BaseModel):
+    child_data = models.IntegerField()
+
+class ExplicitInheritBaseModel(BaseModel):
+    parent = models.OneToOneField(BaseModel)
+    child_data = models.IntegerField()
+    

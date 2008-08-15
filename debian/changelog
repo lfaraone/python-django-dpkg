@@ -1,3 +1,22 @@
+python-django (1.0~beta1-1) experimental; urgency=low
+
+  [ David Spreen ]
+  * New upstream beta release. Closes: #492956
+  * debian/control: Added myself to Uploaders field.
+  * debian/watch: Added mangling for filename and version. Old watch file would 
+    name the download 'tarball'. Also added mangling to handle alpha and beta 
+    versioning.
+  * Drop debian/patches/01_add_shebang.diff as this has been fixed upstream.
+  * Drop debian/patches/02_bash_completion.diff as this has been committed
+    upstream http://code.djangoproject.com/ticket/7268.
+  * debian/control: Added python-flup to the Suggest field. Closes: #488123
+  * debian/patches/03_manpage.diff: Adapted patch to new upstream version.
+  
+  [ Jan Dittberner ]
+  * add debian/watch file.
+  
+ -- David Spreen <netzwurm@debian.org>  Fri, 15 Aug 2008 16:05:07 -0700
+
 python-django (0.97~svn7534-1) experimental; urgency=low
 
   * New upstream snapshot. Closes: #409565, #481051

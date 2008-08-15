@@ -11,6 +11,7 @@ import unittest
 from datetime import datetime, timedelta
 
 from django import template
+from django.core import urlresolvers
 from django.template import loader
 from django.template.loaders import app_directories, filesystem
 from django.utils.translation import activate, deactivate, ugettext as _
@@ -19,12 +20,18 @@ from django.utils.tzinfo import LocalTimezone
 
 from unicode import unicode_tests
 from context import context_tests
+
+try:
+    from loaders import *
+except ImportError:
+    pass # If setuptools isn't installed, that's fine. Just move on.
+
 import filters
 
 # Some other tests we would like to run
 __test__ = {
-        'unicode': unicode_tests,
-        'context': context_tests,
+    'unicode': unicode_tests,
+    'context': context_tests
 }
 
 #################################
@@ -129,8 +136,7 @@ class Templates(unittest.TestCase):
 
         # Quickly check that we aren't accidentally using a name in both
         # template and filter tests.
-        overlapping_names = [name for name in filter_tests if name in
-                template_tests]
+        overlapping_names = [name for name in filter_tests if name in template_tests]
         assert not overlapping_names, 'Duplicate test name(s): %s' % ', '.join(overlapping_names)
 
         template_tests.update(filter_tests)
@@ -153,7 +159,7 @@ class Templates(unittest.TestCase):
         # Turn TEMPLATE_DEBUG off, because tests assume that.
         old_td, settings.TEMPLATE_DEBUG = settings.TEMPLATE_DEBUG, False
 
-        # Set TEMPLATE_STRING_IF_INVALID to a known string
+        # Set TEMPLATE_STRING_IF_INVALID to a known string.
         old_invalid = settings.TEMPLATE_STRING_IF_INVALID
         expected_invalid_str = 'INVALID'
 
@@ -536,13 +542,14 @@ class Templates(unittest.TestCase):
             'if-tag-error05': ("{% if not foo or %}yes{% else %}no{% endif %}", {'foo': True}, template.TemplateSyntaxError),
 
             ### IFCHANGED TAG #########################################################
-            'ifchanged01': ('{% for n in num %}{% ifchanged %}{{ n }}{% endifchanged %}{% endfor %}', { 'num': (1,2,3) }, '123'),
-            'ifchanged02': ('{% for n in num %}{% ifchanged %}{{ n }}{% endifchanged %}{% endfor %}', { 'num': (1,1,3) }, '13'),
-            'ifchanged03': ('{% for n in num %}{% ifchanged %}{{ n }}{% endifchanged %}{% endfor %}', { 'num': (1,1,1) }, '1'),
-            'ifchanged04': ('{% for n in num %}{% ifchanged %}{{ n }}{% endifchanged %}{% for x in numx %}{% ifchanged %}{{ x }}{% endifchanged %}{% endfor %}{% endfor %}', { 'num': (1, 2, 3), 'numx': (2, 2, 2)}, '122232'),
-            'ifchanged05': ('{% for n in num %}{% ifchanged %}{{ n }}{% endifchanged %}{% for x in numx %}{% ifchanged %}{{ x }}{% endifchanged %}{% endfor %}{% endfor %}', { 'num': (1, 1, 1), 'numx': (1, 2, 3)}, '1123123123'),
-            'ifchanged06': ('{% for n in num %}{% ifchanged %}{{ n }}{% endifchanged %}{% for x in numx %}{% ifchanged %}{{ x }}{% endifchanged %}{% endfor %}{% endfor %}', { 'num': (1, 1, 1), 'numx': (2, 2, 2)}, '1222'),
-            'ifchanged07': ('{% for n in num %}{% ifchanged %}{{ n }}{% endifchanged %}{% for x in numx %}{% ifchanged %}{{ x }}{% endifchanged %}{% for y in numy %}{% ifchanged %}{{ y }}{% endifchanged %}{% endfor %}{% endfor %}{% endfor %}', { 'num': (1, 1, 1), 'numx': (2, 2, 2), 'numy': (3, 3, 3)}, '1233323332333'),
+            'ifchanged01': ('{% for n in num %}{% ifchanged %}{{ n }}{% endifchanged %}{% endfor %}', {'num': (1,2,3)}, '123'),
+            'ifchanged02': ('{% for n in num %}{% ifchanged %}{{ n }}{% endifchanged %}{% endfor %}', {'num': (1,1,3)}, '13'),
+            'ifchanged03': ('{% for n in num %}{% ifchanged %}{{ n }}{% endifchanged %}{% endfor %}', {'num': (1,1,1)}, '1'),
+            'ifchanged04': ('{% for n in num %}{% ifchanged %}{{ n }}{% endifchanged %}{% for x in numx %}{% ifchanged %}{{ x }}{% endifchanged %}{% endfor %}{% endfor %}', {'num': (1, 2, 3), 'numx': (2, 2, 2)}, '122232'),
+            'ifchanged05': ('{% for n in num %}{% ifchanged %}{{ n }}{% endifchanged %}{% for x in numx %}{% ifchanged %}{{ x }}{% endifchanged %}{% endfor %}{% endfor %}', {'num': (1, 1, 1), 'numx': (1, 2, 3)}, '1123123123'),
+            'ifchanged06': ('{% for n in num %}{% ifchanged %}{{ n }}{% endifchanged %}{% for x in numx %}{% ifchanged %}{{ x }}{% endifchanged %}{% endfor %}{% endfor %}', {'num': (1, 1, 1), 'numx': (2, 2, 2)}, '1222'),
+            'ifchanged07': ('{% for n in num %}{% ifchanged %}{{ n }}{% endifchanged %}{% for x in numx %}{% ifchanged %}{{ x }}{% endifchanged %}{% for y in numy %}{% ifchanged %}{{ y }}{% endifchanged %}{% endfor %}{% endfor %}{% endfor %}', {'num': (1, 1, 1), 'numx': (2, 2, 2), 'numy': (3, 3, 3)}, '1233323332333'),
+            'ifchanged08': ('{% for data in datalist %}{% for c,d in data %}{% if c %}{% ifchanged %}{{ d }}{% endifchanged %}{% endif %}{% endfor %}{% endfor %}', {'datalist': [[(1, 'a'), (1, 'a'), (0, 'b'), (1, 'c')], [(0, 'a'), (1, 'c'), (1, 'd'), (1, 'd'), (0, 'e')]]}, 'accd'),
 
             # Test one parameter given to ifchanged.
             'ifchanged-param01': ('{% for n in num %}{% ifchanged n %}..{% endifchanged %}{{ n }}{% endfor %}', { 'num': (1,2,3) }, '..1..2..3'),
@@ -558,6 +565,14 @@ class Templates(unittest.TestCase):
             # Logically the same as above, just written with explicit
             # ifchanged for the day.
             'ifchanged-param04': ('{% for d in days %}{% ifchanged d.day %}{{ d.day }}{% endifchanged %}{% for h in d.hours %}{% ifchanged d.day h %}{{ h }}{% endifchanged %}{% endfor %}{% endfor %}', {'days':[{'day':1, 'hours':[1,2,3]},{'day':2, 'hours':[3]},] }, '112323'),
+
+            # Test the else clause of ifchanged.
+            'ifchanged-else01': ('{% for id in ids %}{{ id }}{% ifchanged id %}-first{% else %}-other{% endifchanged %},{% endfor %}', {'ids': [1,1,2,2,2,3]}, '1-first,1-other,2-first,2-other,2-other,3-first,'),
+
+            'ifchanged-else02': ('{% for id in ids %}{{ id }}-{% ifchanged id %}{% cycle red,blue %}{% else %}grey{% endifchanged %},{% endfor %}', {'ids': [1,1,2,2,2,3]}, '1-red,1-grey,2-blue,2-grey,2-grey,3-red,'),
+            'ifchanged-else03': ('{% for id in ids %}{{ id }}{% ifchanged id %}-{% cycle red,blue %}{% else %}{% endifchanged %},{% endfor %}', {'ids': [1,1,2,2,2,3]}, '1-red,1,2-blue,2,2,3-red,'),
+
+            'ifchanged-else04': ('{% for id in ids %}{% ifchanged %}***{{ id }}*{% else %}...{% endifchanged %}{{ forloop.counter }}{% endfor %}', {'ids': [1,1,2,2,2,3,4]}, '***1*1...2***2*3...4...5***3*6***4*7'),
 
             ### IFEQUAL TAG ###########################################################
             'ifequal01': ("{% ifequal a b %}yes{% endifequal %}", {"a": 1, "b": 2}, ""),
@@ -700,6 +715,12 @@ class Templates(unittest.TestCase):
 
             # Inheritance from local context with variable parent template
             'inheritance25': ("{% extends context_template.1 %}{% block first %}2{% endblock %}{% block second %}4{% endblock %}", {'context_template': [template.Template("Wrong"), template.Template("1{% block first %}_{% endblock %}3{% block second %}_{% endblock %}")]}, '1234'),
+
+            # Set up a base template to extend
+         	'inheritance26': ("no tags", {}, 'no tags'),
+
+         	# Inheritance from a template that doesn't have any blocks
+         	'inheritance27': ("{% extends 'inheritance26' %}", {}, 'no tags'),
 
             ### I18N ##################################################################
 
@@ -851,40 +872,46 @@ class Templates(unittest.TestCase):
 
             ### NOW TAG ########################################################
             # Simple case
-            'now01' : ('{% now "j n Y"%}', {}, str(datetime.now().day) + ' ' + str(datetime.now().month) + ' ' + str(datetime.now().year)),
+            'now01': ('{% now "j n Y"%}', {}, str(datetime.now().day) + ' ' + str(datetime.now().month) + ' ' + str(datetime.now().year)),
 
             # Check parsing of escaped and special characters
-            'now02' : ('{% now "j "n" Y"%}', {}, template.TemplateSyntaxError),
-        #    'now03' : ('{% now "j \"n\" Y"%}', {}, str(datetime.now().day) + '"' + str(datetime.now().month) + '"' + str(datetime.now().year)),
-        #    'now04' : ('{% now "j \nn\n Y"%}', {}, str(datetime.now().day) + '\n' + str(datetime.now().month) + '\n' + str(datetime.now().year))
+            'now02': ('{% now "j "n" Y"%}', {}, template.TemplateSyntaxError),
+        #    'now03': ('{% now "j \"n\" Y"%}', {}, str(datetime.now().day) + '"' + str(datetime.now().month) + '"' + str(datetime.now().year)),
+        #    'now04': ('{% now "j \nn\n Y"%}', {}, str(datetime.now().day) + '\n' + str(datetime.now().month) + '\n' + str(datetime.now().year))
 
             ### URL TAG ########################################################
             # Successes
-            'url01' : ('{% url regressiontests.templates.views.client client.id %}', {'client': {'id': 1}}, '/url_tag/client/1/'),
-            'url02' : ('{% url regressiontests.templates.views.client_action client.id, action="update" %}', {'client': {'id': 1}}, '/url_tag/client/1/update/'),
-            'url03' : ('{% url regressiontests.templates.views.index %}', {}, '/url_tag/'),
-            'url04' : ('{% url named.client client.id %}', {'client': {'id': 1}}, '/url_tag/named-client/1/'),
-            'url05' : (u'{% url метка_оператора v %}', {'v': u'Ω'},
-                    '/url_tag/%D0%AE%D0%BD%D0%B8%D0%BA%D0%BE%D0%B4/%CE%A9/'),
+            'url01': ('{% url regressiontests.templates.views.client client.id %}', {'client': {'id': 1}}, '/url_tag/client/1/'),
+            'url02': ('{% url regressiontests.templates.views.client_action client.id, action="update" %}', {'client': {'id': 1}}, '/url_tag/client/1/update/'),
+            'url03': ('{% url regressiontests.templates.views.index %}', {}, '/url_tag/'),
+            'url04': ('{% url named.client client.id %}', {'client': {'id': 1}}, '/url_tag/named-client/1/'),
+            'url05': (u'{% url метка_оператора v %}', {'v': u'Ω'}, '/url_tag/%D0%AE%D0%BD%D0%B8%D0%BA%D0%BE%D0%B4/%CE%A9/'),
 
             # Failures
-            'url-fail01' : ('{% url %}', {}, template.TemplateSyntaxError),
-            'url-fail02' : ('{% url no_such_view %}', {}, ''),
-            'url-fail03' : ('{% url regressiontests.templates.views.client no_such_param="value" %}', {}, ''),
+            'url-fail01': ('{% url %}', {}, template.TemplateSyntaxError),
+            'url-fail02': ('{% url no_such_view %}', {}, urlresolvers.NoReverseMatch),
+            'url-fail03': ('{% url regressiontests.templates.views.client %}', {}, urlresolvers.NoReverseMatch),
 
             ### CACHE TAG ######################################################
-            'cache01' : ('{% load cache %}{% cache -1 test %}cache01{% endcache %}', {}, 'cache01'),
-            'cache02' : ('{% load cache %}{% cache -1 test %}cache02{% endcache %}', {}, 'cache02'),
-            'cache03' : ('{% load cache %}{% cache 2 test %}cache03{% endcache %}', {}, 'cache03'),
-            'cache04' : ('{% load cache %}{% cache 2 test %}cache04{% endcache %}', {}, 'cache03'),
-            'cache05' : ('{% load cache %}{% cache 2 test foo %}cache05{% endcache %}', {'foo': 1}, 'cache05'),
-            'cache06' : ('{% load cache %}{% cache 2 test foo %}cache06{% endcache %}', {'foo': 2}, 'cache06'),
-            'cache07' : ('{% load cache %}{% cache 2 test foo %}cache06{% endcache %}', {'foo': 1}, 'cache05'),
+            'cache01': ('{% load cache %}{% cache -1 test %}cache01{% endcache %}', {}, 'cache01'),
+            'cache02': ('{% load cache %}{% cache -1 test %}cache02{% endcache %}', {}, 'cache02'),
+            'cache03': ('{% load cache %}{% cache 2 test %}cache03{% endcache %}', {}, 'cache03'),
+            'cache04': ('{% load cache %}{% cache 2 test %}cache04{% endcache %}', {}, 'cache03'),
+            'cache05': ('{% load cache %}{% cache 2 test foo %}cache05{% endcache %}', {'foo': 1}, 'cache05'),
+            'cache06': ('{% load cache %}{% cache 2 test foo %}cache06{% endcache %}', {'foo': 2}, 'cache06'),
+            'cache07': ('{% load cache %}{% cache 2 test foo %}cache07{% endcache %}', {'foo': 1}, 'cache05'),
 
-            # Raise exception if we dont have at least 2 args, first one integer.
-            'cache08' : ('{% load cache %}{% cache %}{% endcache %}', {}, template.TemplateSyntaxError),
-            'cache09' : ('{% load cache %}{% cache 1 %}{% endcache %}', {}, template.TemplateSyntaxError),
-            'cache10' : ('{% load cache %}{% cache foo bar %}{% endcache %}', {}, template.TemplateSyntaxError),
+            # Allow first argument to be a variable.
+            'cache08': ('{% load cache %}{% cache time test foo %}cache08{% endcache %}', {'foo': 2, 'time': 2}, 'cache06'),
+            'cache09': ('{% load cache %}{% cache time test foo %}cache09{% endcache %}', {'foo': 3, 'time': -1}, 'cache09'),
+            'cache10': ('{% load cache %}{% cache time test foo %}cache10{% endcache %}', {'foo': 3, 'time': -1}, 'cache10'),
+
+            # Raise exception if we don't have at least 2 args, first one integer.
+            'cache11': ('{% load cache %}{% cache %}{% endcache %}', {}, template.TemplateSyntaxError),
+            'cache12': ('{% load cache %}{% cache 1 %}{% endcache %}', {}, template.TemplateSyntaxError),
+            'cache13': ('{% load cache %}{% cache foo bar %}{% endcache %}', {}, template.TemplateSyntaxError),
+            'cache14': ('{% load cache %}{% cache foo bar %}{% endcache %}', {'foo': 'fail'}, template.TemplateSyntaxError),
+            'cache15': ('{% load cache %}{% cache foo bar %}{% endcache %}', {'foo': []}, template.TemplateSyntaxError),
 
             ### AUTOESCAPE TAG ##############################################
             'autoescape-tag01': ("{% autoescape off %}hello{% endautoescape %}", {}, "hello"),

@@ -1,21 +1,17 @@
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponse, HttpResponseRedirect, HttpResponseServerError
+from django.http import HttpResponse, HttpResponseRedirect
+from django.core.exceptions import SuspiciousOperation
 
 def no_template_view(request):
     "A simple view that expects a GET request, and returns a rendered template"
     return HttpResponse("No template used. Sample content: twice once twice. Content ends.")
 
-def file_upload_view(request):
-    """
-    Check that a file upload can be updated into the POST dictionary without
-    going pear-shaped.
-    """
-    form_data = request.POST.copy()
-    form_data.update(request.FILES)
-    if isinstance(form_data['file_field'], dict) and isinstance(form_data['name'], unicode):
+def staff_only_view(request):
+    "A view that can only be visited by staff. Non staff members get an exception"
+    if request.user.is_staff:
         return HttpResponse('')
     else:
-        return HttpResponseServerError()
+        raise SuspiciousOperation()
 
 def get_view(request):
     "A simple login protected view"

@@ -9,8 +9,8 @@ Comment:
 --- docs/man/django-admin.1.orig	2007-09-08 10:47:27.516890257 +0100
 +++ docs/man/django-admin.1	2007-09-08 10:48:01.822845242 +0100
 @@ -1,9 +1,9 @@
--.TH "django-admin.py" "1" "June 2007" "Django Project" ""
-+.TH "django-admin" "1" "June 2007" "Django Project" ""
+-.TH "django-admin.py" "1" "March 2008" "Django Project" ""
++.TH "django-admin" "1" "March 2008" "Django Project" ""
  .SH "NAME"
 -django\-admin.py \- Utility script for the Django web framework
 +django\-admin \- Utility script for the Django web framework

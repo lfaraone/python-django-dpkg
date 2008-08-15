@@ -1,5 +1,4 @@
 import base64
-import md5
 import cPickle as pickle
 try:
     from functools import wraps
@@ -12,7 +11,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login
 from django.shortcuts import render_to_response
 from django.utils.translation import ugettext_lazy, ugettext as _
-from django.utils.safestring import mark_safe
+from django.utils.hashcompat import md5_constructor
 
 ERROR_MESSAGE = ugettext_lazy("Please enter a correct username and password. Note that both fields are case-sensitive.")
 LOGIN_FORM_KEY = 'this_is_the_login_form'
@@ -29,20 +28,20 @@ def _display_login_form(request, error_message=''):
         post_data = _encode_post_data({})
     return render_to_response('admin/login.html', {
         'title': _('Log in'),
-        'app_path': request.path,
+        'app_path': request.get_full_path(),
         'post_data': post_data,
         'error_message': error_message
     }, context_instance=template.RequestContext(request))
 
 def _encode_post_data(post_data):
     pickled = pickle.dumps(post_data)
-    pickled_md5 = md5.new(pickled + settings.SECRET_KEY).hexdigest()
+    pickled_md5 = md5_constructor(pickled + settings.SECRET_KEY).hexdigest()
     return base64.encodestring(pickled + pickled_md5)
 
 def _decode_post_data(encoded_data):
     encoded_data = base64.decodestring(encoded_data)
     pickled, tamper_check = encoded_data[:-32], encoded_data[-32:]
-    if md5.new(pickled + settings.SECRET_KEY).hexdigest() != tamper_check:
+    if md5_constructor(pickled + settings.SECRET_KEY).hexdigest() != tamper_check:
         from django.core.exceptions import SuspiciousOperation
         raise SuspiciousOperation, "User may have tampered with session cookie."
     return pickle.loads(pickled)
@@ -84,12 +83,13 @@ def staff_member_required(view_func):
             message = ERROR_MESSAGE
             if '@' in username:
                 # Mistakenly entered e-mail address instead of username? Look it up.
-                try:
-                    user = User.objects.get(email=username)
-                except User.DoesNotExist:
-                    message = _("Usernames cannot contain the '@' character.")
+                users = list(User.objects.filter(email=username))
+                if len(users) == 1 and users[0].check_password(password):
+                    message = _("Your e-mail address is not your username. Try '%s' instead.") % users[0].username
                 else:
-                    message = _("Your e-mail address is not your username. Try '%s' instead.") % user.username
+                    # Either we cannot find the user, or if more than 1
+                    # we cannot guess which user is the correct one.
+                    message = _("Usernames cannot contain the '@' character.")
             return _display_login_form(request, message)
 
         # The user data is correct; log in the user in and continue.
@@ -106,7 +106,7 @@ def staff_member_required(view_func):
                         return view_func(request, *args, **kwargs)
                     else:
                         request.session.delete_test_cookie()
-                        return http.HttpResponseRedirect(request.path)
+                        return http.HttpResponseRedirect(request.get_full_path())
             else:
                 return _display_login_form(request, ERROR_MESSAGE)
 

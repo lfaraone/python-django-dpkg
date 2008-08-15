@@ -1,13 +1,18 @@
 """
 19. OR lookups
 
-To perform an OR lookup, or a lookup that combines ANDs and ORs,
-combine QuerySet objects using & and | operators.
+To perform an OR lookup, or a lookup that combines ANDs and ORs, combine
+``QuerySet`` objects using ``&`` and ``|`` operators.
 
 Alternatively, use positional arguments, and pass one or more expressions of
 clauses using the variable ``django.db.models.Q`` (or any object with an
-add_to_query method).
+``add_to_query`` method).
 """
+# Python 2.3 doesn't have sorted()
+try:
+    sorted
+except NameError:
+    from django.utils.itercompat import sorted
 
 from django.db import models
 
@@ -110,8 +115,9 @@ __test__ = {'API_TESTS':"""
 >>> Article.objects.filter(Q(headline__startswith='Hello') | Q(headline__contains='bye')).count()
 3
 
->>> list(Article.objects.filter(Q(headline__startswith='Hello'), Q(headline__contains='bye')).values())
-[{'headline': u'Hello and goodbye', 'pub_date': datetime.datetime(2005, 11, 29, 0, 0), 'id': 3}]
+>>> dicts = list(Article.objects.filter(Q(headline__startswith='Hello'), Q(headline__contains='bye')).values())
+>>> [sorted(d.items()) for d in dicts]
+[[('headline', u'Hello and goodbye'), ('id', 3), ('pub_date', datetime.datetime(2005, 11, 29, 0, 0))]]
 
 >>> Article.objects.filter(Q(headline__startswith='Hello')).in_bulk([1,2])
 {1: <Article: Hello>}

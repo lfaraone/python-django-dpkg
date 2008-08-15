@@ -1,21 +1,22 @@
 from django.core.exceptions import ObjectDoesNotExist
 from django import oldforms
 from django.core import validators
-from django.db.models.fields import FileField, AutoField
-from django.dispatch import dispatcher
+from django.db.models.fields import AutoField
+from django.db.models.fields.files import FileField
 from django.db.models import signals
 from django.utils.functional import curry
 from django.utils.datastructures import DotExpandedDict
 from django.utils.text import capfirst
 from django.utils.encoding import smart_str
 from django.utils.translation import ugettext as _
+from django.utils import datetime_safe
 
-def add_manipulators(sender):
+def add_manipulators(sender, **kwargs):
     cls = sender
     cls.add_to_class('AddManipulator', AutomaticAddManipulator)
     cls.add_to_class('ChangeManipulator', AutomaticChangeManipulator)
 
-dispatcher.connect(add_manipulators, signal=signals.class_prepared)
+signals.class_prepared.connect(add_manipulators)
 
 class ManipulatorDescriptor(object):
     # This class provides the functionality that makes the default model
@@ -119,10 +120,7 @@ class AutomaticManipulator(oldforms.Manipulator):
         for f in self.opts.many_to_many:
             if self.follow.get(f.name, None):
                 if not f.rel.edit_inline:
-                    if f.rel.raw_id_admin:
-                        new_vals = new_data.get(f.name, ())
-                    else:
-                        new_vals = new_data.getlist(f.name)
+                    new_vals = new_data.getlist(f.name)
                     # First, clear the existing values.
                     rel_manager = getattr(new_object, f.name)
                     rel_manager.clear()
@@ -219,8 +217,6 @@ class AutomaticManipulator(oldforms.Manipulator):
                         for f in related.opts.many_to_many:
                             if child_follow.get(f.name, None) and not f.rel.edit_inline:
                                 new_value = rel_new_data[f.attname]
-                                if f.rel.raw_id_admin:
-                                    new_value = new_value[0]
                                 setattr(new_rel_obj, f.name, f.rel.to.objects.filter(pk__in=new_value))
                                 if self.change:
                                     self.fields_changed.append('%s for %s "%s"' % (f.verbose_name, related.opts.verbose_name, new_rel_obj))
@@ -332,5 +328,6 @@ def manipulator_validator_unique_for_date(from_field, date_field, opts, lookup_t
             pass
         else:
             format_string = (lookup_type == 'date') and '%B %d, %Y' or '%B %Y'
+            date_val = datetime_safe.new_datetime(date_val)
             raise validators.ValidationError, "Please enter a different %s. The one you entered is already being used for %s." % \
                 (from_field.verbose_name, date_val.strftime(format_string))

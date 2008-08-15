@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 tests = r"""
->>> from django.newforms import *
+>>> from django.forms import *
+>>> from django.core.files.uploadedfile import SimpleUploadedFile
 >>> import datetime
 >>> import time
 >>> import re
@@ -443,8 +444,8 @@ zero-based index.
 >>> f = FrameworkForm(auto_id='id_%s')
 >>> print f['language']
 <ul>
-<li><label><input type="radio" id="id_language_0" value="P" name="language" /> Python</label></li>
-<li><label><input type="radio" id="id_language_1" value="J" name="language" /> Java</label></li>
+<li><label for="id_language_0"><input type="radio" id="id_language_0" value="P" name="language" /> Python</label></li>
+<li><label for="id_language_1"><input type="radio" id="id_language_1" value="J" name="language" /> Java</label></li>
 </ul>
 
 When RadioSelect is used with auto_id, and the whole form is printed using
@@ -453,20 +454,20 @@ ID of the *first* radio button.
 >>> print f
 <tr><th><label for="id_name">Name:</label></th><td><input type="text" name="name" id="id_name" /></td></tr>
 <tr><th><label for="id_language_0">Language:</label></th><td><ul>
-<li><label><input type="radio" id="id_language_0" value="P" name="language" /> Python</label></li>
-<li><label><input type="radio" id="id_language_1" value="J" name="language" /> Java</label></li>
+<li><label for="id_language_0"><input type="radio" id="id_language_0" value="P" name="language" /> Python</label></li>
+<li><label for="id_language_1"><input type="radio" id="id_language_1" value="J" name="language" /> Java</label></li>
 </ul></td></tr>
 >>> print f.as_ul()
 <li><label for="id_name">Name:</label> <input type="text" name="name" id="id_name" /></li>
 <li><label for="id_language_0">Language:</label> <ul>
-<li><label><input type="radio" id="id_language_0" value="P" name="language" /> Python</label></li>
-<li><label><input type="radio" id="id_language_1" value="J" name="language" /> Java</label></li>
+<li><label for="id_language_0"><input type="radio" id="id_language_0" value="P" name="language" /> Python</label></li>
+<li><label for="id_language_1"><input type="radio" id="id_language_1" value="J" name="language" /> Java</label></li>
 </ul></li>
 >>> print f.as_p()
 <p><label for="id_name">Name:</label> <input type="text" name="name" id="id_name" /></p>
 <p><label for="id_language_0">Language:</label> <ul>
-<li><label><input type="radio" id="id_language_0" value="P" name="language" /> Python</label></li>
-<li><label><input type="radio" id="id_language_1" value="J" name="language" /> Java</label></li>
+<li><label for="id_language_0"><input type="radio" id="id_language_0" value="P" name="language" /> Python</label></li>
+<li><label for="id_language_1"><input type="radio" id="id_language_1" value="J" name="language" /> Java</label></li>
 </ul></p>
 
 MultipleChoiceField is a special case, as its data is required to be a list:
@@ -535,8 +536,8 @@ zero-based index.
 >>> f = SongForm(auto_id='%s_id')
 >>> print f['composers']
 <ul>
-<li><label><input type="checkbox" name="composers" value="J" id="composers_id_0" /> John Lennon</label></li>
-<li><label><input type="checkbox" name="composers" value="P" id="composers_id_1" /> Paul McCartney</label></li>
+<li><label for="composers_id_0"><input type="checkbox" name="composers" value="J" id="composers_id_0" /> John Lennon</label></li>
+<li><label for="composers_id_1"><input type="checkbox" name="composers" value="P" id="composers_id_1" /> Paul McCartney</label></li>
 </ul>
 
 Data for a MultipleChoiceField should be a list. QueryDict and MultiValueDict
@@ -1465,7 +1466,7 @@ not request.POST.
 >>> print f
 <tr><th>File1:</th><td><ul class="errorlist"><li>This field is required.</li></ul><input type="file" name="file1" /></td></tr>
 
->>> f = FileForm(data={}, files={'file1': {'filename': 'name', 'content':''}}, auto_id=False)
+>>> f = FileForm(data={}, files={'file1': SimpleUploadedFile('name', '')}, auto_id=False)
 >>> print f
 <tr><th>File1:</th><td><ul class="errorlist"><li>The submitted file is empty.</li></ul><input type="file" name="file1" /></td></tr>
 
@@ -1473,11 +1474,15 @@ not request.POST.
 >>> print f
 <tr><th>File1:</th><td><ul class="errorlist"><li>No file was submitted. Check the encoding type on the form.</li></ul><input type="file" name="file1" /></td></tr>
 
->>> f = FileForm(data={}, files={'file1': {'filename': 'name', 'content':'some content'}}, auto_id=False)
+>>> f = FileForm(data={}, files={'file1': SimpleUploadedFile('name', 'some content')}, auto_id=False)
 >>> print f
 <tr><th>File1:</th><td><input type="file" name="file1" /></td></tr>
 >>> f.is_valid()
 True
+
+>>> f = FileForm(data={}, files={'file1': SimpleUploadedFile('我隻氣墊船裝滿晒鱔.txt', 'मेरी मँडराने वाली नाव सर्पमीनों से भरी ह')}, auto_id=False)
+>>> print f
+<tr><th>File1:</th><td><input type="file" name="file1" /></td></tr>
 
 # Basic form processing in a view #############################################
 
@@ -1666,4 +1671,76 @@ the list of errors is empty). You can also use it in {% if %} statements.
 <p><label>Password (again): <input type="password" name="password2" value="bar" /></label></p>
 <input type="submit" />
 </form>
+
+
+# The empty_permitted attribute ##############################################
+
+Sometimes (pretty much in formsets) we want to allow a form to pass validation
+if it is completely empty. We can accomplish this by using the empty_permitted
+agrument to a form constructor.
+
+>>> class SongForm(Form):
+...     artist = CharField()
+...     name = CharField()
+
+First let's show what happens id empty_permitted=False (the default):
+
+>>> data = {'artist': '', 'song': ''}
+
+>>> form = SongForm(data, empty_permitted=False)
+>>> form.is_valid()
+False
+>>> form.errors
+{'name': [u'This field is required.'], 'artist': [u'This field is required.']}
+>>> form.cleaned_data
+Traceback (most recent call last):
+...
+AttributeError: 'SongForm' object has no attribute 'cleaned_data'
+
+
+Now let's show what happens when empty_permitted=True and the form is empty.
+
+>>> form = SongForm(data, empty_permitted=True)
+>>> form.is_valid()
+True
+>>> form.errors
+{}
+>>> form.cleaned_data
+{}
+
+But if we fill in data for one of the fields, the form is no longer empty and
+the whole thing must pass validation.
+
+>>> data = {'artist': 'The Doors', 'song': ''}
+>>> form = SongForm(data, empty_permitted=False)
+>>> form.is_valid()
+False
+>>> form.errors
+{'name': [u'This field is required.']}
+>>> form.cleaned_data
+Traceback (most recent call last):
+...
+AttributeError: 'SongForm' object has no attribute 'cleaned_data'
+
+If a field is not given in the data then None is returned for its data. Lets
+make sure that when checking for empty_permitted that None is treated
+accordingly.
+
+>>> data = {'artist': None, 'song': ''}
+>>> form = SongForm(data, empty_permitted=True)
+>>> form.is_valid()
+True
+
+However, we *really* need to be sure we are checking for None as any data in
+initial that returns False on a boolean call needs to be treated literally.
+
+>>> class PriceForm(Form):
+...     amount = FloatField()
+...     qty = IntegerField()
+
+>>> data = {'amount': '0.0', 'qty': ''}
+>>> form = PriceForm(data, initial={'amount': 0.0}, empty_permitted=True)
+>>> form.is_valid()
+True
+
 """

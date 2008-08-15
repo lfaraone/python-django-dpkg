@@ -4,8 +4,8 @@ from django.core.mail import EmailMessage, SMTPConnection
 from django.template import Context, Template
 from django.http import HttpResponse, HttpResponseRedirect, HttpResponseNotFound
 from django.contrib.auth.decorators import login_required, permission_required
-from django.newforms.forms import Form
-from django.newforms import fields
+from django.forms.forms import Form
+from django.forms import fields
 from django.shortcuts import render_to_response
 
 def get_view(request):
@@ -32,6 +32,12 @@ def post_view(request):
 
     return HttpResponse(t.render(c))
 
+def view_with_header(request):
+    "A view that has a custom header"
+    response = HttpResponse()
+    response['X-DJANGO-TEST'] = 'Slartibartfast'
+    return response
+        
 def raw_post_view(request):
     """A view which expects raw XML to be posted and returns content extracted
     from the XML"""

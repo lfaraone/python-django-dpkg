@@ -2,7 +2,7 @@ Source: python-django
 Section: python
 Priority: optional
 Maintainer: Brett Parker <iDunno@sommitrealweird.co.uk>
-Uploaders: Raphael Hertzog <hertzog@debian.org>, Gustavo Noronha Silva <kov@debian.org>, Debian Python Modules Team <python-modules-team@lists.alioth.debian.org>
+Uploaders: Raphael Hertzog <hertzog@debian.org>, Gustavo Noronha Silva <kov@debian.org>, David Spreen <netzwurm@debian.org>, Debian Python Modules Team <python-modules-team@lists.alioth.debian.org>
 Standards-Version: 3.7.3
 Build-Depends: debhelper (>= 5.0.37.2), python-dev, cdbs (>= 0.4.42), python-setuptools (>= 0.6b3), python-support (>= 0.3)
 Homepage: http://www.djangoproject.com/
@@ -13,7 +13,7 @@ Package: python-django
 Architecture: all
 Depends: ${python:Depends}
 Recommends: python-pysqlite2
-Suggests: python-psycopg2, python-psycopg, python-mysqldb
+Suggests: python-psycopg2, python-psycopg, python-mysqldb, python-flup
 Priority: optional
 Description: A high-level Python Web framework
  Django is a high-level Python Web framework that encourages rapid development

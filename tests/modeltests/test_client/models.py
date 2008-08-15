@@ -11,10 +11,10 @@ The server Response objects are annotated with the details
 of the contexts and templates that were rendered during the
 process of serving the request.
 
-Client objects are stateful - they will retain cookie (and
-thus session) details for the lifetime of the Client instance.
+``Client`` objects are stateful - they will retain cookie (and
+thus session) details for the lifetime of the ``Client`` instance.
 
-This is not intended as a replacement for Twill,Selenium, or
+This is not intended as a replacement for Twill, Selenium, or
 other browser automation frameworks - it is here to allow
 testing against the contexts and templates produced by a view,
 rather than the HTML rendered to the end-user.
@@ -70,7 +70,13 @@ class ClientTest(TestCase):
         self.assertEqual(response.context['data'], '37')
         self.assertEqual(response.template.name, 'POST Template')
         self.failUnless('Data received' in response.content)
-
+    
+    def test_response_headers(self):
+        "Check the value of HTTP headers returned in a response"
+        response = self.client.get("/test_client/header_view/")
+        
+        self.assertEquals(response['X-DJANGO-TEST'], 'Slartibartfast')
+        
     def test_raw_post(self):
         "POST raw data (with a content type) to a view"
         test_doc = """<?xml version="1.0" encoding="utf-8"?><library><book><title>Blink</title><author>Malcolm Gladwell</author></book></library>"""

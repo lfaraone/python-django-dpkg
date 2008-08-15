@@ -42,20 +42,21 @@ _django_completion()
     prev="${COMP_WORDS[COMP_CWORD-1]}"
 
     # Standalone options
-    opts="--help --settings --pythonpath --noinput --noreload --format --indent --verbosity --adminmedia --version"
+    opts="--help --settings --pythonpath --noinput --noreload --format --indent --verbosity --adminmedia --version --locale --domain"
     # Actions
-    actions="adminindex createcachetable dbshell diffsettings \
-             dumpdata flush inspectdb loaddata reset runfcgi runserver \
-             shell sql sqlall sqlclear sqlcustom sqlflush sqlindexes \
-             sqlreset sqlsequencereset startapp startproject \
-             syncdb test validate"
+    actions="adminindex createcachetable createsuperuser compilemessages \
+             dbshell diffsettings dumpdata flush inspectdb loaddata \
+             makemessages reset runfcgi runserver shell sql sqlall sqlclear \
+             sqlcustom sqlflush sqlindexes sqlreset sqlsequencereset startapp \
+             startproject syncdb test validate"
     # Action's options
     action_shell_opts="--plain"
     action_runfcgi_opts="host port socket method maxspare minspare maxchildren daemonize pidfile workdir"
 
-    if [[ # django-admin.py, ./manage, manage.py
+    if [[ # django-admin.py, django-admin, ./manage, manage.py
           ( ${COMP_CWORD} -eq 1 &&
             ( ${COMP_WORDS[0]} == django-admin.py ||
+              ${COMP_WORDS[0]} == django-admin ||
               ${COMP_WORDS[0]} == ./manage.py ||
               ${COMP_WORDS[0]} == manage.py ) )
           ||
@@ -68,6 +69,11 @@ _django_completion()
           ( ${COMP_CWORD} -eq 2 &&
             ( $( basename -- ${COMP_WORDS[0]} ) == python?([1-9]\.[0-9]) ) &&
             ( $( basename -- ${COMP_WORDS[1]} ) == django-admin.py) &&
+            ( -r ${COMP_WORDS[1]} ) ) 
+          ||
+          ( ${COMP_CWORD} -eq 2 &&
+            ( $( basename -- ${COMP_WORDS[0]} ) == python?([1-9]\.[0-9]) ) &&
+            ( $( basename -- ${COMP_WORDS[1]} ) == django-admin) &&
             ( -r ${COMP_WORDS[1]} ) ) ]] ; then
 
         case ${cur} in
@@ -112,8 +118,9 @@ _django_completion()
                 return 0
                 ;;
 
-            createcachetable|dbshell|diffsettings| \
-            inspectdb|runserver|startapp|startproject|syncdb| \
+            createcachetable|cleanup|compilemessages|dbshell| \
+            diffsettings|inspectdb|makemessages| \
+            runserver|startapp|startproject|syncdb| \
             validate)
                 COMPREPLY=()
                 return 0
@@ -142,7 +149,7 @@ _django_completion()
     fi
 }
 
-complete -F _django_completion django-admin.py manage.py
+complete -F _django_completion django-admin.py manage.py django-admin
 
 # Support for multiple interpreters.
 unset pythons

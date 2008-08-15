@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 tests = r"""
->>> from django.newforms import *
->>> from django.newforms.widgets import RadioFieldRenderer
+>>> from django.forms import *
+>>> from django.forms.widgets import RadioFieldRenderer
+>>> from django.core.files.uploadedfile import SimpleUploadedFile
 >>> import datetime
 >>> import time
 >>> import re
@@ -16,7 +17,7 @@ tests = r"""
 ##########
 
 Each Field class does some sort of validation. Each Field has a clean() method,
-which either raises django.newforms.ValidationError or returns the "clean"
+which either raises django.forms.ValidationError or returns the "clean"
 data -- usually a Unicode object, but, in some rare cases, a list.
 
 Each Field's __init__() takes at least these parameters:
@@ -307,18 +308,18 @@ ValidationError: [u'This field is required.']
 Traceback (most recent call last):
 ...
 ValidationError: [u'This field is required.']
->>> f.clean('1')
-Decimal("1")
+>>> f.clean('1') == Decimal("1")
+True
 >>> isinstance(f.clean('1'), Decimal)
 True
->>> f.clean('23')
-Decimal("23")
->>> f.clean('3.14')
-Decimal("3.14")
->>> f.clean(3.14)
-Decimal("3.14")
->>> f.clean(Decimal('3.14'))
-Decimal("3.14")
+>>> f.clean('23') == Decimal("23")
+True
+>>> f.clean('3.14') == Decimal("3.14")
+True
+>>> f.clean(3.14) == Decimal("3.14")
+True
+>>> f.clean(Decimal('3.14')) == Decimal("3.14")
+True
 >>> f.clean('a')
 Traceback (most recent call last):
 ...
@@ -327,12 +328,12 @@ ValidationError: [u'Enter a number.']
 Traceback (most recent call last):
 ...
 ValidationError: [u'Enter a number.']
->>> f.clean('1.0 ')
-Decimal("1.0")
->>> f.clean(' 1.0')
-Decimal("1.0")
->>> f.clean(' 1.0 ')
-Decimal("1.0")
+>>> f.clean('1.0 ') == Decimal("1.0")
+True
+>>> f.clean(' 1.0') == Decimal("1.0")
+True
+>>> f.clean(' 1.0 ') == Decimal("1.0")
+True
 >>> f.clean('1.0a')
 Traceback (most recent call last):
 ...
@@ -349,18 +350,18 @@ ValidationError: [u'Ensure that there are no more than 2 decimal places.']
 Traceback (most recent call last):
 ...
 ValidationError: [u'Ensure that there are no more than 2 digits before the decimal point.']
->>> f.clean('-12.34')
-Decimal("-12.34")
+>>> f.clean('-12.34') == Decimal("-12.34")
+True
 >>> f.clean('-123.45')
 Traceback (most recent call last):
 ...
 ValidationError: [u'Ensure that there are no more than 4 digits in total.']
->>> f.clean('-.12')
-Decimal("-0.12")
->>> f.clean('-00.12')
-Decimal("-0.12")
->>> f.clean('-000.12')
-Decimal("-0.12")
+>>> f.clean('-.12') == Decimal("-0.12")
+True
+>>> f.clean('-00.12') == Decimal("-0.12")
+True
+>>> f.clean('-000.12') == Decimal("-0.12")
+True
 >>> f.clean('-000.123')
 Traceback (most recent call last):
 ...
@@ -379,8 +380,8 @@ ValidationError: [u'Enter a number.']
 
 >>> f.clean(None)
 
->>> f.clean('1')
-Decimal("1")
+>>> f.clean('1') == Decimal("1")
+True
 
 DecimalField accepts min_value and max_value just like IntegerField:
 >>> f = DecimalField(max_digits=4, decimal_places=2, max_value=Decimal('1.5'), min_value=Decimal('0.5'))
@@ -393,14 +394,14 @@ ValidationError: [u'Ensure this value is less than or equal to 1.5.']
 Traceback (most recent call last):
 ...
 ValidationError: [u'Ensure this value is greater than or equal to 0.5.']
->>> f.clean('1.5')
-Decimal("1.5")
->>> f.clean('0.5')
-Decimal("0.5")
->>> f.clean('.5')
-Decimal("0.5")
->>> f.clean('00.50')
-Decimal("0.50")
+>>> f.clean('1.5') == Decimal("1.5")
+True
+>>> f.clean('0.5') == Decimal("0.5")
+True
+>>> f.clean('.5') == Decimal("0.5")
+True
+>>> f.clean('00.50') == Decimal("0.50")
+True
 
 # DateField ###################################################################
 
@@ -770,17 +771,17 @@ ValidationError: [u'This field is required.']
 >>> f.clean(None, 'files/test2.pdf')
 'files/test2.pdf'
 
->>> f.clean({})
+>>> f.clean(SimpleUploadedFile('', ''))
 Traceback (most recent call last):
 ...
-ValidationError: [u'No file was submitted.']
+ValidationError: [u'No file was submitted. Check the encoding type on the form.']
 
->>> f.clean({}, '')
+>>> f.clean(SimpleUploadedFile('', ''), '')
 Traceback (most recent call last):
 ...
-ValidationError: [u'No file was submitted.']
+ValidationError: [u'No file was submitted. Check the encoding type on the form.']
 
->>> f.clean({}, 'files/test3.pdf')
+>>> f.clean(None, 'files/test3.pdf')
 'files/test3.pdf'
 
 >>> f.clean('some content that is not a file')
@@ -788,21 +789,24 @@ Traceback (most recent call last):
 ...
 ValidationError: [u'No file was submitted. Check the encoding type on the form.']
 
->>> f.clean({'filename': 'name', 'content': None})
+>>> f.clean(SimpleUploadedFile('name', None))
 Traceback (most recent call last):
 ...
 ValidationError: [u'The submitted file is empty.']
 
->>> f.clean({'filename': 'name', 'content': ''})
+>>> f.clean(SimpleUploadedFile('name', ''))
 Traceback (most recent call last):
 ...
 ValidationError: [u'The submitted file is empty.']
 
->>> type(f.clean({'filename': 'name', 'content': 'Some File Content'}))
-<class 'django.newforms.fields.UploadedFile'>
+>>> type(f.clean(SimpleUploadedFile('name', 'Some File Content')))
+<class 'django.core.files.uploadedfile.SimpleUploadedFile'>
 
->>> type(f.clean({'filename': 'name', 'content': 'Some File Content'}, 'files/test4.pdf'))
-<class 'django.newforms.fields.UploadedFile'>
+>>> type(f.clean(SimpleUploadedFile('我隻氣墊船裝滿晒鱔.txt', 'मेरी मँडराने वाली नाव सर्पमीनों से भरी ह')))
+<class 'django.core.files.uploadedfile.SimpleUploadedFile'>
+
+>>> type(f.clean(SimpleUploadedFile('name', 'Some File Content'), 'files/test4.pdf'))
+<class 'django.core.files.uploadedfile.SimpleUploadedFile'>
 
 # URLField ##################################################################
 
@@ -816,15 +820,15 @@ Traceback (most recent call last):
 ...
 ValidationError: [u'This field is required.']
 >>> f.clean('http://localhost')
-u'http://localhost'
+u'http://localhost/'
 >>> f.clean('http://example.com')
-u'http://example.com'
+u'http://example.com/'
 >>> f.clean('http://www.example.com')
-u'http://www.example.com'
+u'http://www.example.com/'
 >>> f.clean('http://www.example.com:8000/test')
 u'http://www.example.com:8000/test'
 >>> f.clean('http://200.8.9.10')
-u'http://200.8.9.10'
+u'http://200.8.9.10/'
 >>> f.clean('http://200.8.9.10:8000/test')
 u'http://200.8.9.10:8000/test'
 >>> f.clean('foo')
@@ -854,9 +858,9 @@ u''
 >>> f.clean(None)
 u''
 >>> f.clean('http://example.com')
-u'http://example.com'
+u'http://example.com/'
 >>> f.clean('http://www.example.com')
-u'http://www.example.com'
+u'http://www.example.com/'
 >>> f.clean('foo')
 Traceback (most recent call last):
 ...
@@ -882,12 +886,12 @@ URLField takes an optional verify_exists parameter, which is False by default.
 This verifies that the URL is live on the Internet and doesn't return a 404 or 500:
 >>> f = URLField(verify_exists=True)
 >>> f.clean('http://www.google.com') # This will fail if there's no Internet connection
-u'http://www.google.com'
+u'http://www.google.com/'
 >>> f.clean('http://example')
 Traceback (most recent call last):
 ...
 ValidationError: [u'Enter a valid URL.']
->>> f.clean('http://www.jfoiwjfoi23jfoijoaijfoiwjofiwjefewl.com') # bad domain
+>>> f.clean('http://www.broken.djangoproject.com') # bad domain
 Traceback (most recent call last):
 ...
 ValidationError: [u'This URL appears to be a broken link.']
@@ -899,29 +903,38 @@ ValidationError: [u'This URL appears to be a broken link.']
 >>> f.clean('')
 u''
 >>> f.clean('http://www.google.com') # This will fail if there's no Internet connection
-u'http://www.google.com'
+u'http://www.google.com/'
 
 URLField also access min_length and max_length parameters, for convenience.
 >>> f = URLField(min_length=15, max_length=20)
 >>> f.clean('http://f.com')
 Traceback (most recent call last):
 ...
-ValidationError: [u'Ensure this value has at least 15 characters (it has 12).']
+ValidationError: [u'Ensure this value has at least 15 characters (it has 13).']
 >>> f.clean('http://example.com')
-u'http://example.com'
+u'http://example.com/'
 >>> f.clean('http://abcdefghijklmnopqrstuvwxyz.com')
 Traceback (most recent call last):
 ...
-ValidationError: [u'Ensure this value has at most 20 characters (it has 37).']
+ValidationError: [u'Ensure this value has at most 20 characters (it has 38).']
 
 URLField should prepend 'http://' if no scheme was given
 >>> f = URLField(required=False)
 >>> f.clean('example.com')
-u'http://example.com'
+u'http://example.com/'
 >>> f.clean('')
 u''
 >>> f.clean('https://example.com')
-u'https://example.com'
+u'https://example.com/'
+
+URLField should append '/' if no path was given
+>>> f = URLField()
+>>> f.clean('http://example.com')
+u'http://example.com/'
+
+URLField shouldn't change the path if it was given
+>>> f.clean('http://example.com/test')
+u'http://example.com/test'
 
 # BooleanField ################################################################
 
@@ -937,18 +950,24 @@ ValidationError: [u'This field is required.']
 >>> f.clean(True)
 True
 >>> f.clean(False)
-False
+Traceback (most recent call last):
+...
+ValidationError: [u'This field is required.']
 >>> f.clean(1)
 True
 >>> f.clean(0)
-False
+Traceback (most recent call last):
+...
+ValidationError: [u'This field is required.']
 >>> f.clean('Django rocks')
 True
 
 >>> f.clean('True')
 True
 >>> f.clean('False')
-False
+Traceback (most recent call last):
+...
+ValidationError: [u'This field is required.']
 
 >>> f = BooleanField(required=False)
 >>> f.clean('')
@@ -973,7 +992,7 @@ False
 
 # ChoiceField #################################################################
 
->>> f = ChoiceField(choices=[('1', '1'), ('2', '2')])
+>>> f = ChoiceField(choices=[('1', 'One'), ('2', 'Two')])
 >>> f.clean('')
 Traceback (most recent call last):
 ...
@@ -989,9 +1008,9 @@ u'1'
 >>> f.clean('3')
 Traceback (most recent call last):
 ...
-ValidationError: [u'Select a valid choice. That choice is not one of the available choices.']
+ValidationError: [u'Select a valid choice. 3 is not one of the available choices.']
 
->>> f = ChoiceField(choices=[('1', '1'), ('2', '2')], required=False)
+>>> f = ChoiceField(choices=[('1', 'One'), ('2', 'Two')], required=False)
 >>> f.clean('')
 u''
 >>> f.clean(None)
@@ -1003,7 +1022,7 @@ u'1'
 >>> f.clean('3')
 Traceback (most recent call last):
 ...
-ValidationError: [u'Select a valid choice. That choice is not one of the available choices.']
+ValidationError: [u'Select a valid choice. 3 is not one of the available choices.']
 
 >>> f = ChoiceField(choices=[('J', 'John'), ('P', 'Paul')])
 >>> f.clean('J')
@@ -1011,7 +1030,25 @@ u'J'
 >>> f.clean('John')
 Traceback (most recent call last):
 ...
-ValidationError: [u'Select a valid choice. That choice is not one of the available choices.']
+ValidationError: [u'Select a valid choice. John is not one of the available choices.']
+
+>>> f = ChoiceField(choices=[('Numbers', (('1', 'One'), ('2', 'Two'))), ('Letters', (('3','A'),('4','B'))), ('5','Other')])
+>>> f.clean(1)
+u'1'
+>>> f.clean('1')
+u'1'
+>>> f.clean(3)
+u'3'
+>>> f.clean('3')
+u'3'
+>>> f.clean(5)
+u'5'
+>>> f.clean('5')
+u'5'
+>>> f.clean('6')
+Traceback (most recent call last):
+...
+ValidationError: [u'Select a valid choice. 6 is not one of the available choices.']
 
 # NullBooleanField ############################################################
 
@@ -1029,7 +1066,7 @@ False
 
 # MultipleChoiceField #########################################################
 
->>> f = MultipleChoiceField(choices=[('1', '1'), ('2', '2')])
+>>> f = MultipleChoiceField(choices=[('1', 'One'), ('2', 'Two')])
 >>> f.clean('')
 Traceback (most recent call last):
 ...
@@ -1065,7 +1102,7 @@ Traceback (most recent call last):
 ...
 ValidationError: [u'Select a valid choice. 3 is not one of the available choices.']
 
->>> f = MultipleChoiceField(choices=[('1', '1'), ('2', '2')], required=False)
+>>> f = MultipleChoiceField(choices=[('1', 'One'), ('2', 'Two')], required=False)
 >>> f.clean('')
 []
 >>> f.clean(None)
@@ -1092,6 +1129,29 @@ ValidationError: [u'Enter a list of values.']
 Traceback (most recent call last):
 ...
 ValidationError: [u'Select a valid choice. 3 is not one of the available choices.']
+
+>>> f = MultipleChoiceField(choices=[('Numbers', (('1', 'One'), ('2', 'Two'))), ('Letters', (('3','A'),('4','B'))), ('5','Other')])
+>>> f.clean([1])
+[u'1']
+>>> f.clean(['1'])
+[u'1']
+>>> f.clean([1, 5])
+[u'1', u'5']
+>>> f.clean([1, '5'])
+[u'1', u'5']
+>>> f.clean(['1', 5])
+[u'1', u'5']
+>>> f.clean(['1', '5'])
+[u'1', u'5']
+>>> f.clean(['6'])
+Traceback (most recent call last):
+...
+ValidationError: [u'Select a valid choice. 6 is not one of the available choices.']
+>>> f.clean(['1','6'])
+Traceback (most recent call last):
+...
+ValidationError: [u'Select a valid choice. 6 is not one of the available choices.']
+
 
 # ComboField ##################################################################
 
@@ -1146,29 +1206,29 @@ u''
 ...         return x
 ...
 >>> import os
->>> from django import newforms as forms
+>>> from django import forms
 >>> path = forms.__file__
 >>> path = os.path.dirname(path) + '/'
 >>> fix_os_paths(path)
-'.../django/newforms/'
+'.../django/forms/'
 >>> f = forms.FilePathField(path=path)
 >>> f.choices.sort()
 >>> fix_os_paths(f.choices)
-[('.../django/newforms/__init__.py', '__init__.py'), ('.../django/newforms/__init__.pyc', '__init__.pyc'), ('.../django/newforms/fields.py', 'fields.py'), ('.../django/newforms/fields.pyc', 'fields.pyc'), ('.../django/newforms/forms.py', 'forms.py'), ('.../django/newforms/forms.pyc', 'forms.pyc'), ('.../django/newforms/models.py', 'models.py'), ('.../django/newforms/models.pyc', 'models.pyc'), ('.../django/newforms/util.py', 'util.py'), ('.../django/newforms/util.pyc', 'util.pyc'), ('.../django/newforms/widgets.py', 'widgets.py'), ('.../django/newforms/widgets.pyc', 'widgets.pyc')]
+[('.../django/forms/__init__.py', '__init__.py'), ('.../django/forms/__init__.pyc', '__init__.pyc'), ('.../django/forms/fields.py', 'fields.py'), ('.../django/forms/fields.pyc', 'fields.pyc'), ('.../django/forms/forms.py', 'forms.py'), ('.../django/forms/forms.pyc', 'forms.pyc'), ('.../django/forms/models.py', 'models.py'), ('.../django/forms/models.pyc', 'models.pyc'), ('.../django/forms/util.py', 'util.py'), ('.../django/forms/util.pyc', 'util.pyc'), ('.../django/forms/widgets.py', 'widgets.py'), ('.../django/forms/widgets.pyc', 'widgets.pyc')]
 >>> f.clean('fields.py')
 Traceback (most recent call last):
 ...
-ValidationError: [u'Select a valid choice. That choice is not one of the available choices.']
+ValidationError: [u'Select a valid choice. fields.py is not one of the available choices.']
 >>> fix_os_paths(f.clean(path + 'fields.py'))
-u'.../django/newforms/fields.py'
+u'.../django/forms/fields.py'
 >>> f = forms.FilePathField(path=path, match='^.*?\.py$')
 >>> f.choices.sort()
 >>> fix_os_paths(f.choices)
-[('.../django/newforms/__init__.py', '__init__.py'), ('.../django/newforms/fields.py', 'fields.py'), ('.../django/newforms/forms.py', 'forms.py'), ('.../django/newforms/models.py', 'models.py'), ('.../django/newforms/util.py', 'util.py'), ('.../django/newforms/widgets.py', 'widgets.py')]
+[('.../django/forms/__init__.py', '__init__.py'), ('.../django/forms/fields.py', 'fields.py'), ('.../django/forms/forms.py', 'forms.py'), ('.../django/forms/models.py', 'models.py'), ('.../django/forms/util.py', 'util.py'), ('.../django/forms/widgets.py', 'widgets.py')]
 >>> f = forms.FilePathField(path=path, recursive=True, match='^.*?\.py$')
 >>> f.choices.sort()
 >>> fix_os_paths(f.choices)
-[('.../django/newforms/__init__.py', '__init__.py'), ('.../django/newforms/extras/__init__.py', 'extras/__init__.py'), ('.../django/newforms/extras/widgets.py', 'extras/widgets.py'), ('.../django/newforms/fields.py', 'fields.py'), ('.../django/newforms/forms.py', 'forms.py'), ('.../django/newforms/models.py', 'models.py'), ('.../django/newforms/util.py', 'util.py'), ('.../django/newforms/widgets.py', 'widgets.py')]
+[('.../django/forms/__init__.py', '__init__.py'), ('.../django/forms/extras/__init__.py', 'extras/__init__.py'), ('.../django/forms/extras/widgets.py', 'extras/widgets.py'), ('.../django/forms/fields.py', 'fields.py'), ('.../django/forms/forms.py', 'forms.py'), ('.../django/forms/models.py', 'models.py'), ('.../django/forms/util.py', 'util.py'), ('.../django/forms/widgets.py', 'widgets.py')]
 
 # SplitDateTimeField ##########################################################
 
