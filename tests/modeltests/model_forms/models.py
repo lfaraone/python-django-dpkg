@@ -13,6 +13,12 @@ import tempfile
 from django.db import models
 from django.core.files.storage import FileSystemStorage
 
+# Python 2.3 doesn't have sorted()
+try:
+    sorted
+except NameError:
+    from django.utils.itercompat import sorted
+
 temp_storage = FileSystemStorage(tempfile.gettempdir())
 
 ARTICLE_STATUS = (
@@ -54,6 +60,15 @@ class Article(models.Model):
     def __unicode__(self):
         return self.headline
 
+class ImprovedArticle(models.Model):
+    article = models.OneToOneField(Article)
+
+class ImprovedArticleWithParentLink(models.Model):
+    article = models.OneToOneField(Article, parent_link=True)
+
+class BetterWriter(Writer):
+    pass
+
 class PhoneNumber(models.Model):
     phone = models.PhoneNumberField()
     description = models.CharField(max_length=20)
@@ -85,7 +100,7 @@ class ImageFile(models.Model):
 
 __test__ = {'API_TESTS': """
 >>> from django import forms
->>> from django.forms.models import ModelForm
+>>> from django.forms.models import ModelForm, model_to_dict
 >>> from django.core.files.uploadedfile import SimpleUploadedFile
 
 The bare bones, absolutely nothing custom, basic case.
@@ -295,11 +310,11 @@ u'third-test'
 [<Category: Entertainment>, <Category: It's a test>, <Category: Third test>]
 
 If you call save() with invalid data, you'll get a ValueError.
->>> f = CategoryForm({'name': '', 'slug': '', 'url': 'foo'})
+>>> f = CategoryForm({'name': '', 'slug': 'not a slug!', 'url': 'foo'})
 >>> f.errors['name']
 [u'This field is required.']
 >>> f.errors['slug']
-[u'This field is required.']
+[u"Enter a valid 'slug' consisting of letters, numbers, underscores or hyphens."]
 >>> f.cleaned_data
 Traceback (most recent call last):
 ...
@@ -772,6 +787,25 @@ ValidationError: [u'Select a valid choice. 4 is not one of the available choices
 >>> f.label_from_instance = lambda obj: "multicategory " + str(obj)
 >>> list(f.choices)
 [(1L, 'multicategory Entertainment'), (2L, "multicategory It's a test"), (3L, 'multicategory Third'), (4L, 'multicategory Fourth')]
+
+# OneToOneField ###############################################################
+
+>>> class ImprovedArticleForm(ModelForm):
+...     class Meta:
+...         model = ImprovedArticle
+>>> ImprovedArticleForm.base_fields.keys()
+['article']
+
+>>> class ImprovedArticleWithParentLinkForm(ModelForm):
+...     class Meta:
+...         model = ImprovedArticleWithParentLink
+>>> ImprovedArticleWithParentLinkForm.base_fields.keys()
+[]
+
+>>> bw = BetterWriter(name=u'Joe Better')
+>>> bw.save()
+>>> sorted(model_to_dict(bw).keys())
+['id', 'name', 'writer_ptr_id']
 
 # PhoneNumberField ############################################################
 

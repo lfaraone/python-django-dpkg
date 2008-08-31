@@ -1,0 +1,20 @@
+Document: python-django
+Title: Python Django Documentation
+Author: Django Software Foundation
+Abstract: This documentation gives an introduction 
+ to Django and its contributed packages like its automatic
+ admin and the user authentication applications.
+Section: Programming/Python
+
+Format: HTML
+Index: /usr/share/doc/python-django/html/index.html
+Files: /usr/share/doc/python-django/html/*.html
+ /usr/share/doc/python-django/html/faq/*.html
+ /usr/share/doc/python-django/html/howto/*.html
+ /usr/share/doc/python-django/html/internals/*.html
+ /usr/share/doc/python-django/html/intro/*.html
+ /usr/share/doc/python-django/html/misc/*.html
+ /usr/share/doc/python-django/html/obsolete/*.html
+ /usr/share/doc/python-django/html/ref/*.html
+ /usr/share/doc/python-django/html/releases/*.html
+ /usr/share/doc/python-django/html/topics/*.html

@@ -1,0 +1,63 @@
+python-django (1.0~beta2-3) unstable; urgency=low
+  
+  The transition from Django 0.96.2 to Django 1.0 means that your Django software
+  will probably have to be updated. A comprehensive list of changes since Django
+  0.96 is available at the Django Wiki[1]. If you are upgrading from 0.95 
+  (Sarge), you should refer to this page[2] as well. 
+  
+  The Debian package now also includes the full Django documentation in HTML
+  format[3]
+  
+  The following incomplete list of major changes is taken from the release notes 
+  of 1.0alpha1[4], 1.0alpha2[5], 1.0beta1[6] ad 1.0beta2[7]. For more changes 
+  see those release notes or [1].
+  
+  Refactored admin application (newforms-admin)
+    The Django administrative interface (django.contrib.admin) has been 
+    completely refactored; admin definitions are now completely decoupled from 
+    model definitions (no more class Admin declaration in models!), rewritten 
+    to use Django’s new form-handling library (introduced in the 0.96 release 
+    as django.newforms, and now available as simply django.forms) and redesigned 
+    with extensibility and customization in mind. Full documentation for the 
+    admin application is available online in the official Django 
+    documentation[8].
+  
+  INSERT/UPDATE distinction
+    Although Django’s default behavior of having a model’s save() method 
+    automatically determine whether to perform an INSERT or an UPDATE at 
+    the SQL level is suitable for the majority of cases, there are occasional 
+    situations where forcing one or the other is useful. As a result, models 
+    can now support an additional parameter to save() which can force a specific
+    operation. Consult the database API documentation[9] for details and important
+    notes about appropriate use of this parameter.
+  
+  Split CacheMiddleware
+    Django’s CacheMiddleware has been split into three classes: CacheMiddleware 
+    itself still exists and retains all of its previous functionality, but it 
+    is now built from two separate middleware classes which handle the two parts 
+    of caching (inserting into and reading from the cache) separately, offering 
+    additional flexibility for situations where combining these functions into a 
+    single middleware posed problems. Full details, including updated notes on 
+    appropriate use, are in the caching documentation[10].
+  
+  Refactored django.contrib.comments
+    As part of a Google Summer of Code project, Thejaswi Puthraya carried out 
+    a major rewrite and refactoring of Django’s bundled comment system, greatly 
+    increasing its flexibility and customizability. Full documentation[11] is 
+    available, as well as an upgrade guide[12] if you were using the previous 
+    incarnation of the comments application.
+  
+  [1] http://code.djangoproject.com/wiki/BackwardsIncompatibleChanges
+  [2] http://code.djangoproject.com/wiki/OlderBackwardsIncompatibleChanges
+  [3] /usr/share/doc/python-django/html/index.html
+  [4] http://docs.djangoproject.com/en/dev/releases/1.0-alpha-1/#releases-1-0-alpha-1
+  [5] http://docs.djangoproject.com/en/dev/releases/1.0-alpha-2/#releases-1-0-alpha-2 
+  [6] http://docs.djangoproject.com/en/dev/releases/1.0-beta/#releases-1-0-beta
+  [7] http://docs.djangoproject.com/en/dev/releases/1.0-beta-2/
+  [8] /usr/share/doc/python-django/html/ref/contrib/admin.html
+  [9] /usr/share/doc/python-django/html/ref/models/index.html
+  [10] /usr/share/doc/python-django/html/topics/cache.html
+  [11] /usr/share/doc/python-django/html/ref/contrib/comments/index.html
+  [12] /usr/share/doc/python-django/html/ref/contrib/comments/upgrade.htm
+  
+ -- David Spreen <netzwurm@debian.org>  Fri, 28 Aug 2008 09:10:16 -0700

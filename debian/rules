@@ -1,11 +1,17 @@
 #!/usr/bin/make -f
 
 DEB_PYTHON_SYSTEM := pysupport
+DEB_PYTHON_MODULE_PACKAGE = python-django
+#DEB_DH_COMPRESS_ARGS = -X.js
 
 include /usr/share/cdbs/1/rules/buildcore.mk
 include /usr/share/cdbs/1/rules/debhelper.mk
 include /usr/share/cdbs/1/class/python-distutils.mk
 include /usr/share/cdbs/1/rules/simple-patchsys.mk
+
+build/python-django::
+	# Build HTML documentation
+	cd docs && make html
 
 binary-post-install/python-django::
 	# Use default python shebang
@@ -20,3 +26,10 @@ binary-post-install/python-django::
 	dh_link usr/share/python-support/python-django/django/bin usr/lib/python-django/bin 
 	# Rename django-admin.py to django-admin
 	mv debian/python-django/usr/bin/django-admin.py debian/python-django/usr/bin/django-admin
+	# Remove convenience copy of libjs-jquery and replace with symlink
+	cd debian/python-django/usr/share/doc/python-django/html/_static\
+		&& rm -f jquery.js\
+		&& ln -s ../../../../javascript/jquery/jquery.js .
+
+clean::
+	rm -rf docs/_build/*

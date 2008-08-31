@@ -9,7 +9,7 @@ consistent.
 
 from datetime import datetime, timedelta
 
-from django.utils.tzinfo import LocalTimezone
+from django.utils.tzinfo import LocalTimezone, FixedOffset
 from django.utils.safestring import mark_safe
 
 # These two classes are used to test auto-escaping of __unicode__ output.
@@ -27,6 +27,7 @@ class SafeClass:
 def get_filter_tests():
     now = datetime.now()
     now_tz = datetime.now(LocalTimezone(now))
+    now_tz_i = datetime.now(FixedOffset((3 * 60) + 15)) # imaginary time zone
     return {
         # Default compare with datetime.now()
         'filter-timesince01' : ('{{ a|timesince }}', {'a': datetime.now() + timedelta(minutes=-1, seconds = -10)}, '1 minute'),
@@ -34,11 +35,25 @@ def get_filter_tests():
         'filter-timesince03' : ('{{ a|timesince }}', {'a': datetime.now() - timedelta(hours=1, minutes=25, seconds = 10)}, '1 hour, 25 minutes'),
 
         # Compare to a given parameter
-        'filter-timesince04' : ('{{ a|timesince:b }}', {'a':now + timedelta(days=2), 'b':now + timedelta(days=1)}, '1 day'),
-        'filter-timesince05' : ('{{ a|timesince:b }}', {'a':now + timedelta(days=2, minutes=1), 'b':now + timedelta(days=2)}, '1 minute'),
+        'filter-timesince04' : ('{{ a|timesince:b }}', {'a':now - timedelta(days=2), 'b':now - timedelta(days=1)}, '1 day'),
+        'filter-timesince05' : ('{{ a|timesince:b }}', {'a':now - timedelta(days=2, minutes=1), 'b':now - timedelta(days=2)}, '1 minute'),
 
         # Check that timezone is respected
-        'filter-timesince06' : ('{{ a|timesince:b }}', {'a':now_tz + timedelta(hours=8), 'b':now_tz}, '8 hours'),
+        'filter-timesince06' : ('{{ a|timesince:b }}', {'a':now_tz - timedelta(hours=8), 'b':now_tz}, '8 hours'),
+
+        # Regression for #7443
+        'filter-timesince07': ('{{ earlier|timesince }}', { 'earlier': now - timedelta(days=7) }, '1 week'),
+        'filter-timesince08': ('{{ earlier|timesince:now }}', { 'now': now, 'earlier': now - timedelta(days=7) }, '1 week'),
+        'filter-timesince09': ('{{ later|timesince }}', { 'later': now + timedelta(days=7) }, '0 minutes'),
+        'filter-timesince10': ('{{ later|timesince:now }}', { 'now': now, 'later': now + timedelta(days=7) }, '0 minutes'),
+
+        # Ensures that differing timezones are calculated correctly
+        'filter-timesince11' : ('{{ a|timesince }}', {'a': now}, '0 minutes'),
+        'filter-timesince12' : ('{{ a|timesince }}', {'a': now_tz}, '0 minutes'),
+        'filter-timesince13' : ('{{ a|timesince }}', {'a': now_tz_i}, '0 minutes'),
+        'filter-timesince14' : ('{{ a|timesince:b }}', {'a': now_tz, 'b': now_tz_i}, '0 minutes'),
+        'filter-timesince15' : ('{{ a|timesince:b }}', {'a': now, 'b': now_tz_i}, ''),
+        'filter-timesince16' : ('{{ a|timesince:b }}', {'a': now_tz_i, 'b': now}, ''),
 
         # Default compare with datetime.now()
         'filter-timeuntil01' : ('{{ a|timeuntil }}', {'a':datetime.now() + timedelta(minutes=2, seconds = 10)}, '2 minutes'),
@@ -48,6 +63,16 @@ def get_filter_tests():
         # Compare to a given parameter
         'filter-timeuntil04' : ('{{ a|timeuntil:b }}', {'a':now - timedelta(days=1), 'b':now - timedelta(days=2)}, '1 day'),
         'filter-timeuntil05' : ('{{ a|timeuntil:b }}', {'a':now - timedelta(days=2), 'b':now - timedelta(days=2, minutes=1)}, '1 minute'),
+
+        # Regression for #7443
+        'filter-timeuntil06': ('{{ earlier|timeuntil }}', { 'earlier': now - timedelta(days=7) }, '0 minutes'),
+        'filter-timeuntil07': ('{{ earlier|timeuntil:now }}', { 'now': now, 'earlier': now - timedelta(days=7) }, '0 minutes'),
+        'filter-timeuntil08': ('{{ later|timeuntil }}', { 'later': now + timedelta(days=7, hours=1) }, '1 week'),
+        'filter-timeuntil09': ('{{ later|timeuntil:now }}', { 'now': now, 'later': now + timedelta(days=7) }, '1 week'),
+
+        # Ensures that differing timezones are calculated correctly
+        'filter-timeuntil10' : ('{{ a|timeuntil }}', {'a': now_tz_i}, '0 minutes'),
+        'filter-timeuntil11' : ('{{ a|timeuntil:b }}', {'a': now_tz_i, 'b': now_tz}, '0 minutes'),
 
         'filter-addslash01': ("{% autoescape off %}{{ a|addslashes }} {{ b|addslashes }}{% endautoescape %}", {"a": "<a>'", "b": mark_safe("<a>'")}, ur"<a>\' <a>\'"),
         'filter-addslash02': ("{{ a|addslashes }} {{ b|addslashes }}", {"a": "<a>'", "b": mark_safe("<a>'")}, ur"&lt;a&gt;\&#39; <a>\'"),
@@ -249,5 +274,8 @@ def get_filter_tests():
         'autoescape-stringfilter02': (r'{% autoescape off %}{{ unsafe|capfirst }}{% endautoescape %}', {'unsafe': UnsafeClass()}, 'You & me'),
         'autoescape-stringfilter03': (r'{{ safe|capfirst }}', {'safe': SafeClass()}, 'You &gt; me'),
         'autoescape-stringfilter04': (r'{% autoescape off %}{{ safe|capfirst }}{% endautoescape %}', {'safe': SafeClass()}, 'You &gt; me'),
+
+        'escapejs01': (r'{{ a|escapejs }}', {'a': 'testing\r\njavascript \'string" <b>escaping</b>'}, 'testing\\x0D\\x0Ajavascript \\x27string\\x22 \\x3Cb\\x3Eescaping\\x3C/b\\x3E'),
+        'escapejs02': (r'{% autoescape off %}{{ a|escapejs }}{% endautoescape %}', {'a': 'testing\r\njavascript \'string" <b>escaping</b>'}, 'testing\\x0D\\x0Ajavascript \\x27string\\x22 \\x3Cb\\x3Eescaping\\x3C/b\\x3E'),
     }
 

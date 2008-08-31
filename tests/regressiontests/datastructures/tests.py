@@ -1,6 +1,7 @@
 """
 # Tests for stuff in django.utils.datastructures.
 
+>>> import pickle
 >>> from django.utils.datastructures import *
 
 ### MergeDict #################################################################
@@ -42,6 +43,8 @@ MergeDict can merge MultiValueDicts
 'Simon'
 >>> d.getlist('name')
 ['Adrian', 'Simon']
+>>> list(d.iteritems())
+[('position', 'Developer'), ('name', 'Simon')]
 >>> d['lastname']
 Traceback (most recent call last):
 ...
@@ -101,13 +104,16 @@ Init from sequence of tuples
 >>> print repr(d)
 {1: 'one', 0: 'zero', 2: 'two'}
 
+>>> pickle.loads(pickle.dumps(d, 2))
+{1: 'one', 0: 'zero', 2: 'two'}
+
 >>> d.clear()
 >>> d
 {}
 >>> d.keyOrder
 []
 
-### DotExpandedDict ############################################################
+### DotExpandedDict ##########################################################
 
 >>> d = DotExpandedDict({'person.1.firstname': ['Simon'], 'person.1.lastname': ['Willison'], 'person.2.firstname': ['Adrian'], 'person.2.lastname': ['Holovaty']})
 >>> d['person']['1']['lastname']
@@ -117,7 +123,7 @@ Init from sequence of tuples
 >>> d['person']['2']['firstname']
 ['Adrian']
 
-### ImmutableList ################################################################
+### ImmutableList ############################################################
 >>> d = ImmutableList(range(10))
 >>> d.sort()
 Traceback (most recent call last):

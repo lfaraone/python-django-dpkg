@@ -1,3 +1,89 @@
+python-django (1.0~beta2+ds-1) unstable; urgency=low
+
+  * Bumping up upstream version to push sources into unstable.
+    (Thanks to Raphael Hertzog).
+
+ -- David Spreen <netzwurm@debian.org>  Sat, 30 Aug 2008 20:56:09 -0700
+
+python-django (1.0~beta2-3) unstable; urgency=low
+
+  [ David Spreen ]
+  * Updated the copyright information to include copyright and 
+    licenses for individual contributions. 
+  * Added the documentation to the main python-django package:
+  * debian/python-django.install
+    - Added installation of html documentation.
+  * debian/python-django.doc-base
+    - Added.
+  * debian/control
+    - Added Build-Depends-Indep on python-sphinx and libjs-jquery.
+  * debian/rules
+    - Readded code to build documentation.
+    - Readded code to link to libjs-jquery.
+  * debian/NEWS
+    - Fixed format.
+    - Added more comprehensive list of changes and references to 
+      local documentation as well as the wiki pages for 
+      backwards-incompatible changes.
+  * debian/python-django.docs
+    - Removed docs/*.txt since those are templates for the 
+      generated docs now included with doc-base.
+  
+ -- David Spreen <netzwurm@debian.org>  Fri, 29 Aug 2008 09:20:45 -0700
+
+python-django (1.0~beta2-2) unstable; urgency=low
+
+  [ David Spreen ]
+  * Removed all -doc related files temporarily to push beta2 into 
+    unstable for extensive testing. The -doc package will be 
+    readded once this package is in unstable as recommended in
+    http://lists.debian.org/debian-release/2008/08/msg01475.html.
+  * debian/python-django-doc.install
+    - Removed.
+  * debian/python-django-doc.doc-base
+    - Removed.
+  * debian/python-django-doc.examples
+    - Moved to python-django.examples.
+  * debian/rules
+    - Removed python-doc related build and post-installation.
+  * debian/control
+    - Removed binary package python-django-doc.
+    - Removed Build-Depends-Indep on python-sphinx and libjs-jquery.
+  * debian/python-django.install:
+    - Removed multiple package related issues.
+
+ -- David Spreen <netzwurm@debian.org>  Thu, 28 Aug 2008 20:15:21 -0700
+
+python-django (1.0~beta2-1) experimental; urgency=low
+
+  [ David Spreen ]
+  * The `hooray for the documentation' release!
+  * New upstream beta release. 
+  * debian/control 
+    - Updated standards version.
+    - Added python-sphinx and libjs-jquery.
+    - Added python-django-doc package depending on libjs-jquery.
+  * debian/docs
+    - Moved to debian/python-django.docs.
+  * debian/install
+    - Moved to debian/python-django.install.
+  * debian/manpages
+    - Moved to debian/python-django.manpages.
+  * debian/examples
+    - Moved to debian/python-django-doc.examples
+  * debian/README.Debian
+    - Moved to debian/python-django.README.Debian
+  * debian/python-django-doc.doc-base:
+    - Added doc-base file for the documentation.
+  * debian/python-django-doc.install:
+    - Added install file for sphinx generated documentation.
+  * debian/rules:
+    - Added code to generate documentation with sphinx and 
+      replace convenience file of jquery.js with the respective
+      symlink to libjs-jquery.
+  
+ -- David Spreen <netzwurm@debian.org>  Thu, 28 Aug 2008 10:22:29 -0700
+
 python-django (1.0~beta1-1) experimental; urgency=low
 
   [ David Spreen ]
