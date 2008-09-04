@@ -1,3 +1,17 @@
+0.96 -> 1.0
+===========
+
+Django 1.0 has a number of backwards-incompatible changes from Django
+0.96. If you have apps written against Django 0.96 that you need to port,
+see the detailed porting guide:
+/usr/share/doc/python-django/html/releases/1.0-porting-guide.html
+or
+http://docs.djangoproject.com/en/dev/releases/1.0-porting-guide/
+
+You can also find a complete list of of backwards incompatible changes
+here:
+http://code.djangoproject.com/wiki/BackwardsIncompatibleChanges
+
 0.95 -> 0.96
 ============
 

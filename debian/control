@@ -13,7 +13,7 @@ Vcs-Browser: http://svn.debian.org/wsvn/python-modules/packages/python-django/tr
 Package: python-django
 Architecture: all
 Depends: ${python:Depends}
-Recommends: python-pysqlite2
+Recommends: python-pysqlite2, libjs-jquery
 Suggests: python-psycopg2, python-psycopg, python-mysqldb, python-flup
 Priority: optional
 Description: A high-level Python Web framework

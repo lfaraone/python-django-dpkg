@@ -110,7 +110,7 @@ On the Web
 ----------
 
 The most recent version of the Django documentation lives at
-http://www.djangoproject.com/documentation/ . These HTML pages are generated
+http://docs.djangoproject.com/en/dev/. These HTML pages are generated
 automatically from the text files in source control. That means they reflect the
 "latest and greatest" in Django -- they include the very latest corrections and
 additions, and they discuss the latest Django features, which may only be
@@ -159,7 +159,7 @@ Django document:
 
 .. code-block:: bash
 
-    $ grep max_length /path/to/django/docs/*.txt
+    $ grep -r max_length /path/to/django/docs/
     
 As HTML, locally
 ----------------
@@ -216,10 +216,9 @@ We follow this policy:
     * As we add features to Django's development version, we try to update the
       documentation in the same Subversion commit transaction.
 
-    * To distinguish feature changes/additions in the docs, we use the phrase
-      **New in Django development version**. In practice, this means that the
-      current documentation on djangoproject.com can be used by users of either
-      the latest release *or* the development version.
+    * To distinguish feature changes/additions in the docs, we use the phrase:
+      "New in version X.Y", being X.Y the next release version (hence, the one
+      being developed).
 
     * Documentation for a particular Django release is frozen once the version
       has been released officially. It remains a snapshot of the docs as of the
@@ -232,4 +231,4 @@ We follow this policy:
     * The `main documentation Web page`_ includes links to documentation for
       all previous versions.
 
-.. _main documentation Web page: http://www.djangoproject.com/documentation/
+.. _main documentation Web page: http://docs.djangoproject.com/en/dev/

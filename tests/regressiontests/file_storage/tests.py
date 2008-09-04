@@ -1,3 +1,4 @@
+# coding: utf-8
 """
 Tests for the file storage mechanism
 
@@ -72,14 +73,23 @@ u'custom_storage.2'
 # Cleanup the temp dir
 >>> os.rmdir(temp_dir)
 
+
+# Regression test for #8156: files with unicode names I can't quite figure out the
+# encoding situation between doctest and this file, but the actual repr doesn't
+# matter; it just shouldn't return a unicode object.
+>>> from django.core.files.uploadedfile import UploadedFile
+>>> uf = UploadedFile(name=u'¿Cómo?',content_type='text')
+>>> uf.__repr__()
+'<UploadedFile: ... (text)>'
 """
 
 # Tests for a race condition on file saving (#4948).
 # This is written in such a way that it'll always pass on platforms 
 # without threading.
-
+import os
 import time
 from unittest import TestCase
+from django.conf import settings
 from django.core.files.base import ContentFile
 from models import temp_storage
 try:
@@ -108,3 +118,15 @@ class FileSaveRaceConditionTest(TestCase):
         temp_storage.delete('conflict')
         temp_storage.delete('conflict_')
 
+class FileStoragePermissions(TestCase):
+    def setUp(self):
+        self.old_perms = settings.FILE_UPLOAD_PERMISSIONS
+        settings.FILE_UPLOAD_PERMISSIONS = 0666
+        
+    def test_file_upload_permissions(self):
+        name = temp_storage.save("the_file", ContentFile("data"))
+        actual_mode = os.stat(temp_storage.path(name))[0] & 0777
+        self.assertEqual(actual_mode, 0666)
+        
+    def tearDown(self):
+        settings.FILE_UPLOAD_PERMISSIONS = self.old_perms

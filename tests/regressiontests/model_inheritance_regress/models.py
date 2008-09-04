@@ -59,6 +59,34 @@ class SelfRefParent(models.Model):
 class SelfRefChild(SelfRefParent):
     child_data = models.IntegerField()
 
+class Article(models.Model):
+    headline = models.CharField(max_length=100)
+    pub_date = models.DateTimeField()
+    class Meta:
+        ordering = ('-pub_date', 'headline')
+
+    def __unicode__(self):
+        return self.headline
+
+class ArticleWithAuthor(Article):
+    author = models.CharField(max_length=100)
+
+class M2MBase(models.Model):
+    articles = models.ManyToManyField(Article)
+
+class M2MChild(M2MBase):
+    name = models.CharField(max_length=50)
+
+class Evaluation(Article):
+    quality = models.IntegerField()
+
+    class Meta:
+        abstract = True
+
+class QualityControl(Evaluation):
+    assignee = models.CharField(max_length=50)
+
+
 __test__ = {'API_TESTS':"""
 # Regression for #7350, #7202
 # Check that when you create a Parent object with a specific reference to an
@@ -86,12 +114,12 @@ __test__ = {'API_TESTS':"""
 [<Place: Guido's House of Pasta the place>, <Place: Main St the place>]
 
 >>> dicts = Restaurant.objects.values('name','serves_hot_dogs')
->>> [sorted(d.items()) for d in dicts]
-[[('name', u"Guido's House of Pasta"), ('serves_hot_dogs', True)]]
+>>> [sorted(d.items()) for d in dicts] == [[('name', u"Guido's House of Pasta"), ('serves_hot_dogs', True)]]
+True
 
 >>> dicts = ItalianRestaurant.objects.values('name','serves_hot_dogs','serves_gnocchi')
->>> [sorted(d.items()) for d in dicts]
-[[('name', u"Guido's House of Pasta"), ('serves_gnocchi', True), ('serves_hot_dogs', True)]]
+>>> [sorted(d.items()) for d in dicts] == [[('name', u"Guido's House of Pasta"), ('serves_gnocchi', True), ('serves_hot_dogs', True)]]
+True
 
 >>> dicts = ParkingLot.objects.values('name','capacity')
 >>> [sorted(d.items()) for d in dicts]
@@ -118,12 +146,12 @@ __test__ = {'API_TESTS':"""
 [<Place: Derelict lot the place>, <Place: Guido's All New House of Pasta the place>]
 
 >>> dicts = Restaurant.objects.values('name','serves_hot_dogs')
->>> [sorted(d.items()) for d in dicts]
-[[('name', u"Guido's All New House of Pasta"), ('serves_hot_dogs', False)]]
+>>> [sorted(d.items()) for d in dicts] == [[('name', u"Guido's All New House of Pasta"), ('serves_hot_dogs', False)]]
+True
 
 >>> dicts = ItalianRestaurant.objects.values('name','serves_hot_dogs','serves_gnocchi')
->>> [sorted(d.items()) for d in dicts]
-[[('name', u"Guido's All New House of Pasta"), ('serves_gnocchi', False), ('serves_hot_dogs', False)]]
+>>> [sorted(d.items()) for d in dicts] == [[('name', u"Guido's All New House of Pasta"), ('serves_gnocchi', False), ('serves_hot_dogs', False)]]
+True
 
 >>> dicts = ParkingLot.objects.values('name','capacity')
 >>> [sorted(d.items()) for d in dicts]
@@ -138,8 +166,8 @@ __test__ = {'API_TESTS':"""
 # Note that the name has not changed
 # - name is an attribute of Place, not ItalianRestaurant
 >>> dicts = ItalianRestaurant.objects.values('name','serves_hot_dogs','serves_gnocchi')
->>> [sorted(d.items()) for d in dicts]
-[[('name', u"Guido's All New House of Pasta"), ('serves_gnocchi', False), ('serves_hot_dogs', False)]]
+>>> [sorted(d.items()) for d in dicts] == [[('name', u"Guido's All New House of Pasta"), ('serves_gnocchi', False), ('serves_hot_dogs', False)]]
+True
 
 # Regressions tests for #7105: dates() queries should be able to use fields
 # from the parent model as easily as the child.
@@ -193,5 +221,40 @@ True
 
 >>> obj = SelfRefChild.objects.create(child_data=37, parent_data=42)
 >>> obj.delete()
+
+# Regression tests for #8076 - get_(next/previous)_by_date should 
+>>> c1 = ArticleWithAuthor(headline='ArticleWithAuthor 1', author="Person 1", pub_date=datetime.datetime(2005, 8, 1, 3, 0))
+>>> c1.save()
+>>> c2 = ArticleWithAuthor(headline='ArticleWithAuthor 2', author="Person 2", pub_date=datetime.datetime(2005, 8, 1, 10, 0))
+>>> c2.save()
+>>> c3 = ArticleWithAuthor(headline='ArticleWithAuthor 3', author="Person 3", pub_date=datetime.datetime(2005, 8, 2))
+>>> c3.save()
+
+>>> c1.get_next_by_pub_date()
+<ArticleWithAuthor: ArticleWithAuthor 2>
+>>> c2.get_next_by_pub_date()
+<ArticleWithAuthor: ArticleWithAuthor 3>
+>>> c3.get_next_by_pub_date()
+Traceback (most recent call last):
+    ...
+DoesNotExist: ArticleWithAuthor matching query does not exist.
+>>> c3.get_previous_by_pub_date()
+<ArticleWithAuthor: ArticleWithAuthor 2>
+>>> c2.get_previous_by_pub_date()
+<ArticleWithAuthor: ArticleWithAuthor 1>
+>>> c1.get_previous_by_pub_date()
+Traceback (most recent call last):
+    ...
+DoesNotExist: ArticleWithAuthor matching query does not exist.
+
+# Regression test for #8825: Make sure all inherited fields (esp. m2m fields, in
+# this case) appear on the child class.
+>>> M2MChild.objects.filter(articles__isnull=False)
+[]
+
+# All fields from an ABC, including those inherited non-abstractly should be
+# available on child classes (#7588). Creating this instance should work
+# without error.
+>>> _ = QualityControl.objects.create(headline="Problems in Django", pub_date=datetime.datetime.now(), quality=10, assignee="adrian")
 
 """}

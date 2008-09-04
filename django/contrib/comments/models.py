@@ -16,9 +16,10 @@ class BaseCommentAbstractModel(models.Model):
     An abstract base class that any custom comment models probably should
     subclass.
     """
-    
+
     # Content-object field
-    content_type   = models.ForeignKey(ContentType)
+    content_type   = models.ForeignKey(ContentType,
+            related_name="content_type_set_for_%(class)s")
     object_pk      = models.TextField(_('object ID'))
     content_object = generic.GenericForeignKey(ct_field="content_type", fk_field="object_pk")
 
@@ -43,7 +44,7 @@ class Comment(BaseCommentAbstractModel):
     """
 
     # Who posted this comment? If ``user`` is set then it was an authenticated
-    # user; otherwise at least person_name should have been set and the comment
+    # user; otherwise at least user_name should have been set and the comment
     # was posted by a non-authenticated user.
     user        = models.ForeignKey(User, blank=True, null=True, related_name="%(class)s_comments")
     user_name   = models.CharField(_("user's name"), max_length=50, blank=True)
@@ -74,10 +75,10 @@ class Comment(BaseCommentAbstractModel):
     def __unicode__(self):
         return "%s: %s..." % (self.name, self.comment[:50])
 
-    def save(self):
+    def save(self, force_insert=False, force_update=False):
         if self.submit_date is None:
             self.submit_date = datetime.datetime.now()
-        super(Comment, self).save()
+        super(Comment, self).save(force_insert, force_update)
 
     def _get_userinfo(self):
         """
@@ -178,7 +179,7 @@ class CommentFlag(models.Model):
         return "%s flag of comment ID %s by %s" % \
             (self.flag, self.comment_id, self.user.username)
 
-    def save(self):
+    def save(self, force_insert=False, force_update=False):
         if self.flag_date is None:
             self.flag_date = datetime.datetime.now()
-        super(CommentFlag, self).save()
+        super(CommentFlag, self).save(force_insert, force_update)

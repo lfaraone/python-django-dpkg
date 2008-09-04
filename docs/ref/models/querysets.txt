@@ -145,10 +145,48 @@ like so::
 Note: ``order_by('?')`` queries may be expensive and slow, depending on the
 database backend you're using.
 
-To order by a field in a different table, add the other table's name and a dot,
-like so::
+To order by a field in a different model, use the same syntax as when you are
+querying across model relations. That is, the name of the field, followed by a
+double underscore (``__``), followed by the name of the field in the new model,
+and so on for as many models as you want to join. For example::
 
-    Entry.objects.order_by('blogs_blog.name', 'headline')
+    Entry.objects.order_by('blog__name', 'headline')
+
+If you try to order by a field that is a relation to another model, Django will
+use the default ordering on the related model (or order by the related model's
+primary key if there is no ``Meta.ordering`` specified. For example::
+
+    Entry.objects.order_by('blog')
+
+...is identical to::
+
+    Entry.objects.order_by('blog__id')
+
+...since the ``Blog`` model has no default ordering specified.
+
+Be cautious when ordering by fields in related models if you are also using
+``distinct()``. See the note in the `distinct()`_ section for an explanation
+of how related model ordering can change the expected results.
+
+It is permissible to specify a multi-valued field to order the results by (for
+example, a ``ManyToMany`` field). Normally this won't be a sensible thing to
+do and it's really an advanced usage feature. However, if you know that your
+queryset's filtering or available data implies that there will only be one
+ordering piece of data for each of the main items you are selecting, the
+ordering may well be exactly what you want to do. Use ordering on multi-valued
+fields with care and make sure the results are what you expect.
+
+.. versionadded:: 1.0
+
+If you don't want any ordering to be applied to a query, not even the default
+ordering, call ``order_by()`` with no parameters.
+
+.. versionadded:: 1.0
+
+The syntax for ordering across related models has changed. See the `Django 0.96
+documentation`_ for the old behaviour.
+
+.. _Django 0.96 documentation: http://www.djangoproject.com/documentation/0.96/model-api/#floatfield
 
 There's no way to specify whether ordering should be case sensitive. With
 respect to case-sensitivity, Django will order results however your database
@@ -171,10 +209,29 @@ eliminates duplicate rows from the query results.
 
 By default, a ``QuerySet`` will not eliminate duplicate rows. In practice, this
 is rarely a problem, because simple queries such as ``Blog.objects.all()``
-don't introduce the possibility of duplicate result rows.
+don't introduce the possibility of duplicate result rows. However, if your
+query spans multiple tables, it's possible to get duplicate results when a
+``QuerySet`` is evaluated. That's when you'd use ``distinct()``.
 
-However, if your query spans multiple tables, it's possible to get duplicate
-results when a ``QuerySet`` is evaluated. That's when you'd use ``distinct()``.
+.. note::
+    Any fields used in an `order_by(*fields)`_ call are included in the SQL
+    ``SELECT`` columns. This can sometimes lead to unexpected results when
+    used in conjunction with ``distinct()``. If you order by fields from a
+    related model, those fields will be added to the selected columns and they
+    may make otherwise duplicate rows appear to be distinct. Since the extra
+    columns don't appear in the returned results (they are only there to
+    support ordering), it sometimes looks like non-distinct results are being
+    returned.
+
+    Similarly, if you use a ``values()`` query to restrict the columns
+    selected, the columns used in any ``order_by()`` (or default model
+    ordering) will still be involved and may affect uniqueness of the results.
+
+    The moral here is that if you are using ``distinct()`` be careful about
+    ordering by related models. Similarly, when using ``distinct()`` and
+    ``values()`` together, be careful when ordering by fields not in the
+    ``values()`` call.
+
 
 ``values(*fields)``
 ~~~~~~~~~~~~~~~~~~~
@@ -190,7 +247,7 @@ objects::
 
     # This list contains a Blog object.
     >>> Blog.objects.filter(name__startswith='Beatles')
-    [Beatles Blog]
+    [<Blog: Beatles Blog>]
 
     # This list contains a dictionary.
     >>> Blog.objects.filter(name__startswith='Beatles').values()
@@ -209,6 +266,39 @@ Example::
     >>> Blog.objects.values('id', 'name')
     [{'id': 1, 'name': 'Beatles Blog'}]
 
+A couple of subtleties that are worth mentioning:
+
+    * The ``values()`` method does not return anything for
+      :class:`~django.db.models.ManyToManyField` attributes and will raise an
+      error if you try to pass in this type of field to it.
+    * If you have a field called ``foo`` that is a
+      :class:`~django.db.models.ForeignKey`, the default ``values()`` call
+      will return a dictionary key called ``foo_id``, since this is the name
+      of the hidden model attribute that stores the actual value (the ``foo``
+      attribute refers to the related model). When you are calling
+      ``values()`` and passing in field names, you can pass in either ``foo``
+      or ``foo_id`` and you will get back the same thing (the dictionary key
+      will match the field name you passed in).
+
+      For example::
+
+        >>> Entry.objects.values()
+        [{'blog_id: 1, 'headline': u'First Entry', ...}, ...]
+
+        >>> Entry.objects.values('blog')
+        [{'blog': 1}, ...]
+
+        >>> Entry.objects.values('blog_id')
+        [{'blog_id': 1}, ...]
+    * When using ``values()`` together with ``distinct()``, be aware that
+      ordering can affect the results. See the note in the `distinct()`_
+      section, above, for details.
+
+.. versionadded:: 1.0
+
+Previously, it was not possible to pass ``blog_id`` to ``values()`` in the above
+example, only ``blog``.
+
 A ``ValuesQuerySet`` is useful when you know you're only going to need values
 from a small number of the available fields and you won't need the
 functionality of a model instance object. It's more efficient to select only
@@ -225,6 +315,34 @@ The people who made Django prefer to put all the SQL-affecting methods first,
 followed (optionally) by any output-affecting methods (such as ``values()``),
 but it doesn't really matter. This is your chance to really flaunt your
 individualism.
+
+``values_list(*fields)``
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. versionadded:: 1.0
+
+This is similar to ``values()`` except that instead of returning a list of
+dictionaries, it returns a list of tuples. Each tuple contains the value from
+the respective field passed into the ``values_list()`` call -- so the first
+item is the first field, etc. For example::
+
+    >>> Entry.objects.values_list('id', 'headline')
+    [(1, u'First entry'), ...]
+
+If you only pass in a single field, you can also pass in the ``flat``
+parameter. If ``True``, this will mean the returned results are single values,
+rather than one-tuples. An example should make the difference clearer::
+
+    >>> Entry.objects.values_list('id').order_by('id')
+    [(1,), (2,), (3,), ...]
+
+    >>> Entry.objects.values_list('id', flat=True).order_by('id')
+    [1, 2, 3, ...]
+
+It is an error to pass in ``flat`` when there is more than one field.
+
+If you don't pass any values to ``values_list()``, it will return all the
+fields in the model, in the order they were declared.
 
 ``dates(field, kind, order='ASC')``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -263,7 +381,7 @@ Examples::
 ``none()``
 ~~~~~~~~~~
 
-**New in Django development version**
+.. versionadded:: 1.0
 
 Returns an ``EmptyQuerySet`` -- a ``QuerySet`` that always evaluates to
 an empty list. This can be used in cases where you know that you should
@@ -345,7 +463,9 @@ follow::
     p = b.author         # Doesn't hit the database.
     c = p.hometown       # Requires a database call.
 
-The ``depth`` argument is new in the Django development version.
+.. versionadded:: 1.0
+
+The ``depth`` argument is new in Django version 1.0.
 
 ``extra(select=None, where=None, params=None, tables=None, order_by=None, select_params=None)``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -405,7 +525,8 @@ of the arguments is required, but you should use at least one of them.
     some database backends, such as some MySQL versions, don't support
     subqueries.
 
-    **New in Django development version**
+    .. versionadded:: 1.0
+
     In some rare cases, you might wish to pass parameters to the SQL fragments
     in ``extra(select=...)```. For this purpose, use the ``select_params``
     parameter. Since ``select_params`` is a sequence and the ``select``
@@ -506,10 +627,6 @@ of the arguments is required, but you should use at least one of them.
 
         Entry.objects.extra(where=['headline=%s'], params=['Lennon'])
 
-**New in Django development version** The ``select_params`` argument to
-``extra()`` is new. Previously, you could attempt to pass parameters for
-``select`` in the ``params`` argument, but it worked very unreliably.
-
 QuerySet methods that do not return QuerySets
 ---------------------------------------------
 
@@ -556,9 +673,17 @@ A convenience method for creating an object and saving it all in one step.  Thus
 and::
 
     p = Person(first_name="Bruce", last_name="Springsteen")
-    p.save()
+    p.save(force_insert=True)
 
 are equivalent.
+
+The :ref:`force_insert <ref-models-force-insert>` parameter is documented
+elsewhere, but all it means is that a new object will always be created.
+Normally you won't need to worry about this. However, if your model contains a
+manual primary key value that you set and if that value already exists in the
+database, a call to ``create()`` will fail with an ``IntegrityError`` since
+primary keys must be unique. So remember to be prepared to handle the
+exception if you are using manual primary keys.
 
 ``get_or_create(**kwargs)``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -590,7 +715,7 @@ called ``defaults`` -- will be used in a ``get()`` call. If an object is found,
 ``get_or_create()`` returns a tuple of that object and ``False``. If an object
 is *not* found, ``get_or_create()`` will instantiate and save a new object,
 returning a tuple of the new object and ``True``. The new object will be
-created according to this algorithm::
+created roughly according to this algorithm::
 
     defaults = kwargs.pop('defaults', {})
     params = dict([(k, v) for k, v in kwargs.items() if '__' not in k])
@@ -601,12 +726,22 @@ created according to this algorithm::
 In English, that means start with any non-``'defaults'`` keyword argument that
 doesn't contain a double underscore (which would indicate a non-exact lookup).
 Then add the contents of ``defaults``, overriding any keys if necessary, and
-use the result as the keyword arguments to the model class.
+use the result as the keyword arguments to the model class. As hinted at
+above, this is a simplification of the algorithm that is used, but it contains
+all the pertinent details. The internal implementation has some more
+error-checking than this and handles some extra edge-conditions; if you're
+interested, read the code.
 
 If you have a field named ``defaults`` and want to use it as an exact lookup in
 ``get_or_create()``, just use ``'defaults__exact'``, like so::
 
     Foo.objects.get_or_create(defaults__exact='bar', defaults={'defaults': 'baz'})
+
+
+The ``get_or_create()`` method has similar error behaviour to ``create()``
+when you are using manually specified primary keys. If an object needs to be
+created and the key already exists in the database, an ``IntegrityError`` will
+be raised.
 
 Finally, a word on using ``get_or_create()`` in Django views. As mentioned
 earlier, ``get_or_create()`` is mostly useful in scripts that need to parse
@@ -650,9 +785,9 @@ primary-key value to an instance of the object with the given ID.
 Example::
 
     >>> Blog.objects.in_bulk([1])
-    {1: Beatles Blog}
+    {1: <Blog: Beatles Blog>}
     >>> Blog.objects.in_bulk([1, 2])
-    {1: Beatles Blog, 2: Cheddar Talk}
+    {1: <Blog: Beatles Blog>, 2: <Blog: Cheddar Talk>}
     >>> Blog.objects.in_bulk([])
     {}
 
@@ -722,10 +857,11 @@ SQL equivalents::
     SELECT ... WHERE id = 14;
     SELECT ... WHERE id IS NULL;
 
-**New in Django development version:** The semantics of ``id__exact=None`` have
-changed in the development version. Previously, it was (intentionally)
-converted to ``WHERE id = NULL`` at the SQL level, which would never match
-anything. It has now been changed to behave the same as ``id__isnull=True``.
+.. versionchanged:: 1.0
+   The semantics of ``id__exact=None`` have
+   changed in the development version. Previously, it was (intentionally)
+   converted to ``WHERE id = NULL`` at the SQL level, which would never match
+   anything. It has now been changed to behave the same as ``id__isnull=True``.
 
 .. admonition:: MySQL comparisons
 
@@ -803,7 +939,14 @@ instead of providing a list of literal values. The queryset must be
 reduced to a list of individual values using the ``values()`` method,
 and then converted into a query using the ``query`` attribute::
 
-    Entry.objects.filter(blog__in=Blog.objects.filter(name__contains='Cheddar').values('pk').query)
+    q = Blog.objects.filter(name__contains='Cheddar').values('pk').query
+    e = Entry.objects.filter(blog__in=q)
+
+.. warning::
+
+    This ``query`` attribute should be considered an opaque internal attribute.
+    It's fine to use it like above, but its API may change between Django
+    versions.
 
 This queryset will be evaluated as subselect statement::
 
@@ -836,19 +979,6 @@ lte
 ~~~
 
 Less than or equal to.
-
-in
-~~
-
-In a given list.
-
-Example::
-
-    Entry.objects.filter(id__in=[1, 3, 4])
-
-SQL equivalent::
-
-    SELECT ... WHERE id IN (1, 3, 4);
 
 startswith
 ~~~~~~~~~~
@@ -1009,7 +1139,7 @@ database to add the full-text index.
 regex
 ~~~~~
 
-**New in Django development version**
+.. versionadded:: 1.0
 
 Case-sensitive regular expression match.
 
@@ -1037,7 +1167,7 @@ regular expression syntax is recommended.
 iregex
 ~~~~~~
 
-**New in Django development version**
+.. versionadded:: 1.0
 
 Case-insensitive regular expression match.
 

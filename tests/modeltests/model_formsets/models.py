@@ -1,3 +1,7 @@
+
+import datetime
+
+from django import forms
 from django.db import models
 
 try:
@@ -36,6 +40,72 @@ class CustomPrimaryKey(models.Model):
     my_pk = models.CharField(max_length=10, primary_key=True)
     some_field = models.CharField(max_length=100)
 
+
+# models for inheritance tests.
+
+class Place(models.Model):
+    name = models.CharField(max_length=50)
+    city = models.CharField(max_length=50)
+    
+    def __unicode__(self):
+        return self.name
+
+class Owner(models.Model):
+    auto_id = models.AutoField(primary_key=True)
+    name = models.CharField(max_length=100)
+    place = models.ForeignKey(Place)
+    
+    def __unicode__(self):
+        return "%s at %s" % (self.name, self.place)
+
+class Location(models.Model):
+    place = models.ForeignKey(Place, unique=True)
+    # this is purely for testing the data doesn't matter here :)
+    lat = models.CharField(max_length=100)
+    lon = models.CharField(max_length=100)
+
+class OwnerProfile(models.Model):
+    owner = models.OneToOneField(Owner, primary_key=True)
+    age = models.PositiveIntegerField()
+    
+    def __unicode__(self):
+        return "%s is %d" % (self.owner.name, self.age)
+
+class Restaurant(Place):
+    serves_pizza = models.BooleanField()
+    
+    def __unicode__(self):
+        return self.name
+
+class Product(models.Model):
+    slug = models.SlugField(unique=True)
+
+    def __unicode__(self):
+        return self.slug
+
+class Price(models.Model):
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    quantity = models.PositiveIntegerField()
+
+    def __unicode__(self):
+        return u"%s for %s" % (self.quantity, self.price)
+
+    class Meta:
+        unique_together = (('price', 'quantity'),)
+
+class MexicanRestaurant(Restaurant):
+    serves_tacos = models.BooleanField()
+
+# models for testing callable defaults (see bug #7975). If you define a model
+# with a callable default value, you cannot rely on the initial value in a
+# form.
+class Person(models.Model):
+    name = models.CharField(max_length=128)
+
+class Membership(models.Model):
+    person = models.ForeignKey(Person)
+    date_joined = models.DateTimeField(default=datetime.datetime.now)
+    karma = models.IntegerField()
 
 __test__ = {'API_TESTS': """
 
@@ -239,12 +309,12 @@ used.
 >>> for form in formset.forms:
 ...     print form.as_p()
 <p><label for="id_form-0-name">Name:</label> <input id="id_form-0-name" type="text" name="form-0-name" maxlength="100" /></p>
-<p><label for="id_form-0-write_speed">Write speed:</label> <input type="text" name="form-0-write_speed" id="id_form-0-write_speed" /><input type="hidden" name="form-0-author_ptr_id" id="id_form-0-author_ptr_id" /></p>
+<p><label for="id_form-0-write_speed">Write speed:</label> <input type="text" name="form-0-write_speed" id="id_form-0-write_speed" /><input type="hidden" name="form-0-author_ptr" id="id_form-0-author_ptr" /></p>
 
 >>> data = {
 ...     'form-TOTAL_FORMS': '1', # the number of forms rendered
 ...     'form-INITIAL_FORMS': '0', # the number of forms with initial data
-...     'form-0-author_ptr_id': '',
+...     'form-0-author_ptr': '',
 ...     'form-0-name': 'Ernest Hemingway',
 ...     'form-0-write_speed': '10',
 ... }
@@ -260,17 +330,17 @@ True
 >>> for form in formset.forms:
 ...     print form.as_p()
 <p><label for="id_form-0-name">Name:</label> <input id="id_form-0-name" type="text" name="form-0-name" value="Ernest Hemingway" maxlength="100" /></p>
-<p><label for="id_form-0-write_speed">Write speed:</label> <input type="text" name="form-0-write_speed" value="10" id="id_form-0-write_speed" /><input type="hidden" name="form-0-author_ptr_id" value="..." id="id_form-0-author_ptr_id" /></p>
+<p><label for="id_form-0-write_speed">Write speed:</label> <input type="text" name="form-0-write_speed" value="10" id="id_form-0-write_speed" /><input type="hidden" name="form-0-author_ptr" value="..." id="id_form-0-author_ptr" /></p>
 <p><label for="id_form-1-name">Name:</label> <input id="id_form-1-name" type="text" name="form-1-name" maxlength="100" /></p>
-<p><label for="id_form-1-write_speed">Write speed:</label> <input type="text" name="form-1-write_speed" id="id_form-1-write_speed" /><input type="hidden" name="form-1-author_ptr_id" id="id_form-1-author_ptr_id" /></p>
+<p><label for="id_form-1-write_speed">Write speed:</label> <input type="text" name="form-1-write_speed" id="id_form-1-write_speed" /><input type="hidden" name="form-1-author_ptr" id="id_form-1-author_ptr" /></p>
 
 >>> data = {
 ...     'form-TOTAL_FORMS': '2', # the number of forms rendered
 ...     'form-INITIAL_FORMS': '1', # the number of forms with initial data
-...     'form-0-author_ptr_id': hemingway_id,
+...     'form-0-author_ptr': hemingway_id,
 ...     'form-0-name': 'Ernest Hemingway',
 ...     'form-0-write_speed': '10',
-...     'form-1-author_ptr_id': '',
+...     'form-1-author_ptr': '',
 ...     'form-1-name': '',
 ...     'form-1-write_speed': '',
 ... }
@@ -395,5 +465,240 @@ We need to ensure that it is displayed
 ...     print form.as_p()
 <p><label for="id_form-0-my_pk">My pk:</label> <input id="id_form-0-my_pk" type="text" name="form-0-my_pk" maxlength="10" /></p>
 <p><label for="id_form-0-some_field">Some field:</label> <input id="id_form-0-some_field" type="text" name="form-0-some_field" maxlength="100" /></p>
+
+# Custom primary keys with ForeignKey, OneToOneField and AutoField ############
+
+>>> place = Place(name=u'Giordanos', city=u'Chicago')
+>>> place.save()
+
+>>> FormSet = inlineformset_factory(Place, Owner, extra=2, can_delete=False)
+>>> formset = FormSet(instance=place)
+>>> for form in formset.forms:
+...     print form.as_p()
+<p><label for="id_owner_set-0-name">Name:</label> <input id="id_owner_set-0-name" type="text" name="owner_set-0-name" maxlength="100" /><input type="hidden" name="owner_set-0-auto_id" id="id_owner_set-0-auto_id" /></p>
+<p><label for="id_owner_set-1-name">Name:</label> <input id="id_owner_set-1-name" type="text" name="owner_set-1-name" maxlength="100" /><input type="hidden" name="owner_set-1-auto_id" id="id_owner_set-1-auto_id" /></p>
+
+>>> data = {
+...     'owner_set-TOTAL_FORMS': '2',
+...     'owner_set-INITIAL_FORMS': '0',
+...     'owner_set-0-auto_id': '',
+...     'owner_set-0-name': u'Joe Perry',
+...     'owner_set-1-auto_id': '',
+...     'owner_set-1-name': '',
+... }
+>>> formset = FormSet(data, instance=place)
+>>> formset.is_valid()
+True
+>>> formset.save()
+[<Owner: Joe Perry at Giordanos>]
+
+>>> formset = FormSet(instance=place)
+>>> for form in formset.forms:
+...     print form.as_p()
+<p><label for="id_owner_set-0-name">Name:</label> <input id="id_owner_set-0-name" type="text" name="owner_set-0-name" value="Joe Perry" maxlength="100" /><input type="hidden" name="owner_set-0-auto_id" value="1" id="id_owner_set-0-auto_id" /></p>
+<p><label for="id_owner_set-1-name">Name:</label> <input id="id_owner_set-1-name" type="text" name="owner_set-1-name" maxlength="100" /><input type="hidden" name="owner_set-1-auto_id" id="id_owner_set-1-auto_id" /></p>
+<p><label for="id_owner_set-2-name">Name:</label> <input id="id_owner_set-2-name" type="text" name="owner_set-2-name" maxlength="100" /><input type="hidden" name="owner_set-2-auto_id" id="id_owner_set-2-auto_id" /></p>
+
+>>> data = {
+...     'owner_set-TOTAL_FORMS': '3',
+...     'owner_set-INITIAL_FORMS': '1',
+...     'owner_set-0-auto_id': u'1',
+...     'owner_set-0-name': u'Joe Perry',
+...     'owner_set-1-auto_id': '',
+...     'owner_set-1-name': u'Jack Berry',
+...     'owner_set-2-auto_id': '',
+...     'owner_set-2-name': '',
+... }
+>>> formset = FormSet(data, instance=place)
+>>> formset.is_valid()
+True
+>>> formset.save()
+[<Owner: Jack Berry at Giordanos>]
+
+# Ensure a custom primary key that is a ForeignKey or OneToOneField get rendered for the user to choose.
+
+>>> FormSet = modelformset_factory(OwnerProfile)
+>>> formset = FormSet()
+>>> for form in formset.forms:
+...     print form.as_p()
+<p><label for="id_form-0-owner">Owner:</label> <select name="form-0-owner" id="id_form-0-owner">
+<option value="" selected="selected">---------</option>
+<option value="1">Joe Perry at Giordanos</option>
+<option value="2">Jack Berry at Giordanos</option>
+</select></p>
+<p><label for="id_form-0-age">Age:</label> <input type="text" name="form-0-age" id="id_form-0-age" /></p>
+
+>>> owner = Owner.objects.get(name=u'Joe Perry')
+>>> FormSet = inlineformset_factory(Owner, OwnerProfile, max_num=1, can_delete=False)
+
+>>> formset = FormSet(instance=owner)
+>>> for form in formset.forms:
+...     print form.as_p()
+<p><label for="id_ownerprofile-0-age">Age:</label> <input type="text" name="ownerprofile-0-age" id="id_ownerprofile-0-age" /><input type="hidden" name="ownerprofile-0-owner" id="id_ownerprofile-0-owner" /></p>
+
+>>> data = {
+...     'ownerprofile-TOTAL_FORMS': '1',
+...     'ownerprofile-INITIAL_FORMS': '0',
+...     'ownerprofile-0-owner': '',
+...     'ownerprofile-0-age': u'54',
+... }
+>>> formset = FormSet(data, instance=owner)
+>>> formset.is_valid()
+True
+>>> formset.save()
+[<OwnerProfile: Joe Perry is 54>]
+
+>>> formset = FormSet(instance=owner)
+>>> for form in formset.forms:
+...     print form.as_p()
+<p><label for="id_ownerprofile-0-age">Age:</label> <input type="text" name="ownerprofile-0-age" value="54" id="id_ownerprofile-0-age" /><input type="hidden" name="ownerprofile-0-owner" value="1" id="id_ownerprofile-0-owner" /></p>
+
+>>> data = {
+...     'ownerprofile-TOTAL_FORMS': '1',
+...     'ownerprofile-INITIAL_FORMS': '1',
+...     'ownerprofile-0-owner': u'1',
+...     'ownerprofile-0-age': u'55',
+... }
+>>> formset = FormSet(data, instance=owner)
+>>> formset.is_valid()
+True
+>>> formset.save()
+[<OwnerProfile: Joe Perry is 55>]
+
+# ForeignKey with unique=True should enforce max_num=1 
+
+>>> FormSet = inlineformset_factory(Place, Location, can_delete=False)
+>>> formset = FormSet(instance=place)
+>>> for form in formset.forms:
+...     print form.as_p()
+<p><label for="id_location_set-0-lat">Lat:</label> <input id="id_location_set-0-lat" type="text" name="location_set-0-lat" maxlength="100" /></p>
+<p><label for="id_location_set-0-lon">Lon:</label> <input id="id_location_set-0-lon" type="text" name="location_set-0-lon" maxlength="100" /><input type="hidden" name="location_set-0-id" id="id_location_set-0-id" /></p>
+
+# Foreign keys in parents ########################################
+
+>>> from django.forms.models import _get_foreign_key
+
+>>> type(_get_foreign_key(Restaurant, Owner))
+<class 'django.db.models.fields.related.ForeignKey'>
+>>> type(_get_foreign_key(MexicanRestaurant, Owner))
+<class 'django.db.models.fields.related.ForeignKey'>
+
+# unique/unique_together validation ###########################################
+
+>>> FormSet = modelformset_factory(Product, extra=1)
+>>> data = {
+...     'form-TOTAL_FORMS': '1',
+...     'form-INITIAL_FORMS': '0',
+...     'form-0-slug': 'car-red',
+... }
+>>> formset = FormSet(data)
+>>> formset.is_valid()
+True
+>>> formset.save()
+[<Product: car-red>]
+
+>>> data = {
+...     'form-TOTAL_FORMS': '1',
+...     'form-INITIAL_FORMS': '0',
+...     'form-0-slug': 'car-red',
+... }
+>>> formset = FormSet(data)
+>>> formset.is_valid()
+False
+>>> formset.errors
+[{'slug': [u'Product with this Slug already exists.']}]
+
+# unique_together
+
+>>> FormSet = modelformset_factory(Price, extra=1)
+>>> data = {
+...     'form-TOTAL_FORMS': '1',
+...     'form-INITIAL_FORMS': '0',
+...     'form-0-price': u'12.00',
+...     'form-0-quantity': '1',
+... }
+>>> formset = FormSet(data)
+>>> formset.is_valid()
+True
+>>> formset.save()
+[<Price: 1 for 12.00>]
+
+>>> data = {
+...     'form-TOTAL_FORMS': '1',
+...     'form-INITIAL_FORMS': '0',
+...     'form-0-price': u'12.00',
+...     'form-0-quantity': '1',
+... }
+>>> formset = FormSet(data)
+>>> formset.is_valid()
+False
+>>> formset.errors
+[{'__all__': [u'Price with this Price and Quantity already exists.']}]
+
+# Use of callable defaults (see bug #7975).
+
+>>> person = Person.objects.create(name='Ringo')
+>>> FormSet = inlineformset_factory(Person, Membership, can_delete=False, extra=1)
+>>> formset = FormSet(instance=person)
+
+# Django will render a hidden field for model fields that have a callable
+# default. This is required to ensure the value is tested for change correctly
+# when determine what extra forms have changed to save.
+
+>>> form = formset.forms[0] # this formset only has one form
+>>> now = form.fields['date_joined'].initial
+>>> print form.as_p()
+<p><label for="id_membership_set-0-date_joined">Date joined:</label> <input type="text" name="membership_set-0-date_joined" value="..." id="id_membership_set-0-date_joined" /><input type="hidden" name="initial-membership_set-0-date_joined" value="..." id="id_membership_set-0-date_joined" /></p>
+<p><label for="id_membership_set-0-karma">Karma:</label> <input type="text" name="membership_set-0-karma" id="id_membership_set-0-karma" /><input type="hidden" name="membership_set-0-id" id="id_membership_set-0-id" /></p>
+
+# test for validation with callable defaults. Validations rely on hidden fields
+
+>>> data = {
+...     'membership_set-TOTAL_FORMS': '1',
+...     'membership_set-INITIAL_FORMS': '0',
+...     'membership_set-0-date_joined': unicode(now.strftime('%Y-%m-%d %H:%M:%S')),
+...     'initial-membership_set-0-date_joined': unicode(now.strftime('%Y-%m-%d %H:%M:%S')),
+...     'membership_set-0-karma': '',
+... }
+>>> formset = FormSet(data, instance=person)
+>>> formset.is_valid()
+True
+
+# now test for when the data changes
+
+>>> one_day_later = now + datetime.timedelta(days=1)
+>>> filled_data = {
+...     'membership_set-TOTAL_FORMS': '1',
+...     'membership_set-INITIAL_FORMS': '0',
+...     'membership_set-0-date_joined': unicode(one_day_later.strftime('%Y-%m-%d %H:%M:%S')),
+...     'initial-membership_set-0-date_joined': unicode(now.strftime('%Y-%m-%d %H:%M:%S')),
+...     'membership_set-0-karma': '',
+... }
+>>> formset = FormSet(filled_data, instance=person)
+>>> formset.is_valid()
+False
+
+# now test with split datetime fields
+
+>>> class MembershipForm(forms.ModelForm):
+...     date_joined = forms.SplitDateTimeField(initial=now)
+...     class Meta:
+...         model = Membership
+...     def __init__(self, **kwargs):
+...         super(MembershipForm, self).__init__(**kwargs)
+...         self.fields['date_joined'].widget = forms.SplitDateTimeWidget()
+
+>>> FormSet = inlineformset_factory(Person, Membership, form=MembershipForm, can_delete=False, extra=1)
+>>> data = {
+...     'membership_set-TOTAL_FORMS': '1',
+...     'membership_set-INITIAL_FORMS': '0',
+...     'membership_set-0-date_joined_0': unicode(now.strftime('%Y-%m-%d')),
+...     'membership_set-0-date_joined_1': unicode(now.strftime('%H:%M:%S')),
+...     'initial-membership_set-0-date_joined': unicode(now.strftime('%Y-%m-%d %H:%M:%S')),
+...     'membership_set-0-karma': '',
+... }
+>>> formset = FormSet(data, instance=person)
+>>> formset.is_valid()
+True
 
 """}

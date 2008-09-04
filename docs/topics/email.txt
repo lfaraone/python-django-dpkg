@@ -174,14 +174,14 @@ from the request's POST data, sends that to admin@example.com and redirects to
             # to get proper validation errors.
             return HttpResponse('Make sure all fields are entered and valid.')
 
-.. _Header injection: http://securephp.damonkohler.com/index.php/Email_Injection
+.. _Header injection: http://www.nyphp.org/phundamentals/email_header_injection.php
 
 .. _emailmessage-and-smtpconnection:
 
 The EmailMessage and SMTPConnection classes
 ===========================================
 
-**New in Django development version**
+.. versionadded:: 1.0
 
 Django's ``send_mail()`` and ``send_mass_mail()`` functions are actually thin
 wrappers that make use of the ``EmailMessage`` and ``SMTPConnection`` classes
