@@ -77,9 +77,9 @@ the full list of conversions:
     ===============================  ========================================
 
 
-.. note::
+.. versionadded:: 1.0
     The ``FloatField`` form field and ``DecimalField`` model and form fields
-    are new in the development version.
+    are new in Django 1.0.
 
 As you might expect, the ``ForeignKey`` and ``ManyToManyField`` model field
 types are special cases:
@@ -411,8 +411,9 @@ working with ``ModelForm`` instances instead of ``Form`` instances::
     <tr><th><label for="id_form-0-birth_date">Birth date:</label></th><td><input type="text" name="form-0-birth_date" id="id_form-0-birth_date" /><input type="hidden" name="form-0-id" id="id_form-0-id" /></td></tr>
 
 .. note::
-    One thing to note is that ``modelformset_factory`` uses ``formset_factory``
-    and by default uses ``can_delete=True``.
+    ``modelformset_factory`` uses ``formset_factory`` to generate formsets.
+    This means that a model formset is just an extension of a basic formset
+    that knows how to interact with a particular model.
 
 Changing the queryset
 ---------------------
@@ -521,7 +522,7 @@ formset to a user to edit ``Author`` model instances::
 
     def manage_authors(request):
         AuthorFormSet = modelformset_factory(Author)
-        if request.POST == 'POST':
+        if request.method == 'POST':
             formset = AuthorFormSet(request.POST, request.FILES)
             if formset.is_valid():
                 formset.save()
@@ -559,7 +560,11 @@ some author you would do::
     >>> author = Author.objects.get(name=u'Orson Scott Card')
     >>> formset = BookFormSet(instance=author)
 
-More than one foriegn key to the same model
+.. note::
+    ``inlineformset_factory`` uses ``modelformset_factory`` and marks
+    ``can_delete=True``.
+
+More than one foreign key to the same model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 If your model contains more than one foreign key to the same model you will

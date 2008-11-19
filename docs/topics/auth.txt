@@ -89,8 +89,15 @@ Fields
 
     .. attribute:: models.User.is_active
 
-        Boolean. Designates whether this account can be used to log in. Set this
-        flag to ``False`` instead of deleting accounts.
+        Boolean. Designates whether this user account should be considered
+        active. Set this flag to ``False`` instead of deleting accounts.
+
+        This doesn't control whether or not the user can log in. Nothing in
+        the authentication path checks the ``is_active`` flag, so if you want
+        to reject a login based on ``is_active`` being ``False``, it is up to
+        you to check that in your own login view. However, permission checking
+        using the methods like :meth:`~models.User.has_perm` does check this
+        flag and will always return ``False`` for inactive users.
 
     .. attribute:: models.User.is_superuser
 
@@ -313,8 +320,10 @@ Hashtype is either ``sha1`` (default), ``md5`` or ``crypt`` -- the algorithm
 used to perform a one-way hash of the password. Salt is a random string used
 to salt the raw password to create the hash. Note that the ``crypt`` method is
 only supported on platforms that have the standard Python ``crypt`` module
-available, and ``crypt`` support is only available in the Django development
-version.
+available.
+
+.. versionadded:: 1.0
+    Support for the ``crypt`` module is new in Django 1.0.
 
 For example::
 
@@ -619,7 +628,6 @@ The login_required decorator
         def my_view(request):
             # ...
 
-    In the Django development version,
     :func:`~django.contrib.auth.decorators.login_required` also takes an
     optional ``redirect_field_name`` parameter. Example::
 
@@ -680,7 +688,7 @@ the following line to your URLconf::
           a query string, too.
 
         * ``site_name``: The name of the current
-          :class:`~django.contrib.sites.models.Site``, according to the
+          :class:`~django.contrib.sites.models.Site`, according to the
           :setting:`SITE_ID` setting. If you're using the Django development version
           and you don't have the site framework installed, this will be set to the
           value of ``request.META['SERVER_NAME']``. For more on sites, see 

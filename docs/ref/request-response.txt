@@ -93,18 +93,7 @@ All attributes except ``session`` should be considered read-only.
     A standard Python dictionary containing all cookies. Keys and values are
     strings.
 
-.. attribute:: HttpRequest.FILES 
-
-    .. admonition:: Changed in Django development version
-        
-        In previous versions of Django, ``request.FILES`` contained
-        simple ``dict`` objects representing uploaded files. This is
-        no longer true -- files are represented by ``UploadedFile``
-        objects as described below.
-        
-        These ``UploadedFile`` objects will emulate the old-style ``dict``
-        interface, but this is deprecated and will be removed in the next
-        release of Django.
+.. attribute:: HttpRequest.FILES
 
     A dictionary-like object containing all uploaded files. Each key in
     ``FILES`` is the ``name`` from the ``<input type="file" name="" />``. Each
@@ -122,6 +111,16 @@ All attributes except ``session`` should be considered read-only.
     and the ``<form>`` that posted to the request had
     ``enctype="multipart/form-data"``. Otherwise, ``FILES`` will be a blank
     dictionary-like object.
+
+    .. versionchanged:: 1.0
+
+    In previous versions of Django, ``request.FILES`` contained simple ``dict``
+    objects representing uploaded files. This is no longer true -- files are
+    represented by ``UploadedFile`` objects as described below.
+
+    These ``UploadedFile`` objects will emulate the old-style ``dict``
+    interface, but this is deprecated and will be removed in the next release of
+    Django.
 
 .. attribute:: HttpRequest.META
 
@@ -349,7 +348,7 @@ In addition, ``QueryDict`` has the following methods:
 
 .. method:: QueryDict.lists()
 
-    Like :method:items(), except it includes all values, as a list, for each
+    Like :meth:`items()`, except it includes all values, as a list, for each
     member of the dictionary. For example::
     
          >>> q = QueryDict('a=1&a=2&a=3')
@@ -434,6 +433,14 @@ this is how you might return a Microsoft Excel spreadsheet::
 There's nothing Django-specific about the ``Content-Disposition`` header, but
 it's easy to forget the syntax, so we've included it here.
 
+Attributes
+----------
+
+.. attribute:: HttpResponse.content
+
+    A normal Python string representing the content, encoded from a Unicode
+    object if necessary.
+
 Methods
 -------
 
@@ -492,7 +499,7 @@ Methods
           calendars.lawrence.com. Otherwise, a cookie will only be readable by
           the domain that set it.
 
-    .. _`cookie Morsel`: http://www.python.org/doc/current/lib/morsel-objects.html
+    .. _`cookie Morsel`: http://docs.python.org/library/cookie.html#Cookie.Morsel
 
 .. method:: HttpResponse.delete_cookie(key, path='/', domain=None)
 
@@ -502,12 +509,6 @@ Methods
     Due to the way cookies work, ``path`` and ``domain`` should be the same
     values you used in ``set_cookie()`` -- otherwise the cookie may not be
     deleted.
-
-.. method:: HttpResponse.content()
-
-    Returns the content as a Python string, encoding it from a Unicode object
-    if necessary. Note this is a property, not a method, so use ``r.content``
-    instead of ``r.content()``.
 
 .. method:: HttpResponse.write(content)
 
@@ -523,6 +524,8 @@ Methods
 
 .. _HTTP Status code: http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10
 
+
+.. _ref-httpresponse-subclasses:
 
 HttpResponse subclasses
 -----------------------

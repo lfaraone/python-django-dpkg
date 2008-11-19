@@ -314,34 +314,17 @@ class FormatStylePlaceholderCursor(Database.Cursor):
     charset = 'utf-8'
 
     def _format_params(self, params):
-        if isinstance(params, dict):
-            result = {}
-            for key, value in params.items():
-                result[smart_str(key, self.charset)] = OracleParam(param, self.charset)
-            return result
-        else:
-            return tuple([OracleParam(p, self.charset, True) for p in params])
+        return tuple([OracleParam(p, self.charset, True) for p in params])
 
     def _guess_input_sizes(self, params_list):
-        if isinstance(params_list[0], dict):
-            sizes = {}
-            iterators = [params.iteritems() for params in params_list]
-        else:
-            sizes = [None] * len(params_list[0])
-            iterators = [enumerate(params) for params in params_list]
-        for iterator in iterators:
-            for key, value in iterator:
-                if value.input_size: sizes[key] = value.input_size
-        if isinstance(sizes, dict):
-            self.setinputsizes(**sizes)
-        else:
-            self.setinputsizes(*sizes)
+        sizes = [None] * len(params_list[0])
+        for params in params_list:
+            for i, value in enumerate(params):
+                if value.input_size: sizes[i] = value.input_size
+        self.setinputsizes(*sizes)
 
     def _param_generator(self, params):
-        if isinstance(params, dict):
-            return dict([(k, p.smart_str) for k, p in params.iteritems()])
-        else:
-            return [p.smart_str for p in params]
+        return [p.smart_str for p in params]
 
     def execute(self, query, params=None):
         if params is None:
@@ -361,8 +344,8 @@ class FormatStylePlaceholderCursor(Database.Cursor):
             return Database.Cursor.execute(self, query, self._param_generator(params))
         except DatabaseError, e:
             # cx_Oracle <= 4.4.0 wrongly raises a DatabaseError for ORA-01400.
-            if e.message.code == 1400 and type(e) != IntegrityError:
-                e = IntegrityError(e.message)
+            if e.args[0].code == 1400 and not isinstance(e, IntegrityError):
+                e = IntegrityError(e.args[0])
             raise e
 
     def executemany(self, query, params=None):
@@ -384,8 +367,8 @@ class FormatStylePlaceholderCursor(Database.Cursor):
             return Database.Cursor.executemany(self, query, [self._param_generator(p) for p in formatted])
         except DatabaseError, e:
             # cx_Oracle <= 4.4.0 wrongly raises a DatabaseError for ORA-01400.
-            if e.message.code == 1400 and type(e) != IntegrityError:
-                e = IntegrityError(e.message)
+            if e.args[0].code == 1400 and not isinstance(e, IntegrityError):
+                e = IntegrityError(e.args[0])
             raise e
 
     def fetchone(self):

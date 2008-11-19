@@ -1,3 +1,19 @@
+python-django (1.0.2-1) unstable; urgency=low
+
+  [ Chris Lamb ]
+  * New upstream bugfix release. Closes: #505783
+  * Add myself to Uploaders with ACK from Brett.
+
+  [ David Spreen ]
+  * Remove python-pysqlite2 from Recommends because Python 2.5 includes
+    sqlite library used by Django. Closes: 497886
+
+  [ Sandro Tosi ]
+  * debian/control
+    - switch Vcs-Browser field to viewsvn
+
+ -- Chris Lamb <lamby@debian.org>  Wed, 19 Nov 2008 21:31:00 +0000
+
 python-django (1.0-1) unstable; urgency=low
 
   [ David Spreen ]

@@ -151,15 +151,18 @@ DATABASE_ENGINE
 
 Default: ``''`` (Empty string)
 
-The database backend to use. The build-in database backends are
+The database backend to use. The built-in database backends are
 ``'postgresql_psycopg2'``, ``'postgresql'``, ``'mysql'``, ``'sqlite3'``, and
 ``'oracle'``.
 
-In the Django development version, you can use a database backend that doesn't
-ship with Django by setting ``DATABASE_ENGINE`` to a fully-qualified path (i.e.
+You can use a database backend that doesn't ship with Django by setting
+``DATABASE_ENGINE`` to a fully-qualified path (i.e.
 ``mypackage.backends.whatever``). Writing a whole new database backend from
 scratch is left as an exercise to the reader; see the other backends for
 examples.
+
+.. versionadded:: 1.0
+    Support for external database backends is new in 1.0.
 
 .. setting:: DATABASE_HOST
 
@@ -192,7 +195,8 @@ DATABASE_NAME
 Default: ``''`` (Empty string)
 
 The name of the database to use. For SQLite, it's the full path to the database
-file.
+file. When specifying the path, always use forward slashes, even on Windows  
+(e.g. ``C:/homes/user/mysite/sqlite3.db``).
 
 .. setting:: DATABASE_OPTIONS
 
@@ -269,7 +273,7 @@ Default: ``False``
 
 A boolean that turns on/off debug mode.
 
-If you define custom settings, django/views/debug.py has a ``HIDDEN_SETTINGS``
+If you define custom settings, `django/views/debug.py`_ has a ``HIDDEN_SETTINGS``
 regular expression which will hide from the DEBUG view anything that contains
 ``'SECRET'``, ``'PASSWORD'``, or ``'PROFANITIES'``. This allows untrusted users to
 be able to give backtraces without seeing sensitive (or offensive) settings.
@@ -283,6 +287,8 @@ will remember every SQL query it executes. This is useful when you are debugging
 but on a production server, it will rapidly consume memory.
 
 Never deploy a site into production with ``DEBUG`` turned on.
+
+.. _django/views/debug.py: http://code.djangoproject.com/browser/django/trunk/django/views/debug.py
 
 DEBUG_PROPAGATE_EXCEPTIONS
 --------------------------
@@ -800,8 +806,9 @@ A tuple of profanities, as strings, that will trigger a validation error when
 the ``hasNoProfanities`` validator is called.
 
 We don't list the default values here, because that would be profane. To see
-the default values, see the file ``django/conf/global_settings.py``.
+the default values, see the file `django/conf/global_settings.py`_.
 
+.. _django/conf/global_settings.py: http://code.djangoproject.com/browser/django/trunk/django/conf/global_settings.py
 .. setting:: ROOT_URLCONF
 
 ROOT_URLCONF
@@ -1148,8 +1155,9 @@ multiple Django-powered sites, each with a separate time-zone setting.
 
 Normally, Django sets the ``os.environ['TZ']`` variable to the time zone you
 specify in the ``TIME_ZONE`` setting. Thus, all your views and models will
-automatically operate in the correct time zone. However, if you're using the
-manual configuration option (see below), Django will *not* touch the ``TZ``
+automatically operate in the correct time zone. However, if you're manually
+:ref:`manually configuring settings
+<settings-without-django-settings-module>`, Django will *not* touch the ``TZ``
 environment variable, and it'll be up to you to ensure your processes are
 running in the correct environment.
 

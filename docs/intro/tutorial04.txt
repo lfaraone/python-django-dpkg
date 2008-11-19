@@ -43,7 +43,7 @@ A quick rundown:
       data server-side, use ``method="post"``. This tip isn't specific to
       Django; it's just good Web development practice.
 
-    * ``forloop.counter`` indicates how many times the ;ttag:`for` tag has gone
+    * ``forloop.counter`` indicates how many times the :ttag:`for` tag has gone
       through its loop
 
 Now, let's create a Django view that handles the submitted data and does
@@ -112,7 +112,7 @@ This code includes a few things we haven't covered yet in this tutorial:
       This function helps avoid having to hardcode a URL in the view function.
       It is given the name of the view that we want to pass control to and the
       variable portion of the URL pattern that points to that view. In this
-      case, using the URLConf we set up in Tutorial 3, this
+      case, using the URLconf we set up in Tutorial 3, this
       :func:`~django.core.urlresolvers.reverse` call will return a string like
       ::
 
@@ -268,8 +268,8 @@ context that contains the ``poll`` and ``latest_poll_list`` context variables.
 However, the generic views provide the variables ``object`` and ``object_list``
 as context. Therefore, you need to change your templates to match the new
 context variables. Go through your templates, and modify any reference to
-``latest_poll_list`` to :func:`~django.views.generic.list_detail.object_list`,
-and change any reference to ``poll`` to ``object``.
+``latest_poll_list`` to ``object_list``, and change any reference to ``poll``
+to ``object``.
 
 You can now delete the ``index()``, ``detail()`` and ``results()`` views
 from ``polls/views.py``. We don't need them anymore -- they have been replaced

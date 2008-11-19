@@ -2,18 +2,18 @@ Source: python-django
 Section: python
 Priority: optional
 Maintainer: Brett Parker <iDunno@sommitrealweird.co.uk>
-Uploaders: Raphael Hertzog <hertzog@debian.org>, Gustavo Noronha Silva <kov@debian.org>, David Spreen <netzwurm@debian.org>, Debian Python Modules Team <python-modules-team@lists.alioth.debian.org>
+Uploaders: Raphael Hertzog <hertzog@debian.org>, Gustavo Noronha Silva <kov@debian.org>, David Spreen <netzwurm@debian.org>, Chris Lamb <lamby@debian.org>, Debian Python Modules Team <python-modules-team@lists.alioth.debian.org>
 Standards-Version: 3.8.0
 Build-Depends: debhelper (>= 5.0.37.2), python-dev, cdbs (>= 0.4.42), python-setuptools (>= 0.6b3), python-support (>= 0.3)
 Build-Depends-Indep: python-sphinx, libjs-jquery
 Homepage: http://www.djangoproject.com/
 Vcs-Svn: svn://svn.debian.org/python-modules/packages/python-django/trunk/
-Vcs-Browser: http://svn.debian.org/wsvn/python-modules/packages/python-django/trunk/?op=log
+Vcs-Browser: http://svn.debian.org/viewsvn/python-modules/packages/python-django/trunk/
 
 Package: python-django
 Architecture: all
 Depends: ${python:Depends}
-Recommends: python-pysqlite2, libjs-jquery
+Recommends: libjs-jquery
 Suggests: python-psycopg2, python-psycopg, python-mysqldb, python-flup
 Priority: optional
 Description: A high-level Python Web framework

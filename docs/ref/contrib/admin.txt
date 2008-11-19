@@ -4,6 +4,9 @@
 The Django admin site
 =====================
 
+.. module:: django.contrib.admin
+   :synopsis: Django's admin site.
+
 One of the most powerful parts of Django is the automatic admin interface. It
 reads metadata in your model to provide a powerful and production-ready
 interface that content producers can immediately use to start adding content to
@@ -41,7 +44,7 @@ There are five steps in activating the Django admin site:
 
 The ``ModelAdmin`` class is the representation of a model in the admin
 interface. These are stored in a file named ``admin.py`` in your application.
-Let's take a look at a very simple example the ``ModelAdmin``::
+Let's take a look at a very simple example of the ``ModelAdmin``::
 
     from django.contrib import admin
     from myproject.myapp.models import Author
@@ -50,6 +53,20 @@ Let's take a look at a very simple example the ``ModelAdmin``::
         pass
     admin.site.register(Author, AuthorAdmin)
 
+.. admonition:: Do you need a ``ModelAdmin`` object at all?
+
+    In the preceding example, the ``ModelAdmin`` class doesn't define any
+    custom values (yet). As a result, the default admin interface will be
+    provided. If you are happy with the default admin interface, you don't
+    need to define a ``ModelAdmin`` object at all -- you can register the
+    model class without providing a ``ModelAdmin`` description. The
+    preceding example could be simplified to::
+
+        from django.contrib import admin
+        from myproject.myapp.models import Author
+    
+        admin.site.register(Author)
+    
 ``ModelAdmin`` Options
 ----------------------
 
@@ -145,7 +162,7 @@ The ``field_options`` dictionary can have the following keys:
             'classes': ['wide', 'extrapretty'],
             }
 
-        Two useful classes defined by the default admin-site stylesheet are
+        Two useful classes defined by the default admin site stylesheet are
         ``collapse`` and ``wide``. Fieldsets with the ``collapse`` style will
         be initially collapsed in the admin and replaced with a small
         "click to expand" link. Fieldsets with the ``wide`` style will be
@@ -245,7 +262,7 @@ You have four possible values that can be used in ``list_display``:
       example::
     
           def upper_case_name(obj):
-              return "%s %s" % (obj.first_name, obj.last_name).upper()
+              return ("%s %s" % (obj.first_name, obj.last_name)).upper()
           upper_case_name.short_description = 'Name'
         
           class PersonAdmin(admin.ModelAdmin):
@@ -258,7 +275,7 @@ You have four possible values that can be used in ``list_display``:
               list_display = ('upper_case_name',)
               
               def upper_case_name(self, obj):
-                return "%s %s" % (obj.first_name, obj.last_name).upper()
+                return ("%s %s" % (obj.first_name, obj.last_name)).upper()
               upper_case_name.short_description = 'Name'
     
     * A string representing an attribute on the model. This behaves almost
@@ -924,7 +941,9 @@ better to override only the section of the template which you need to change.
 To continue the example above, we want to add a new link next to the ``History``
 tool for the ``Page`` model. After looking at ``change_form.html`` we determine
 that we only need to override the ``object-tools`` block. Therefore here is our
-new ``change_form.html`` ::
+new ``change_form.html`` :
+
+.. code-block:: html+django
 
     {% extends "admin/change_form.html" %}
     {% load i18n %}

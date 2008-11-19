@@ -38,6 +38,8 @@ or CheetahTemplate_, you should feel right at home with Django's templates.
 Templates
 =========
 
+.. highlightlang:: html+django
+
 A template is simply a text file. It can generate any text-based format (HTML,
 XML, CSV, etc.).
 
@@ -210,7 +212,7 @@ tags:
 
             {% ifnotequal athlete.name "Joe" %}
                 ...
-            {% endifequal %}
+            {% endifnotequal %}
     
     :ttag:`block` and :ttag:`extends`
         Set up `template inheritance`_ (see below), a powerful way
@@ -441,9 +443,9 @@ To avoid this problem, you have two options:
     * Two, you can take advantage of Django's automatic HTML escaping. The
       remainder of this section describes how auto-escaping works.
 
-By default in the Django development version, every template automatically
-escapes the output of every variable tag. Specifically, these five characters
-are escaped:
+By default in Django, every template automatically escapes the output
+of every variable tag. Specifically, these five characters are
+escaped:
 
     * ``<`` is converted to ``&lt;``
     * ``>`` is converted to ``&gt;``

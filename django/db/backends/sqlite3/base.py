@@ -14,16 +14,17 @@ from django.db.backends.sqlite3.introspection import DatabaseIntrospection
 try:
     try:
         from sqlite3 import dbapi2 as Database
-    except ImportError:
+    except ImportError, e1:
         from pysqlite2 import dbapi2 as Database
-except ImportError, e:
+except ImportError, exc:
     import sys
     from django.core.exceptions import ImproperlyConfigured
     if sys.version_info < (2, 5, 0):
         module = 'pysqlite2'
     else:
         module = 'sqlite3'
-    raise ImproperlyConfigured, "Error loading %s module: %s" % (module, e)
+        exc = e1
+    raise ImproperlyConfigured, "Error loading %s module: %s" % (module, exc)
 
 try:
     import decimal
@@ -100,7 +101,7 @@ class DatabaseOperations(BaseDatabaseOperations):
         return [first % value, second % value]
 
 class DatabaseWrapper(BaseDatabaseWrapper):
-    
+
     # SQLite requires LIKE statements to include an ESCAPE clause if the value
     # being escaped has a percent or underscore in it.
     # See http://www.sqlite.org/lang_expr.html for an explanation.
@@ -123,7 +124,7 @@ class DatabaseWrapper(BaseDatabaseWrapper):
 
     def __init__(self, *args, **kwargs):
         super(DatabaseWrapper, self).__init__(*args, **kwargs)
-        
+
         self.features = DatabaseFeatures()
         self.ops = DatabaseOperations()
         self.client = DatabaseClient()
@@ -178,6 +179,8 @@ class SQLiteCursorWrapper(Database.Cursor):
         return query % tuple("?" * num_params)
 
 def _sqlite_extract(lookup_type, dt):
+    if dt is None:
+        return None
     try:
         dt = util.typecast_timestamp(dt)
     except (ValueError, TypeError):
