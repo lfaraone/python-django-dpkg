@@ -1,2 +1,2 @@
-usr/
+docs/_build/html/* usr/share/doc/python-django/html/
 extras/django_bash_completion etc/bash_completion.d/

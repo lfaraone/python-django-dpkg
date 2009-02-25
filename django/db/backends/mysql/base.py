@@ -110,12 +110,18 @@ class CursorWrapper(object):
 class DatabaseFeatures(BaseDatabaseFeatures):
     empty_fetchmany_value = ()
     update_can_self_select = False
+    allows_group_by_pk = True
     related_fields_match_type = True
 
 class DatabaseOperations(BaseDatabaseOperations):
     def date_extract_sql(self, lookup_type, field_name):
         # http://dev.mysql.com/doc/mysql/en/date-and-time-functions.html
-        return "EXTRACT(%s FROM %s)" % (lookup_type.upper(), field_name)
+        if lookup_type == 'week_day':
+            # DAYOFWEEK() returns an integer, 1-7, Sunday=1.
+            # Note: WEEKDAY() returns 0-6, Monday=0.
+            return "DAYOFWEEK(%s)" % field_name
+        else:
+            return "EXTRACT(%s FROM %s)" % (lookup_type.upper(), field_name)
 
     def date_trunc_sql(self, lookup_type, field_name):
         fields = ['year', 'month', 'day', 'hour', 'minute', 'second']
@@ -132,6 +138,14 @@ class DatabaseOperations(BaseDatabaseOperations):
 
     def drop_foreignkey_sql(self):
         return "DROP FOREIGN KEY"
+
+    def force_no_ordering(self):
+        """
+        "ORDER BY NULL" prevents MySQL from implicitly ordering by grouped
+        columns. If no ordering would otherwise be applied, we don't want any
+        implicit sorting going on.
+        """
+        return ["NULL"]
 
     def fulltext_search_sql(self, field_name):
         return 'MATCH (%s) AGAINST (%%s IN BOOLEAN MODE)' % field_name

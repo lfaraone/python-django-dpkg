@@ -1,59 +1,18 @@
-python-django (1.0.2-7) unstable; urgency=low
+python-django (1.1~alpha1-1) experimental; urgency=low
 
-  * Fix compatibility with Python 2.6 and Python transitions in general.
-    Thanks to Krzysztof Klimonda <kklimonda@syntaxhighlighted.com>.
+  * New upstream "alpha preview package": "this package is not for production
+    use, but if you'd like to try out some of the new features or help track
+    down bugs, feel free to download it and give it a test."
+  * Just Build-Depend on `python', not `python-dev'.
+  * Move to debhelper 7.
+  * Drop versions on Build-Depends where they are satisfied in current
+    oldstable (ie. etch).
+  * Remove repeated 'Priority' line in binary package stanza.
+  * Update crufty long and short descriptions.
+  * Add ${misc:Depends} in binary stanza for debhelper-using package.
+  * Remove bashisms from binary-post-install.
 
- -- Chris Lamb <lamby@debian.org>  Sat, 16 May 2009 00:09:47 +0100
-
-python-django (1.0.2-6) unstable; urgency=low
-
-  * Backport patch from <http://code.djangoproject.com/ticket/10539> to fix
-    FTBFS when using python-sphinx >= 0.6. (Closes: #527492)
-
- -- Chris Lamb <lamby@debian.org>  Sun, 10 May 2009 22:11:09 +0100
-
-python-django (1.0.2-5) unstable; urgency=low
-
-  * Fix issue where newly created projects do not have their manage.py file
-    executable.
-
- -- Chris Lamb <lamby@debian.org>  Thu, 26 Mar 2009 23:42:14 +0000
-
-python-django (1.0.2-4) unstable; urgency=low
-
-  * Programatically replace most references to "django-admin.py" with
-    "django-admin" in the generated documentation. (Closes: #519937)
-  * Bump Standards-Version to 3.8.1; no changes.
-
- -- Chris Lamb <lamby@debian.org>  Tue, 24 Mar 2009 00:50:26 +0000
-
-python-django (1.0.2-3) unstable; urgency=low
-
-  * Split documentation into a separate python-django-doc package due to size
-    (approximately 6Mb).
-
- -- Chris Lamb <lamby@debian.org>  Tue, 10 Mar 2009 21:13:57 +0000
-
-python-django (1.0.2-2) unstable; urgency=low
-
-  * Don't rely on the internal layout of python-support. (Closes: #517052)
-  * Move to debhelper-based packaging for operational clarity:
-    - Remove bashisms from binary-post-install.
-    - Use quilt instead of simple-patchsys.mk and adjust existing patches so
-      that we can apply with -p1 for the "quilt" source package type.
-  * Adjust Build-Depends:
-    - Bump debhelper requirement 7.0.50 for override_* feature.
-    - Drop cdbs, python-dev and python-setuptools requirement.
-    - Just Build-Depend on `python', not `python-dev'.
-    - Drop versions on Build-Depends where they are satisfied in current
-      oldstable (ie. etch).
-  * debian/control:
-    - Add python-sqlite to Suggests.
-    - Remove repeated 'Priority' line in binary package stanza.
-    - Update crufty long and short descriptions.
-    - Add ${misc:Depends} in binary stanza for debhelper-using package.
-
- -- Chris Lamb <lamby@debian.org>  Sun, 08 Mar 2009 06:01:59 +0000
+ -- Chris Lamb <lamby@debian.org>  Wed, 25 Feb 2009 01:28:47 +0000
 
 python-django (1.0.2-1) unstable; urgency=low
 

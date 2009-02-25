@@ -3,8 +3,8 @@ Section: python
 Priority: optional
 Maintainer: Brett Parker <iDunno@sommitrealweird.co.uk>
 Uploaders: Raphael Hertzog <hertzog@debian.org>, Gustavo Noronha Silva <kov@debian.org>, David Spreen <netzwurm@debian.org>, Chris Lamb <lamby@debian.org>, Debian Python Modules Team <python-modules-team@lists.alioth.debian.org>
-Standards-Version: 3.8.1
-Build-Depends: debhelper (>= 7.0.50), python-support, quilt
+Standards-Version: 3.8.0
+Build-Depends: debhelper (>= 7), python, cdbs, python-setuptools, python-support
 Build-Depends-Indep: python-sphinx, libjs-jquery
 Homepage: http://www.djangoproject.com/
 Vcs-Svn: svn://svn.debian.org/python-modules/packages/python-django/trunk/
@@ -13,7 +13,8 @@ Vcs-Browser: http://svn.debian.org/viewsvn/python-modules/packages/python-django
 Package: python-django
 Architecture: all
 Depends: ${misc:Depends}, ${python:Depends}
-Suggests: python-psycopg2, python-psycopg, python-mysqldb, python-flup, python-sqlite
+Recommends: libjs-jquery
+Suggests: python-psycopg2, python-psycopg, python-mysqldb, python-flup
 Description: High-level Python web development framework
  Django is a high-level web application framework that loosely follows the
  model-view-controller design pattern.
@@ -35,22 +36,3 @@ Description: High-level Python web development framework
   * Lightweight, standalone web server for development and testing
   * Internationalization support
   * Testing framework and client
-
-Package: python-django-doc
-Section: doc
-Architecture: all
-Depends: ${misc:Depends}
-Recommends: libjs-jquery
-Description: High-level Python web development framework (documentation)
- Django is a high-level web application framework that loosely follows the
- model-view-controller design pattern.
- .
- Python's equivalent to Ruby on Rails, Django lets you build complex
- data-driven websites quickly and easily - Django focuses on automating as much
- as possible and adhering to the "Don't Repeat Yourself" (DRY) principle.
- .
- Django additionally emphasizes reusability and "pluggability" of components;
- many generic third-party "applications" are available to enhance projects or
- to simply to reduce development time even further.
- .
- This package contains the HTML documentation and example projects.
