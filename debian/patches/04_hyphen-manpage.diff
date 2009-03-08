@@ -4,8 +4,8 @@ Comment:
  Fix a lintian I: message about improper usage of minus instead
  of hyphen.
 
---- docs/man/django-admin.1.orig	2008-09-04 08:51:48.000000000 +0200
-+++ docs/man/django-admin.1	2008-09-04 08:52:47.000000000 +0200
+--- a/docs/man/django-admin.1	2008-09-04 08:51:48.000000000 +0200
++++ b/docs/man/django-admin.1	2008-09-04 08:52:47.000000000 +0200
 @@ -153,7 +153,7 @@
  .TP
  .I \-e, \-\-extension=EXTENSION

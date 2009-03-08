@@ -6,8 +6,8 @@ Comment:
  .
  This is a Debian specific patch.
 
---- docs/man/django-admin.1.orig	2007-09-08 10:47:27.516890257 +0100
-+++ docs/man/django-admin.1	2007-09-08 10:48:01.822845242 +0100
+--- a/docs/man/django-admin.1	2007-09-08 10:47:27.516890257 +0100
++++ b/docs/man/django-admin.1	2007-09-08 10:48:01.822845242 +0100
 @@ -1,9 +1,9 @@
 -.TH "django-admin.py" "1" "March 2008" "Django Project" ""
 +.TH "django-admin" "1" "March 2008" "Django Project" ""

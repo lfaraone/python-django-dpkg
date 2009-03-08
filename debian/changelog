@@ -1,3 +1,24 @@
+python-django (1.0.2-2) unstable; urgency=low
+
+  * Don't rely on the internal layout of python-support. (Closes: #517052)
+  * Move to debhelper-based packaging for operational clarity:
+    - Remove bashisms from binary-post-install.
+    - Use quilt instead of simple-patchsys.mk and adjust existing patches so
+      that we can apply with -p1 for the "quilt" source package type.
+  * Adjust Build-Depends:
+    - Bump debhelper requirement 7.0.50 for override_* feature.
+    - Drop cdbs, python-dev and python-setuptools requirement.
+    - Just Build-Depend on `python', not `python-dev'.
+    - Drop versions on Build-Depends where they are satisfied in current
+      oldstable (ie. etch).
+  * debian/control:
+    - Add python-sqlite to Suggests.
+    - Remove repeated 'Priority' line in binary package stanza.
+    - Update crufty long and short descriptions.
+    - Add ${misc:Depends} in binary stanza for debhelper-using package.
+
+ -- Chris Lamb <lamby@debian.org>  Sun, 08 Mar 2009 06:01:59 +0000
+
 python-django (1.0.2-1) unstable; urgency=low
 
   [ Chris Lamb ]
