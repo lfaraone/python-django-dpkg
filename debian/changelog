@@ -1,3 +1,10 @@
+python-django (1.0.2-3) unstable; urgency=low
+
+  * Split documentation into a separate python-django-doc package due to size
+    (approximately 6Mb).
+
+ -- Chris Lamb <lamby@debian.org>  Tue, 10 Mar 2009 21:13:57 +0000
+
 python-django (1.0.2-2) unstable; urgency=low
 
   * Don't rely on the internal layout of python-support. (Closes: #517052)

@@ -37,9 +37,11 @@ override_dh_install:
 	
 	# Rename django-admin.py to django-admin
 	mv $(PREFIX)/usr/bin/django-admin.py $(PREFIX)/usr/bin/django-admin
-	
+
+override_dh_installdocs:
+	dh_installdocs
 	# Remove embedded copy of libjs-jquery
-	cd $(PREFIX)/usr/share/doc/python-django/html/_static \
+	cd debian/python-django-doc/usr/share/doc/python-django-doc/html/_static \
 		&& rm jquery.js \
 		&& ln -s ../../../../javascript/jquery/jquery.js .
 
