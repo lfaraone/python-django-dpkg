@@ -1,38 +1,54 @@
 #!/usr/bin/make -f
 
-DEB_PYTHON_SYSTEM := pysupport
-DEB_PYTHON_MODULE_PACKAGE = python-django
-DEB_DH_COMPRESS_ARGS = -X.js
+include /usr/share/quilt/quilt.make
 
-include /usr/share/cdbs/1/rules/buildcore.mk
-include /usr/share/cdbs/1/rules/debhelper.mk
-include /usr/share/cdbs/1/class/python-distutils.mk
-include /usr/share/cdbs/1/rules/simple-patchsys.mk
+PREFIX = debian/python-django
+DJANGO_DIR = $(PREFIX)/usr/lib/`pyversions -d`/site-packages/django
 
-build/python-django::
-	# Build HTML documentation, drop copy of source files
-	cd docs && make html
-	rm -rf docs/_build/html/_sources/
+%:
+	dh $@
 
-binary-post-install/python-django::
-	# Use default python shebang
-	perl -pi -e 's|^#!/usr/bin/env python.*$$|#!/usr/bin/python|' debian/python-django/usr/share/python-support/python-django/django/conf/project_template/manage.py
-	# Ensure executability of some scripts that are copied to projects
-	# (or used within projects)
-	chmod 755 debian/python-django/usr/share/python-support/python-django/django/conf/project_template/manage.py
-	find debian/python-django/usr/share/python-support/python-django/django/bin/ \
-		-name '*.py' -not -name '__init__.py' -print0 | xargs -0r chmod 755
-	# Remove execute rights from stuff that shouldn't have them
-	chmod 644 debian/python-django/etc/bash_completion.d/django_bash_completion
-	# Create convenience symlink
-	mkdir -p debian/python-django/usr/lib/python-django
-	dh_link usr/share/python-support/python-django/django/bin usr/lib/python-django/bin 
+build: $(QUILT_STAMPFN)
+	dh $@
+
+clean: unpatch
+	rm -rf docs.debian
+	dh $@
+
+override_dh_auto_build:
+	dh_auto_build
+	
+	# Build the HTML documentation.
+	# We programmatically replace most instances of django-admin.py with
+	# django-admin and remove the source files from the target _build.
+	cp -r docs docs.debian
+	find docs.debian -type f -print0 | xargs -0r perl -pi -e 's|(?<!/)(django-admin)\.py|$$1|'
+	make -C docs.debian html
+	rm -rf docs.debian/_build/html/_sources/
+
+override_dh_install:
+	dh_install
+	
+	# Use default shebang
+	perl -pi -e 's|^#!/usr/bin/env python.*|#!/usr/bin/python|' $(DJANGO_DIR)/conf/project_template/manage.py
+	
+	# Move scripts to /usr/lib/python-django
+	mkdir -p $(PREFIX)/usr/lib/python-django
+	mv $(DJANGO_DIR)/bin $(PREFIX)/usr/lib/python-django
+	
+	# Fix permissions
+	chmod 644 $(PREFIX)/etc/bash_completion.d/django_bash_completion
+	find $(PREFIX)/usr/lib/python-django/bin/ -name '*.py' -not -name '__init__.py' -print0 | xargs -0r chmod 755
+	
 	# Rename django-admin.py to django-admin
-	mv debian/python-django/usr/bin/django-admin.py debian/python-django/usr/bin/django-admin
-	# Remove convenience copy of libjs-jquery and replace with symlink
-	cd debian/python-django/usr/share/doc/python-django/html/_static\
-		&& rm -f jquery.js\
+	mv $(PREFIX)/usr/bin/django-admin.py $(PREFIX)/usr/bin/django-admin
+
+override_dh_installdocs:
+	dh_installdocs
+	# Remove embedded copy of libjs-jquery
+	cd debian/python-django-doc/usr/share/doc/python-django-doc/html/_static \
+		&& rm jquery.js \
 		&& ln -s ../../../../javascript/jquery/jquery.js .
 
-clean::
-	rm -rf docs/_build/*
+override_dh_compress:
+	dh_compress -X.js

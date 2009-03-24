@@ -1,3 +1,11 @@
+python-django (1.1~beta1-1) experimental; urgency=low
+
+  * New upstream release.
+  * Merge all changes from unstable branch:
+    - Split documentation into new python-django-doc binary package.
+
+ -- Chris Lamb <lamby@debian.org>  Tue, 24 Mar 2009 23:11:57 +0000
+
 python-django (1.1~alpha1-1) experimental; urgency=low
 
   * New upstream "alpha preview package": "this package is not for production
@@ -13,6 +21,42 @@ python-django (1.1~alpha1-1) experimental; urgency=low
   * Remove bashisms from binary-post-install.
 
  -- Chris Lamb <lamby@debian.org>  Wed, 25 Feb 2009 01:28:47 +0000
+
+python-django (1.0.2-4) unstable; urgency=low
+
+  * Programatically replace most references to "django-admin.py" with
+    "django-admin" in the generated documentation. (Closes: #519937)
+  * Bump Standards-Version to 3.8.1; no changes.
+
+ -- Chris Lamb <lamby@debian.org>  Tue, 24 Mar 2009 00:50:26 +0000
+
+python-django (1.0.2-3) unstable; urgency=low
+
+  * Split documentation into a separate python-django-doc package due to size
+    (approximately 6Mb).
+
+ -- Chris Lamb <lamby@debian.org>  Tue, 10 Mar 2009 21:13:57 +0000
+
+python-django (1.0.2-2) unstable; urgency=low
+
+  * Don't rely on the internal layout of python-support. (Closes: #517052)
+  * Move to debhelper-based packaging for operational clarity:
+    - Remove bashisms from binary-post-install.
+    - Use quilt instead of simple-patchsys.mk and adjust existing patches so
+      that we can apply with -p1 for the "quilt" source package type.
+  * Adjust Build-Depends:
+    - Bump debhelper requirement 7.0.50 for override_* feature.
+    - Drop cdbs, python-dev and python-setuptools requirement.
+    - Just Build-Depend on `python', not `python-dev'.
+    - Drop versions on Build-Depends where they are satisfied in current
+      oldstable (ie. etch).
+  * debian/control:
+    - Add python-sqlite to Suggests.
+    - Remove repeated 'Priority' line in binary package stanza.
+    - Update crufty long and short descriptions.
+    - Add ${misc:Depends} in binary stanza for debhelper-using package.
+
+ -- Chris Lamb <lamby@debian.org>  Sun, 08 Mar 2009 06:01:59 +0000
 
 python-django (1.0.2-1) unstable; urgency=low
 
