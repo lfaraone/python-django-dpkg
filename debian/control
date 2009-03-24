@@ -3,7 +3,7 @@ Section: python
 Priority: optional
 Maintainer: Brett Parker <iDunno@sommitrealweird.co.uk>
 Uploaders: Raphael Hertzog <hertzog@debian.org>, Gustavo Noronha Silva <kov@debian.org>, David Spreen <netzwurm@debian.org>, Chris Lamb <lamby@debian.org>, Debian Python Modules Team <python-modules-team@lists.alioth.debian.org>
-Standards-Version: 3.8.0
+Standards-Version: 3.8.1
 Build-Depends: debhelper (>= 7.0.50), python-support, quilt
 Build-Depends-Indep: python-sphinx, libjs-jquery
 Homepage: http://www.djangoproject.com/

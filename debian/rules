@@ -12,14 +12,19 @@ build: $(QUILT_STAMPFN)
 	dh $@
 
 clean: unpatch
-	rm -rf docs/_build/*
+	rm -rf docs.debian
 	dh $@
 
 override_dh_auto_build:
 	dh_auto_build
-	# Build HTML documentation, drop source files
-	make -C docs html
-	rm -rf docs/_build/html/_sources/
+	
+	# Build the HTML documentation.
+	# We programmatically replace most instances of django-admin.py with
+	# django-admin and remove the source files from the target _build.
+	cp -r docs docs.debian
+	find docs.debian -type f -print0 | xargs -0r perl -pi -e 's|(?<!/)(django-admin)\.py|$$1|'
+	make -C docs.debian html
+	rm -rf docs.debian/_build/html/_sources/
 
 override_dh_install:
 	dh_install
