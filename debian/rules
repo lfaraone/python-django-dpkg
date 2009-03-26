@@ -31,6 +31,7 @@ override_dh_install:
 	
 	# Use default shebang
 	perl -pi -e 's|^#!/usr/bin/env python.*|#!/usr/bin/python|' $(DJANGO_DIR)/conf/project_template/manage.py
+	chmod +x $(DJANGO_DIR)/conf/project_template/manage.py
 	
 	# Move scripts to /usr/lib/python-django
 	mkdir -p $(PREFIX)/usr/lib/python-django
