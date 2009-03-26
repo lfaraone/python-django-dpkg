@@ -1,3 +1,10 @@
+python-django (1.1~beta1-2) experimental; urgency=low
+
+  * Fix issue where newly created projects do not have their manage.py file
+    executable.
+
+ -- Chris Lamb <lamby@debian.org>  Thu, 26 Mar 2009 23:26:09 +0000
+
 python-django (1.1~beta1-1) experimental; urgency=low
 
   * New upstream release.
