@@ -1,3 +1,10 @@
+python-django (1.1~beta1-3) experimental; urgency=low
+
+  * Apply patch from <http://code.djangoproject.com/ticket/10539> to fix
+    FTBFS when using python-sphinx >= 0.6. (Closes: #527492)
+
+ -- Chris Lamb <lamby@debian.org>  Sun, 10 May 2009 22:17:57 +0100
+
 python-django (1.1~beta1-2) experimental; urgency=low
 
   * Fix issue where newly created projects do not have their manage.py file
