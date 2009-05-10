@@ -1,3 +1,10 @@
+python-django (1.0.2-6) unstable; urgency=low
+
+  * Backport patch from <http://code.djangoproject.com/ticket/10539> to fix
+    FTBFS when using python-sphinx >= 0.6. (Closes: #527492)
+
+ -- Chris Lamb <lamby@debian.org>  Sun, 10 May 2009 22:11:09 +0100
+
 python-django (1.0.2-5) unstable; urgency=low
 
   * Fix issue where newly created projects do not have their manage.py file
