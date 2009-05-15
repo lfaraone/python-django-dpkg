@@ -1,9 +1,10 @@
 #!/usr/bin/make -f
 
 include /usr/share/quilt/quilt.make
+include /usr/share/python/python.mk
 
 PREFIX = debian/python-django
-DJANGO_DIR = $(PREFIX)/usr/lib/`pyversions -d`/site-packages/django
+DJANGO_DIR = $(PREFIX)/$(call py_libdir_sh,`pyversions -d`)/django
 
 %:
 	dh $@
