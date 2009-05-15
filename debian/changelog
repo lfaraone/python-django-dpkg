@@ -1,3 +1,10 @@
+python-django (1.1~beta1-4) experimental; urgency=low
+
+  * Fix compatibility with Python 2.6 and Python transitions in general. Thanks
+    to Krzysztof Klimonda <kklimonda@syntaxhighlighted.com>.
+
+ -- Chris Lamb <lamby@debian.org>  Sat, 16 May 2009 00:20:39 +0100
+
 python-django (1.1~beta1-3) experimental; urgency=low
 
   * Apply patch from <http://code.djangoproject.com/ticket/10539> to fix
