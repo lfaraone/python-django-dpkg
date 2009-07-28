@@ -12,6 +12,7 @@ from django.http import QueryDict
 from django.test import _doctest as doctest
 from django.test.client import Client
 from django.utils import simplejson
+from django.utils.encoding import smart_str
 
 normalize_long_ints = lambda s: re.sub(r'(?<![\w])(\d+)L(?![\w])', '\\1', s)
 normalize_decimals = lambda s: re.sub(r"Decimal\('(\d+(\.\d*)?)'\)", lambda m: "Decimal(\"%s\")" % m.groups()[0], s)
@@ -33,8 +34,9 @@ real_enter_transaction_management = transaction.enter_transaction_management
 real_leave_transaction_management = transaction.leave_transaction_management
 real_savepoint_commit = transaction.savepoint_commit
 real_savepoint_rollback = transaction.savepoint_rollback
+real_managed = transaction.managed
 
-def nop(x=None):
+def nop(*args, **kwargs):
     return
 
 def disable_transaction_methods():
@@ -44,6 +46,7 @@ def disable_transaction_methods():
     transaction.savepoint_rollback = nop
     transaction.enter_transaction_management = nop
     transaction.leave_transaction_management = nop
+    transaction.managed = nop
 
 def restore_transaction_methods():
     transaction.commit = real_commit
@@ -52,6 +55,7 @@ def restore_transaction_methods():
     transaction.savepoint_rollback = real_savepoint_rollback
     transaction.enter_transaction_management = real_enter_transaction_management
     transaction.leave_transaction_management = real_leave_transaction_management
+    transaction.managed = real_managed
 
 class OutputChecker(doctest.OutputChecker):
     def check_output(self, want, got, optionflags):
@@ -330,6 +334,7 @@ class TransactionTestCase(unittest.TestCase):
         self.assertEqual(response.status_code, status_code,
             "Couldn't retrieve page: Response code was %d (expected %d)'" %
                 (response.status_code, status_code))
+        text = smart_str(text, response._charset)
         real_count = response.content.count(text)
         if count is not None:
             self.assertEqual(real_count, count,
@@ -348,8 +353,9 @@ class TransactionTestCase(unittest.TestCase):
         self.assertEqual(response.status_code, status_code,
             "Couldn't retrieve page: Response code was %d (expected %d)'" %
                 (response.status_code, status_code))
-        self.assertEqual(response.content.count(text), 0,
-                         "Response should not contain '%s'" % text)
+        text = smart_str(text, response._charset)
+        self.assertEqual(response.content.count(text),
+             0, "Response should not contain '%s'" % text)
 
     def assertFormError(self, response, form, field, errors):
         """

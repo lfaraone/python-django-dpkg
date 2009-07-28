@@ -5,7 +5,7 @@ except NameError:
 
 from django.core.exceptions import ImproperlyConfigured
 from django.db import models
-from django.forms.models import BaseModelForm, BaseModelFormSet, fields_for_model
+from django.forms.models import BaseModelForm, BaseModelFormSet, fields_for_model, _get_foreign_key
 from django.contrib.admin.options import flatten_fieldsets, BaseModelAdmin
 from django.contrib.admin.options import HORIZONTAL, VERTICAL
 
@@ -67,16 +67,12 @@ def validate(cls, model):
     # list_editable
     if hasattr(cls, 'list_editable') and cls.list_editable:
         check_isseq(cls, 'list_editable', cls.list_editable)
-        if not (opts.ordering or cls.ordering):
-            raise ImproperlyConfigured("'%s.list_editable' cannot be used "
-                "without a default ordering. Please define ordering on either %s or %s."
-                % (cls.__name__, cls.__name__, model.__name__))
         for idx, field_name in enumerate(cls.list_editable):
             try:
                 field = opts.get_field_by_name(field_name)[0]
             except models.FieldDoesNotExist:
                 raise ImproperlyConfigured("'%s.list_editable[%d]' refers to a "
-                    "field, '%s', not defiend on %s."
+                    "field, '%s', not defined on %s."
                     % (cls.__name__, idx, field_name, model.__name__))
             if field_name not in cls.list_display:
                 raise ImproperlyConfigured("'%s.list_editable[%d]' refers to "
@@ -127,14 +123,6 @@ def validate(cls, model):
                 continue
             get_field(cls, model, opts, 'ordering[%d]' % idx, field)
 
-    if cls.actions:
-        check_isseq(cls, 'actions', cls.actions)
-        for idx, item in enumerate(cls.actions):
-            if (not callable(item)) and (not hasattr(cls, item)):
-                raise ImproperlyConfigured("'%s.actions[%d]' is neither a "
-                    "callable nor a method on %s" % (cls.__name__, idx, cls.__name__))
-
-
     # list_select_related = False
     # save_as = False
     # save_on_top = False
@@ -158,9 +146,9 @@ def validate(cls, model):
                 raise ImproperlyConfigured("'%s.inlines[%d].model' does not "
                         "inherit from models.Model." % (cls.__name__, idx))
             validate_base(inline, inline.model)
-            validate_inline(inline)
+            validate_inline(inline, cls, model)
 
-def validate_inline(cls):
+def validate_inline(cls, parent, parent_model):
     # model is already verified to exist and be a Model
     if cls.fk_name: # default value is None
         f = get_field(cls, cls.model, cls.model._meta, 'fk_name', cls.fk_name)
@@ -178,6 +166,14 @@ def validate_inline(cls):
     if hasattr(cls, 'formset') and not issubclass(cls.formset, BaseModelFormSet):
         raise ImproperlyConfigured("'%s.formset' does not inherit from "
                 "BaseModelFormSet." % cls.__name__)
+
+    # exclude
+    if hasattr(cls, 'exclude') and cls.exclude:
+        fk = _get_foreign_key(parent_model, cls.model, can_fail=True)
+        if fk and fk.name in cls.exclude:
+            raise ImproperlyConfigured("%s cannot exclude the field "
+                    "'%s' - this is the foreign key to the parent model "
+                    "%s." % (cls.__name__, fk.name, parent_model.__name__))
 
 def validate_base(cls, model):
     opts = model._meta

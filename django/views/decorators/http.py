@@ -75,7 +75,15 @@ def condition(etag_func=None, last_modified_func=None):
             if if_none_match or if_match:
                 # There can be more than one ETag in the request, so we
                 # consider the list of values.
-                etags = parse_etags(if_none_match or if_match)
+                try:
+                    etags = parse_etags(if_none_match or if_match)
+                except ValueError:
+                    # In case of invalid etag ignore all ETag headers.
+                    # Apparently Opera sends invalidly quoted headers at times
+                    # (we should be returning a 400 response, but that's a
+                    # little extreme) -- this is Django bug #10681.
+                    if_none_match = None
+                    if_match = None
 
             # Compute values (if any) for the requested resource.
             if etag_func:
@@ -127,9 +135,9 @@ def condition(etag_func=None, last_modified_func=None):
     return decorator
 
 # Shortcut decorators for common cases based on ETag or Last-Modified only
-def etag(callable):
-    return condition(etag=callable)
+def etag(etag_func):
+    return condition(etag_func=etag_func)
 
-def last_modified(callable):
-    return condition(last_modified=callable)
+def last_modified(last_modified_func):
+    return condition(last_modified_func=last_modified_func)
 

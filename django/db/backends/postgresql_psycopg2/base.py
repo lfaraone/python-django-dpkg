@@ -6,6 +6,7 @@ Requires psycopg 2: http://initd.org/projects/psycopg2
 
 from django.conf import settings
 from django.db.backends import *
+from django.db.backends.signals import connection_created
 from django.db.backends.postgresql.operations import DatabaseOperations as PostgresqlDatabaseOperations
 from django.db.backends.postgresql.client import DatabaseClient
 from django.db.backends.postgresql.creation import DatabaseCreation
@@ -96,17 +97,19 @@ class DatabaseWrapper(BaseDatabaseWrapper):
                 conn_params['port'] = settings_dict['DATABASE_PORT']
             self.connection = Database.connect(**conn_params)
             self.connection.set_client_encoding('UTF8')
+            self.connection.set_isolation_level(self.isolation_level)
+            connection_created.send(sender=self.__class__)
         cursor = self.connection.cursor()
         cursor.tzinfo_factory = None
         if set_tz:
             cursor.execute("SET TIME ZONE %s", [settings_dict['TIME_ZONE']])
             if not hasattr(self, '_version'):
                 self.__class__._version = get_version(cursor)
-            if self._version < (8, 0):
+            if self._version[0:2] < (8, 0):
                 # No savepoint support for earlier version of PostgreSQL.
                 self.features.uses_savepoints = False
             if self.features.uses_autocommit:
-                if self._version < (8, 2):
+                if self._version[0:2] < (8, 2):
                     # FIXME: Needs extra code to do reliable model insert
                     # handling, so we forbid it for now.
                     from django.core.exceptions import ImproperlyConfigured

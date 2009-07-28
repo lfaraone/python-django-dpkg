@@ -76,7 +76,9 @@ _base_js_escapes = (
     ('&', r'\x26'),
     ('=', r'\x3D'),
     ('-', r'\x2D'),
-    (';', r'\x3B')
+    (';', r'\x3B'),
+    (u'\u2028', r'\u2028'),
+    (u'\u2029', r'\u2029')
 )
 
 # Escape every ASCII character with a value less than 32.
@@ -149,7 +151,9 @@ def floatformat(text, arg=-1):
     except InvalidOperation:
         if input_val in special_floats:
             return input_val
-        else:
+        try:
+            d = Decimal(force_unicode(float(text)))
+        except (ValueError, InvalidOperation, TypeError, UnicodeEncodeError):
             return u''
     try:
         p = int(arg)
@@ -515,12 +519,18 @@ last.is_safe = True
 
 def length(value):
     """Returns the length of the value - useful for lists."""
-    return len(value)
+    try:
+        return len(value)
+    except (ValueError, TypeError):
+        return ''
 length.is_safe = True
 
 def length_is(value, arg):
     """Returns a boolean of whether the value's length is the argument."""
-    return len(value) == int(arg)
+    try:
+        return len(value) == int(arg)
+    except (ValueError, TypeError):
+        return ''
 length_is.is_safe = False
 
 def random(value):
@@ -673,7 +683,10 @@ def date(value, arg=None):
         return u''
     if arg is None:
         arg = settings.DATE_FORMAT
-    return format(value, arg)
+    try:
+        return format(value, arg)
+    except AttributeError:
+        return ''
 date.is_safe = False
 
 def time(value, arg=None):
@@ -683,7 +696,10 @@ def time(value, arg=None):
         return u''
     if arg is None:
         arg = settings.TIME_FORMAT
-    return time_format(value, arg)
+    try:
+        return time_format(value, arg)
+    except AttributeError:
+        return ''
 time.is_safe = False
 
 def timesince(value, arg=None):

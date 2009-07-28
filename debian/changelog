@@ -1,3 +1,19 @@
+python-django (1.1~rc1-2) experimental; urgency=low
+
+  * Ship FastCGI initscript and /etc/default file in python-django's examples
+    directory (Closes: #538863)
+
+ -- Chris Lamb <lamby@debian.org>  Tue, 28 Jul 2009 14:14:45 +0200
+
+python-django (1.1~rc1-1) experimental; urgency=low
+
+  * New upstream release.
+  * Drop "05_10539-sphinx06-compatibility.diff"; it has been applied upstream.
+  * Bump Standards-Version to 3.8.2.
+  * Remove ".DS_Store" directories.
+
+ -- Chris Lamb <lamby@debian.org>  Wed, 22 Jul 2009 09:44:30 +0100
+
 python-django (1.1~beta1-4) experimental; urgency=low
 
   * Fix compatibility with Python 2.6 and Python transitions in general. Thanks

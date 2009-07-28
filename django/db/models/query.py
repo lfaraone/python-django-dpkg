@@ -7,6 +7,8 @@ try:
 except NameError:
     from sets import Set as set     # Python 2.3 fallback
 
+from copy import deepcopy
+
 from django.db import connection, transaction, IntegrityError
 from django.db.models.aggregates import Aggregate
 from django.db.models.fields import DateField
@@ -39,6 +41,17 @@ class QuerySet(object):
     ########################
     # PYTHON MAGIC METHODS #
     ########################
+
+    def __deepcopy__(self, memo):
+        """
+        Deep copy of a QuerySet doesn't populate the cache
+        """
+        obj_dict = deepcopy(self.__dict__, memo)
+        obj_dict['_iter'] = None
+
+        obj = self.__class__()
+        obj.__dict__.update(obj_dict)
+        return obj
 
     def __getstate__(self):
         """
@@ -190,6 +203,38 @@ class QuerySet(object):
         index_start = len(extra_select)
         aggregate_start = index_start + len(self.model._meta.fields)
 
+        load_fields = []
+        # If only/defer clauses have been specified,
+        # build the list of fields that are to be loaded.
+        if only_load:
+            for field, model in self.model._meta.get_fields_with_model():
+                if model is None:
+                    model = self.model
+                if field == self.model._meta.pk:
+                    # Record the index of the primary key when it is found
+                    pk_idx = len(load_fields)
+                try:
+                    if field.name in only_load[model]:
+                        # Add a field that has been explicitly included
+                        load_fields.append(field.name)
+                except KeyError:
+                    # Model wasn't explicitly listed in the only_load table
+                    # Therefore, we need to load all fields from this model
+                    load_fields.append(field.name)
+
+        skip = None
+        if load_fields and not fill_cache:
+            # Some fields have been deferred, so we have to initialise
+            # via keyword arguments.
+            skip = set()
+            init_list = []
+            for field in fields:
+                if field.name not in load_fields:
+                    skip.add(field.attname)
+                else:
+                    init_list.append(field.attname)
+            model_cls = deferred_class_factory(self.model, skip)
+
         for row in self.query.results_iter():
             if fill_cache:
                 obj, _ = get_cached_row(self.model, row,
@@ -197,25 +242,10 @@ class QuerySet(object):
                             requested=requested, offset=len(aggregate_select),
                             only_load=only_load)
             else:
-                load_fields = only_load.get(self.model)
-                if load_fields:
-                    # Some fields have been deferred, so we have to initialise
-                    # via keyword arguments.
+                if skip:
                     row_data = row[index_start:aggregate_start]
                     pk_val = row_data[pk_idx]
-                    skip = set()
-                    init_list = []
-                    for field in fields:
-                        if field.name not in load_fields:
-                            skip.add(field.attname)
-                        else:
-                            init_list.append(field.attname)
-                    if skip:
-                        model_cls = deferred_class_factory(self.model, pk_val,
-                                skip)
-                        obj = model_cls(**dict(zip(init_list, row_data)))
-                    else:
-                        obj = self.model(*row[index_start:aggregate_start])
+                    obj = model_cls(**dict(zip(init_list, row_data)))
                 else:
                     # Omit aggregates in object creation.
                     obj = self.model(*row[index_start:aggregate_start])
@@ -356,10 +386,11 @@ class QuerySet(object):
 
         # Delete objects in chunks to prevent the list of related objects from
         # becoming too long.
+        seen_objs = None
         while 1:
             # Collect all the objects to be deleted in this chunk, and all the
             # objects that are related to the objects that are to be deleted.
-            seen_objs = CollectedObjects()
+            seen_objs = CollectedObjects(seen_objs)
             for object in del_query[:CHUNK_SIZE]:
                 object._collect_sub_objects(seen_objs)
 
@@ -617,6 +648,23 @@ class QuerySet(object):
         clone.query.add_immediate_loading(fields)
         return clone
 
+    ###################################
+    # PUBLIC INTROSPECTION ATTRIBUTES #
+    ###################################
+
+    def ordered(self):
+        """
+        Returns True if the QuerySet is ordered -- i.e. has an order_by()
+        clause or a default ordering on the model.
+        """
+        if self.query.extra_order_by or self.query.order_by:
+            return True
+        elif self.query.default_ordering and self.query.model._meta.ordering:
+            return True
+        else:
+            return False
+    ordered = property(ordered)
+
     ###################
     # PRIVATE METHODS #
     ###################
@@ -699,9 +747,6 @@ class ValuesQuerySet(QuerySet):
 
     def iterator(self):
         # Purge any extra columns that haven't been explicitly asked for
-        if self.extra_names is not None:
-            self.query.trim_extra_select(self.extra_names)
-
         extra_names = self.query.extra_select.keys()
         field_names = self.field_names
         aggregate_names = self.query.aggregate_select.keys()
@@ -725,13 +770,18 @@ class ValuesQuerySet(QuerySet):
         if self._fields:
             self.extra_names = []
             self.aggregate_names = []
-            if not self.query.extra_select and not self.query.aggregate_select:
+            if not self.query.extra and not self.query.aggregates:
+                # Short cut - if there are no extra or aggregates, then
+                # the values() clause must be just field names.
                 self.field_names = list(self._fields)
             else:
                 self.query.default_cols = False
                 self.field_names = []
                 for f in self._fields:
-                    if self.query.extra_select.has_key(f):
+                    # we inspect the full extra_select list since we might
+                    # be adding back an extra select item that we hadn't
+                    # had selected previously.
+                    if self.query.extra.has_key(f):
                         self.extra_names.append(f)
                     elif self.query.aggregate_select.has_key(f):
                         self.aggregate_names.append(f)
@@ -744,6 +794,8 @@ class ValuesQuerySet(QuerySet):
             self.aggregate_names = None
 
         self.query.select = []
+        if self.extra_names is not None:
+            self.query.set_extra_mask(self.extra_names)
         self.query.add_fields(self.field_names, False)
         if self.aggregate_names is not None:
             self.query.set_aggregate_mask(self.aggregate_names)
@@ -800,9 +852,6 @@ class ValuesQuerySet(QuerySet):
 
 class ValuesListQuerySet(ValuesQuerySet):
     def iterator(self):
-        if self.extra_names is not None:
-            self.query.trim_extra_select(self.extra_names)
-
         if self.flat and len(self._fields) == 1:
             for row in self.query.results_iter():
                 yield row[0]
@@ -909,31 +958,35 @@ def get_cached_row(klass, row, index_start, max_depth=0, cur_depth=0,
         return None
 
     restricted = requested is not None
-    index_end = index_start + len(klass._meta.fields)
-    fields = row[index_start:index_end]
-    if not [x for x in fields if x is not None]:
-        # If we only have a list of Nones, there was not related object.
-        obj = None
-    else:
-        load_fields = only_load and only_load.get(klass) or None
-        if load_fields:
-            # Handle deferred fields.
-            skip = set()
-            init_list = []
-            pk_val = fields[klass._meta.pk_index()]
-            for field in klass._meta.fields:
-                if field.name not in load_fields:
-                    skip.add(field.name)
-                else:
-                    init_list.append(field.attname)
-            if skip:
-                klass = deferred_class_factory(klass, pk_val, skip)
-                obj = klass(**dict(zip(init_list, fields)))
+    load_fields = only_load and only_load.get(klass) or None
+    if load_fields:
+        # Handle deferred fields.
+        skip = set()
+        init_list = []
+        pk_val = row[index_start + klass._meta.pk_index()]
+        for field in klass._meta.fields:
+            if field.name not in load_fields:
+                skip.add(field.name)
             else:
-                obj = klass(*fields)
+                init_list.append(field.attname)
+        field_count = len(init_list)
+        fields = row[index_start : index_start + field_count]
+        if fields == (None,) * field_count:
+            obj = None
+        elif skip:
+            klass = deferred_class_factory(klass, skip)
+            obj = klass(**dict(zip(init_list, fields)))
         else:
             obj = klass(*fields)
-    index_end += offset
+    else:
+        field_count = len(klass._meta.fields)
+        fields = row[index_start : index_start + field_count]
+        if fields == (None,) * field_count:
+            obj = None
+        else:
+            obj = klass(*fields)
+
+    index_end = index_start + field_count + offset
     for f in klass._meta.fields:
         if not select_related_descend(f, restricted, requested):
             continue
@@ -948,7 +1001,6 @@ def get_cached_row(klass, row, index_start, max_depth=0, cur_depth=0,
             if obj is not None:
                 setattr(obj, f.get_cache_name(), rel_obj)
     return obj, index_end
-
 
 def delete_objects(seen_objs):
     """
@@ -987,7 +1039,7 @@ def delete_objects(seen_objs):
             update_query = sql.UpdateQuery(cls, connection)
             for field, model in cls._meta.get_fields_with_model():
                 if (field.rel and field.null and field.rel.to in seen_objs and
-                        filter(lambda f: f.column == field.column,
+                        filter(lambda f: f.column == field.rel.get_related_field().column,
                         field.rel.to._meta.fields)):
                     if model:
                         sql.UpdateQuery(model, connection).clear_related(field,

@@ -35,7 +35,7 @@ You can evaluate a ``QuerySet`` in the following ways:
 
     * **Slicing.** As explained in :ref:`limiting-querysets`, a ``QuerySet`` can
       be sliced, using Python's array-slicing syntax. Usually slicing a
-      ``QuerySet`` returns another (unevaluated ) ``QuerySet``, but Django will
+      ``QuerySet`` returns another (unevaluated) ``QuerySet``, but Django will
       execute the database query if you use the "step" parameter of slice
       syntax.
 
@@ -154,7 +154,7 @@ In SQL terms, that evaluates to::
 
     SELECT ...
     WHERE NOT pub_date > '2005-1-3'
-    AND NOT headline = 'Hello'
+    OR NOT headline = 'Hello'
 
 Note the second example is more restrictive.
 
@@ -188,7 +188,7 @@ to determine how many entries have been made in each blog::
     >>> q[0].entry__count
     42
 
-The ``Blog`` model doesn't define an ``entry_count`` attribute by itself,
+The ``Blog`` model doesn't define an ``entry__count`` attribute by itself,
 but by using a keyword argument to specify the aggregate function, you can
 control the name of the annotation::
 
@@ -268,6 +268,12 @@ There's no way to specify whether ordering should be case sensitive. With
 respect to case-sensitivity, Django will order results however your database
 backend normally orders them.
 
+.. versionadded:: 1.1
+
+You can tell if a query is ordered or not by checking the
+:attr:`QuerySet.ordered` attribute, which will be ``True`` if the
+``QuerySet`` has been ordered in any way.
+
 ``reverse()``
 ~~~~~~~~~~~~~
 
@@ -295,6 +301,8 @@ a model which defines a default ordering, or when using
 ``QuerySet``, calling ``reverse()`` on it has no real effect (the
 ordering was undefined prior to calling ``reverse()``, and will remain
 undefined afterward).
+
+.. _querysets-distinct:
 
 ``distinct()``
 ~~~~~~~~~~~~~~
@@ -608,6 +616,8 @@ call, since they are conflicting options.
 Both the ``depth`` argument and the ability to specify field names in the call
 to ``select_related()`` are new in Django version 1.0.
 
+.. _extra:
+
 ``extra(select=None, where=None, params=None, tables=None, order_by=None, select_params=None)``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -658,7 +668,7 @@ of the arguments is required, but you should use at least one of them.
 
     The resulting SQL of the above example would be::
 
-        SELECT blog_blog.*, (SELECT COUNT(*) FROM blog_entry WHERE blog_entry.blog_id = blog_blog.id)
+        SELECT blog_blog.*, (SELECT COUNT(*) FROM blog_entry WHERE blog_entry.blog_id = blog_blog.id) AS entry_count
         FROM blog_blog;
 
     Note that the parenthesis required by most database engines around
@@ -1482,8 +1492,18 @@ search
 A boolean full-text search, taking advantage of full-text indexing. This is
 like ``contains`` but is significantly faster due to full-text indexing.
 
+Example::
+
+    Entry.objects.filter(headline__search="+Django -jazz Python")
+
+SQL equivalent::
+
+    SELECT ... WHERE MATCH(tablename, headline) AGAINST (+Django -jazz Python IN BOOLEAN MODE);
+
 Note this is only available in MySQL and requires direct manipulation of the
-database to add the full-text index.
+database to add the full-text index. By default Django uses BOOLEAN MODE for
+full text searches. `Please check MySQL documentation for additional details. <http://dev.mysql.com/doc/refman/5.1/en/fulltext-boolean.html>`_
+
 
 regex
 ~~~~~

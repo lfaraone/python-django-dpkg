@@ -1,9 +1,11 @@
 import re
 from django import http, template
 from django.contrib.admin import ModelAdmin
+from django.contrib.admin import actions
 from django.contrib.auth import authenticate, login
 from django.db.models.base import ModelBase
 from django.core.exceptions import ImproperlyConfigured
+from django.core.urlresolvers import reverse
 from django.shortcuts import render_to_response
 from django.utils.functional import update_wrapper
 from django.utils.safestring import mark_safe
@@ -11,6 +13,10 @@ from django.utils.text import capfirst
 from django.utils.translation import ugettext_lazy, ugettext as _
 from django.views.decorators.cache import never_cache
 from django.conf import settings
+try:
+    set
+except NameError:
+    from sets import Set as set     # Python 2.3 fallback
 
 ERROR_MESSAGE = ugettext_lazy("Please enter a correct username and password. Note that both fields are case-sensitive.")
 LOGIN_FORM_KEY = 'this_is_the_login_form'
@@ -24,7 +30,7 @@ class NotRegistered(Exception):
 class AdminSite(object):
     """
     An AdminSite object encapsulates an instance of the Django admin application, ready
-    to be hooked in to your URLConf. Models are registered with the AdminSite using the
+    to be hooked in to your URLconf. Models are registered with the AdminSite using the
     register() method, and the root() method can then be used as a Django view function
     that presents a full admin interface for the collection of registered models.
     """
@@ -33,19 +39,16 @@ class AdminSite(object):
     login_template = None
     app_index_template = None
 
-    def __init__(self, name=None):
+    def __init__(self, name=None, app_name='admin'):
         self._registry = {} # model_class class -> admin_class instance
-        # TODO Root path is used to calculate urls under the old root() method
-        # in order to maintain backwards compatibility we are leaving that in
-        # so root_path isn't needed, not sure what to do about this.
-        self.root_path = 'admin/'
+        self.root_path = None
         if name is None:
-            name = ''
+            self.name = 'admin'
         else:
-            name += '_'
-        self.name = name
-
-        self.actions = []
+            self.name = name
+        self.app_name = app_name
+        self._actions = {'delete_selected': actions.delete_selected}
+        self._global_actions = self._actions.copy()
 
     def register(self, model_or_iterable, admin_class=None, **options):
         """
@@ -102,10 +105,33 @@ class AdminSite(object):
                 raise NotRegistered('The model %s is not registered' % model.__name__)
             del self._registry[model]
 
-    def add_action(self, action):
-        if not callable(action):
-            raise TypeError("You can only register callable actions through an admin site")
-        self.actions.append(action)
+    def add_action(self, action, name=None):
+        """
+        Register an action to be available globally.
+        """
+        name = name or action.__name__
+        self._actions[name] = action
+        self._global_actions[name] = action
+
+    def disable_action(self, name):
+        """
+        Disable a globally-registered action. Raises KeyError for invalid names.
+        """
+        del self._actions[name]
+
+    def get_action(self, name):
+        """
+        Explicitally get a registered global action wheather it's enabled or
+        not. Raises KeyError for invalid names.
+        """
+        return self._global_actions[name]
+
+    def actions(self):
+        """
+        Get all the enabled actions as an iterable of (name, func).
+        """
+        return self._actions.iteritems()
+    actions = property(actions)
 
     def has_permission(self, request):
         """
@@ -131,9 +157,9 @@ class AdminSite(object):
         if 'django.core.context_processors.auth' not in settings.TEMPLATE_CONTEXT_PROCESSORS:
             raise ImproperlyConfigured("Put 'django.core.context_processors.auth' in your TEMPLATE_CONTEXT_PROCESSORS setting in order to use the admin application.")
 
-    def admin_view(self, view):
+    def admin_view(self, view, cacheable=False):
         """
-        Decorator to create an "admin view attached to this ``AdminSite``. This
+        Decorator to create an admin view attached to this ``AdminSite``. This
         wraps the view and provides permission checking by calling
         ``self.has_permission``.
 
@@ -146,46 +172,52 @@ class AdminSite(object):
 
                     urls = super(MyAdminSite, self).get_urls()
                     urls += patterns('',
-                        url(r'^my_view/$', self.protected_view(some_view))
+                        url(r'^my_view/$', self.admin_view(some_view))
                     )
                     return urls
+
+        By default, admin_views are marked non-cacheable using the
+        ``never_cache`` decorator. If the view can be safely cached, set
+        cacheable=True.
         """
         def inner(request, *args, **kwargs):
             if not self.has_permission(request):
                 return self.login(request)
             return view(request, *args, **kwargs)
+        if not cacheable:
+            inner = never_cache(inner)
         return update_wrapper(inner, view)
 
     def get_urls(self):
         from django.conf.urls.defaults import patterns, url, include
 
-        def wrap(view):
+        def wrap(view, cacheable=False):
             def wrapper(*args, **kwargs):
-                return self.admin_view(view)(*args, **kwargs)
+                return self.admin_view(view, cacheable)(*args, **kwargs)
             return update_wrapper(wrapper, view)
 
         # Admin-site-wide views.
         urlpatterns = patterns('',
             url(r'^$',
                 wrap(self.index),
-                name='%sadmin_index' % self.name),
+                name='index'),
             url(r'^logout/$',
                 wrap(self.logout),
-                name='%sadmin_logout'),
+                name='logout'),
             url(r'^password_change/$',
-                wrap(self.password_change),
-                name='%sadmin_password_change' % self.name),
+                wrap(self.password_change, cacheable=True),
+                name='password_change'),
             url(r'^password_change/done/$',
-                wrap(self.password_change_done),
-                name='%sadmin_password_change_done' % self.name),
+                wrap(self.password_change_done, cacheable=True),
+                name='password_change_done'),
             url(r'^jsi18n/$',
-                wrap(self.i18n_javascript),
-                name='%sadmin_jsi18n' % self.name),
+                wrap(self.i18n_javascript, cacheable=True),
+                name='jsi18n'),
             url(r'^r/(?P<content_type_id>\d+)/(?P<object_id>.+)/$',
                 'django.views.defaults.shortcut'),
             url(r'^(?P<app_label>\w+)/$',
                 wrap(self.app_index),
-                name='%sadmin_app_list' % self.name),
+                name='app_list')
         )
 
         # Add in each model's views.
@@ -197,7 +229,7 @@ class AdminSite(object):
         return urlpatterns
 
     def urls(self):
-        return self.get_urls()
+        return self.get_urls(), self.app_name, self.name
     urls = property(urls)
 
     def password_change(self, request):
@@ -205,8 +237,11 @@ class AdminSite(object):
         Handles the "change password" task -- both form display and validation.
         """
         from django.contrib.auth.views import password_change
-        return password_change(request,
-            post_change_redirect='%spassword_change/done/' % self.root_path)
+        if self.root_path is not None:
+            url = '%spassword_change/done/' % self.root_path
+        else:
+            url = reverse('admin:password_change_done', current_app=self.name)
+        return password_change(request, post_change_redirect=url)
 
     def password_change_done(self, request):
         """
@@ -300,11 +335,7 @@ class AdminSite(object):
             has_module_perms = user.has_module_perms(app_label)
 
             if has_module_perms:
-                perms = {
-                    'add': model_admin.has_add_permission(request),
-                    'change': model_admin.has_change_permission(request),
-                    'delete': model_admin.has_delete_permission(request),
-                }
+                perms = model_admin.get_model_perms(request)
 
                 # Check whether user has any perm for this module.
                 # If so, add the module to the model_list.
@@ -338,8 +369,9 @@ class AdminSite(object):
             'root_path': self.root_path,
         }
         context.update(extra_context or {})
+        context_instance = template.RequestContext(request, current_app=self.name)
         return render_to_response(self.index_template or 'admin/index.html', context,
-            context_instance=template.RequestContext(request)
+            context_instance=context_instance
         )
     index = never_cache(index)
 
@@ -352,8 +384,9 @@ class AdminSite(object):
             'root_path': self.root_path,
         }
         context.update(extra_context or {})
+        context_instance = template.RequestContext(request, current_app=self.name)
         return render_to_response(self.login_template or 'admin/login.html', context,
-            context_instance=template.RequestContext(request)
+            context_instance=context_instance
         )
 
     def app_index(self, request, app_label, extra_context=None):
@@ -363,11 +396,8 @@ class AdminSite(object):
         for model, model_admin in self._registry.items():
             if app_label == model._meta.app_label:
                 if has_module_perms:
-                    perms = {
-                        'add': user.has_perm("%s.%s" % (app_label, model._meta.get_add_permission())),
-                        'change': user.has_perm("%s.%s" % (app_label, model._meta.get_change_permission())),
-                        'delete': user.has_perm("%s.%s" % (app_label, model._meta.get_delete_permission())),
-                    }
+                    perms = model_admin.get_model_perms(request)
+
                     # Check whether user has any perm for this module.
                     # If so, add the module to the model_list.
                     if True in perms.values():
@@ -398,8 +428,10 @@ class AdminSite(object):
             'root_path': self.root_path,
         }
         context.update(extra_context or {})
-        return render_to_response(self.app_index_template or 'admin/app_index.html', context,
-            context_instance=template.RequestContext(request)
+        context_instance = template.RequestContext(request, current_app=self.name)
+        return render_to_response(self.app_index_template or ('admin/%s/app_index.html' % app_label,
+            'admin/app_index.html'), context,
+            context_instance=context_instance
         )
 
     def root(self, request, url):

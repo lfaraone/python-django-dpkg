@@ -5,6 +5,7 @@ Requires psycopg 1: http://initd.org/projects/psycopg1
 """
 
 from django.db.backends import *
+from django.db.backends.signals import connection_created
 from django.db.backends.postgresql.client import DatabaseClient
 from django.db.backends.postgresql.creation import DatabaseCreation
 from django.db.backends.postgresql.introspection import DatabaseIntrospection
@@ -114,12 +115,13 @@ class DatabaseWrapper(BaseDatabaseWrapper):
                 conn_string += " port=%s" % settings_dict['DATABASE_PORT']
             self.connection = Database.connect(conn_string, **settings_dict['DATABASE_OPTIONS'])
             self.connection.set_isolation_level(1) # make transactions transparent to all cursors
+            connection_created.send(sender=self.__class__)
         cursor = self.connection.cursor()
         if set_tz:
             cursor.execute("SET TIME ZONE %s", [settings_dict['TIME_ZONE']])
             if not hasattr(self, '_version'):
                 self.__class__._version = get_version(cursor)
-            if self._version < (8, 0):
+            if self._version[0:2] < (8, 0):
                 # No savepoint support for earlier version of PostgreSQL.
                 self.features.uses_savepoints = False
         cursor.execute("SET client_encoding to 'UNICODE'")

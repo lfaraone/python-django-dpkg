@@ -27,7 +27,7 @@ class UserAdmin(admin.ModelAdmin):
     add_form = UserCreationForm
     change_password_form = AdminPasswordChangeForm
     list_display = ('username', 'email', 'first_name', 'last_name', 'is_staff')
-    list_filter = ('is_staff', 'is_superuser')
+    list_filter = ('is_staff', 'is_superuser', 'is_active')
     search_fields = ('username', 'first_name', 'last_name', 'email')
     ordering = ('username',)
     filter_horizontal = ('user_permissions',)
@@ -96,7 +96,7 @@ class UserAdmin(admin.ModelAdmin):
         }, context_instance=template.RequestContext(request))
 
     def user_change_password(self, request, id):
-        if not request.user.has_perm('auth.change_user'):
+        if not self.has_change_permission(request):
             raise PermissionDenied
         user = get_object_or_404(self.model, pk=id)
         if request.method == 'POST':

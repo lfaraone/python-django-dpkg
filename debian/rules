@@ -41,6 +41,9 @@ override_dh_install:
 	# Fix permissions
 	chmod 644 $(PREFIX)/etc/bash_completion.d/django_bash_completion
 	find $(PREFIX)/usr/lib/python-django/bin/ -name '*.py' -not -name '__init__.py' -print0 | xargs -0r chmod 755
+
+	# Remove Mac-specific files
+	find $(PREFIX) -type f -name "*.DS_Store" -delete
 	
 	# Rename django-admin.py to django-admin
 	mv $(PREFIX)/usr/bin/django-admin.py $(PREFIX)/usr/bin/django-admin

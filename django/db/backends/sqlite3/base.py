@@ -8,6 +8,7 @@ standard library.
 """
 
 from django.db.backends import *
+from django.db.backends.signals import connection_created
 from django.db.backends.sqlite3.client import DatabaseClient
 from django.db.backends.sqlite3.creation import DatabaseCreation
 from django.db.backends.sqlite3.introspection import DatabaseIntrospection
@@ -171,6 +172,7 @@ class DatabaseWrapper(BaseDatabaseWrapper):
             self.connection.create_function("django_extract", 2, _sqlite_extract)
             self.connection.create_function("django_date_trunc", 2, _sqlite_date_trunc)
             self.connection.create_function("regexp", 2, _sqlite_regexp)
+            connection_created.send(sender=self.__class__)
         return self.connection.cursor(factory=SQLiteCursorWrapper)
 
     def close(self):
@@ -209,9 +211,9 @@ def _sqlite_extract(lookup_type, dt):
     except (ValueError, TypeError):
         return None
     if lookup_type == 'week_day':
-        return unicode((dt.isoweekday() % 7) + 1)
+        return (dt.isoweekday() % 7) + 1
     else:
-        return unicode(getattr(dt, lookup_type))
+        return getattr(dt, lookup_type)
 
 def _sqlite_date_trunc(lookup_type, dt):
     try:
