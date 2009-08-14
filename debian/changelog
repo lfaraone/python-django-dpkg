@@ -1,3 +1,11 @@
+python-django (1.1-2) unstable; urgency=low
+
+  * Run testsuite on build.
+  * Use "--with quilt" over specifying $(QUILT_STAMPFN)/unpatch dependencies.
+  * Override clean target correctly.
+
+ -- Chris Lamb <lamby@debian.org>  Fri, 14 Aug 2009 08:06:29 +0100
+
 python-django (1.1-1) unstable; urgency=low
 
   * New upstream release.
