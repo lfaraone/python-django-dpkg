@@ -1,3 +1,11 @@
+python-django (1.1-3) unstable; urgency=low
+
+  * Disable regression tests that require an internet connection. Patch by
+    Krzysztof Klimonda <kklimonda@syntaxhighlighted.com>. (Closes: #542996)
+  * Bump Standards-Version to 3.8.3.
+
+ -- Chris Lamb <lamby@debian.org>  Sun, 23 Aug 2009 18:13:18 +0100
+
 python-django (1.1-2) unstable; urgency=low
 
   * Run testsuite on build.
