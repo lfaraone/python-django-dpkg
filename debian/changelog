@@ -1,3 +1,14 @@
+python-django (1.1.1-1) unstable; urgency=high
+
+  * New upstream security release - fixes pathological regular expression
+    backtracking performance in URL and email fields which can be used as part
+    of a denial of service attack.
+  * Set Maintainer: to myself with thanks to Brett Parker.
+  * Bump versioned build dependency on quilt to help backporters.
+    (Closes: #547955)
+
+ -- Chris Lamb <lamby@debian.org>  Sat, 10 Oct 2009 10:17:52 +0100
+
 python-django (1.1-4) unstable; urgency=low
 
   * Sourceful upload to drop dependency on Python 2.4.
