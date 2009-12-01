@@ -1,3 +1,15 @@
+python-django (1.1.1-2) unstable; urgency=low
+
+  * Remove embedded "decimal" code copy and use system version instead. The
+    "doctest" code copy cannot be removed as parts of Django depend on modified
+    behaviour. (Closes: #555419)
+  * Fix FTBFS in November by applying patch from upstream bug #12125.
+    (Closes: #555931)
+  * Fix FTBFS under Python 2.6.3 by applying patch from upstream bug #11993.
+    (Closes: #555969)
+
+ -- Chris Lamb <lamby@debian.org>  Tue, 01 Dec 2009 23:46:22 +0000
+
 python-django (1.1.1-1) unstable; urgency=high
 
   * New upstream security release - fixes pathological regular expression
