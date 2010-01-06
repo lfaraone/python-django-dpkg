@@ -1,10 +1,11 @@
 
  Use the system version of the decimal module.
 
-   -- Chris Lamb <lamby@debian.org>  Tue, 01 Dec 2009 22:43:48 +0000
+    -- Chris Lamb <lamby@debian.org>  Wed, 06 Jan 2010 11:32:56 +0000
 
---- a/django/utils/_decimal.py	2009-12-01 22:47:42.000000000 +0000
-+++ b/django/utils/_decimal.py	2009-12-01 22:48:42.000000000 +0000
+diff -urNad /tmp/bp-build/Django-1.2-alpha-1.orig/django/utils/_decimal.py /tmp/bp-build/Django-1.2-alpha-1/django/utils/_decimal.py
+--- Django-1.2-alpha-1.orig/django/utils/_decimal.py	2010-01-06 11:31:36.000000000 +0000
++++ Django-1.2-alpha-1/django/utils/_decimal.py	2010-01-06 11:32:19.000000000 +0000
 @@ -1,3079 +1 @@
 -# Copyright (c) 2004 Python Software Foundation.
 -# All rights reserved.
@@ -142,7 +143,7 @@
 -    'setcontext', 'getcontext'
 -]
 -
--import copy as _copy
+-import django.utils.copycompat as _copy
 -
 -#Rounding
 -ROUND_DOWN = 'ROUND_DOWN'

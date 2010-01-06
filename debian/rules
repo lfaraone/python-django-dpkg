@@ -10,6 +10,7 @@ DJANGO_DIR = $(PREFIX)/$(call py_libdir_sh,`pyversions -d`)/django
 
 override_dh_auto_clean:
 	rm -rf docs.debian testproject
+	find -name "*.DS_Store" -delete
 	dh_auto_clean
 
 override_dh_auto_build:
@@ -25,7 +26,7 @@ override_dh_auto_build:
 
 override_dh_auto_test:
 	PYTHONPATH=. django/bin/django-admin.py startproject testproject
-	sed -i "s|DATABASE_ENGINE = ''|DATABASE_ENGINE = 'sqlite3'|" testproject/settings.py
+	cat debian/test_settings.py >> testproject/settings.py
 	PYTHONPATH=. tests/runtests.py --settings=testproject.settings --verbosity=2
 
 override_dh_install:

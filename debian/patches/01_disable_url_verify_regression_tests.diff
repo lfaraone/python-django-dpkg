@@ -1,41 +1,37 @@
 Forwarded-Upstream: not needed
-Author: Krzysztof Klimonda <kklimonda@syntaxhighlighted.com>
+Author: Chris Lamb <lamby@debian.org>
 Comment:
  Disable regression tests that require an internet connection.
  .
  This is a Debian specific patch.
 
-Index: python-django-1.1/tests/regressiontests/forms/fields.py
-===================================================================
---- python-django-1.1.orig/tests/regressiontests/forms/fields.py	2009-08-15 21:03:21.248330080 +0200
-+++ python-django-1.1/tests/regressiontests/forms/fields.py	2009-08-15 21:03:45.709392050 +0200
-@@ -977,29 +977,6 @@
- ...
- ValidationError: [u'Enter a valid URL.']
+diff -urNad /tmp/bp-build/Django-1.2-alpha-1.orig/tests/regressiontests/forms/fields.py /tmp/bp-build/Django-1.2-alpha-1/tests/regressiontests/forms/fields.py
+--- Django-1.2-alpha-1.orig/tests/regressiontests/forms/fields.py	2010-01-06 11:25:04.000000000 +0000
++++ Django-1.2-alpha-1/tests/regressiontests/forms/fields.py	2010-01-06 11:26:28.000000000 +0000
+@@ -511,26 +511,6 @@
+         self.assertRaisesErrorWithMessage(ValidationError, "[u'Enter a valid URL.']", f.clean, 'http://example.')
+         self.assertRaisesErrorWithMessage(ValidationError, "[u'Enter a valid URL.']", f.clean, 'http://.com')
  
--URLField takes an optional verify_exists parameter, which is False by default.
--This verifies that the URL is live on the Internet and doesn't return a 404 or 500:
-->>> f = URLField(verify_exists=True)
-->>> f.clean('http://www.google.com') # This will fail if there's no Internet connection
--u'http://www.google.com/'
-->>> f.clean('http://example')
--Traceback (most recent call last):
--...
--ValidationError: [u'Enter a valid URL.']
-->>> f.clean('http://www.broken.djangoproject.com') # bad domain
--Traceback (most recent call last):
--...
--ValidationError: [u'This URL appears to be a broken link.']
-->>> f.clean('http://google.com/we-love-microsoft.html') # good domain, bad page
--Traceback (most recent call last):
--...
--ValidationError: [u'This URL appears to be a broken link.']
-->>> f = URLField(verify_exists=True, required=False)
-->>> f.clean('')
--u''
-->>> f.clean('http://www.google.com') # This will fail if there's no Internet connection
--u'http://www.google.com/'
+-    def test_urlfield_39(self):
+-        f = URLField(verify_exists=True)
+-        self.assertEqual(u'http://www.google.com/', f.clean('http://www.google.com')) # This will fail if there's no Internet connection
+-        self.assertRaisesErrorWithMessage(ValidationError, "[u'Enter a valid URL.']", f.clean, 'http://example')
+-        self.assertRaises(ValidationError, f.clean, 'http://www.broken.djangoproject.com') # bad domain
+-        try:
+-            f.clean('http://www.broken.djangoproject.com') # bad domain
+-        except ValidationError, e:
+-            self.assertEqual("[u'This URL appears to be a broken link.']", str(e))
+-        self.assertRaises(ValidationError, f.clean, 'http://google.com/we-love-microsoft.html') # good domain, bad page
+-        try:
+-            f.clean('http://google.com/we-love-microsoft.html') # good domain, bad page
+-        except ValidationError, e:
+-            self.assertEqual("[u'This URL appears to be a broken link.']", str(e))
 -
- URLField also access min_length and max_length parameters, for convenience.
- >>> f = URLField(min_length=15, max_length=20)
- >>> f.clean('http://f.com')
+-    def test_urlfield_40(self):
+-        f = URLField(verify_exists=True, required=False)
+-        self.assertEqual(u'', f.clean(''))
+-        self.assertEqual(u'http://www.google.com/', f.clean('http://www.google.com')) # This will fail if there's no Internet connection
+-
+     def test_urlfield_41(self):
+         f = URLField(min_length=15, max_length=20)
+         self.assertRaisesErrorWithMessage(ValidationError, "[u'Ensure this value has at least 15 characters (it has 13).']", f.clean, 'http://f.com')

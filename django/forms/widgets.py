@@ -2,12 +2,7 @@
 HTML Widget classes
 """
 
-try:
-    set
-except NameError:
-    from sets import Set as set   # Python 2.3 fallback
-
-import copy
+import django.utils.copycompat as copy
 from itertools import chain
 from django.conf import settings
 from django.utils.datastructures import MultiValueDict, MergeDict
@@ -15,7 +10,7 @@ from django.utils.html import escape, conditional_escape
 from django.utils.translation import ugettext
 from django.utils.encoding import StrAndUnicode, force_unicode
 from django.utils.safestring import mark_safe
-from django.utils import datetime_safe
+from django.utils import datetime_safe, formats
 from datetime import time
 from util import flatatt
 from urlparse import urljoin
@@ -213,7 +208,7 @@ class Input(Widget):
         final_attrs = self.build_attrs(attrs, type=self.input_type, name=name)
         if value != '':
             # Only add the 'value' attribute if a value is non-empty.
-            final_attrs['value'] = force_unicode(value)
+            final_attrs['value'] = force_unicode(formats.localize_input(value))
         return mark_safe(u'<input%s />' % flatatt(final_attrs))
 
 class TextInput(Input):
@@ -288,7 +283,7 @@ class Textarea(Widget):
 
 class DateInput(Input):
     input_type = 'text'
-    format = '%Y-%m-%d'     # '2006-10-25'
+    format = None
 
     def __init__(self, attrs=None, format=None):
         super(DateInput, self).__init__(attrs)
@@ -299,8 +294,7 @@ class DateInput(Input):
         if value is None:
             return ''
         elif hasattr(value, 'strftime'):
-            value = datetime_safe.new_date(value)
-            return value.strftime(self.format)
+            return formats.localize_input(value, self.format)
         return value
 
     def render(self, name, value, attrs=None):
@@ -312,7 +306,7 @@ class DateInput(Input):
 
 class DateTimeInput(Input):
     input_type = 'text'
-    format = '%Y-%m-%d %H:%M:%S'     # '2006-10-25 14:30:59'
+    format = None
 
     def __init__(self, attrs=None, format=None):
         super(DateTimeInput, self).__init__(attrs)
@@ -323,8 +317,7 @@ class DateTimeInput(Input):
         if value is None:
             return ''
         elif hasattr(value, 'strftime'):
-            value = datetime_safe.new_datetime(value)
-            return value.strftime(self.format)
+            return formats.localize_input(value, self.format)
         return value
 
     def render(self, name, value, attrs=None):
@@ -336,7 +329,7 @@ class DateTimeInput(Input):
 
 class TimeInput(Input):
     input_type = 'text'
-    format = '%H:%M:%S'     # '14:30:59'
+    format = None
 
     def __init__(self, attrs=None, format=None):
         super(TimeInput, self).__init__(attrs)
@@ -347,7 +340,7 @@ class TimeInput(Input):
         if value is None:
             return ''
         elif hasattr(value, 'strftime'):
-            return value.strftime(self.format)
+            return formats.localize_input(value, self.format)
         return value
 
     def render(self, name, value, attrs=None):

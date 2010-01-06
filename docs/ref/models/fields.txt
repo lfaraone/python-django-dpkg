@@ -196,6 +196,17 @@ callable it will be called every time a new object is created.
 If ``False``, the field will not be editable in the admin or via forms
 automatically generated from the model class. Default is ``True``.
 
+``error_messages``
+------------------
+
+.. versionadded:: 1.2
+
+.. attribute:: Field.error_messages
+
+The ``error_messages`` argument lets you override the default messages that the
+field will raise. Pass in a dictionary with keys matching the error messages you
+want to override.
+
 ``help_text``
 -------------
 
@@ -284,6 +295,17 @@ underscores to spaces. See :ref:`Verbose field names <verbose-field-names>`.
 
 .. _model-field-types:
 
+``validators``
+-------------------
+
+.. versionadded:: 1.2
+
+.. attribute:: Field.validators
+
+A list of validators to run for this field.See the :ref:`validators
+documentation <ref-validators>` for more information.
+
+
 Field types
 ===========
 
@@ -298,6 +320,18 @@ An :class:`IntegerField` that automatically increments
 according to available IDs. You usually won't need to use this directly; a
 primary key field will automatically be added to your model if you don't specify
 otherwise. See :ref:`automatic-primary-key-fields`.
+
+``BigIntegerField``
+-------------------
+
+.. versionadded:: 1.2
+
+.. class:: BigIntegerField([**options])
+
+A 64 bit integer, much like an :class:`IntegerField` except that it is
+guaranteed to fit numbers from -9223372036854775808 to 9223372036854775807. The
+admin represents this as an ``<input type="text">`` (a single-line input).
+ 
 
 ``BooleanField``
 ----------------
@@ -543,7 +577,7 @@ By default, :class:`FileField` instances are
 created as ``varchar(100)`` columns in your database. As with other fields, you
 can change the maximum length using the :attr:`~CharField.max_length` argument.
 
-.. _`strftime formatting`: http://docs.python.org/lib/module-time.html#l2h-1941
+.. _`strftime formatting`: http://docs.python.org/library/time.html#time.strftime
 
 ``FilePathField``
 -----------------
