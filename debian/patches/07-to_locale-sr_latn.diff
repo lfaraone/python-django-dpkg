@@ -1,0 +1,14 @@
+Forwarded-Upstream: Not needed
+Author: Janos Guljas
+Source: http://code.djangoproject.com/changeset/12056
+
+--- a/django/utils/translation/trans_real.py (revision 11964)
++++ b/django/utils/translation/trans_real.py (revision 12056)
+@@ -42,4 +42,7 @@
+             return language[:p].lower()+'_'+language[p+1:].lower()
+         else:
++            # Get correct locale for sr-latn
++            if len(language[p+1:]) > 2:
++                return language[:p].lower()+'_'+language[p+1].upper()+language[p+2:].lower()
+             return language[:p].lower()+'_'+language[p+1:].upper()
+     else:
