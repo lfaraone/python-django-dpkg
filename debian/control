@@ -3,7 +3,7 @@ Section: python
 Priority: optional
 Maintainer: Chris Lamb <lamby@debian.org>
 Uploaders: Debian Python Modules Team <python-modules-team@lists.alioth.debian.org>, Raphaël Hertzog <hertzog@debian.org>
-Standards-Version: 3.8.3
+Standards-Version: 3.8.4
 Build-Depends: debhelper (>= 7.0.50), python-support, quilt (>= 0.46-7~), python (>= 2.5) | python-sqlite
 Build-Depends-Indep: python-sphinx, libjs-jquery
 Homepage: http://www.djangoproject.com/
@@ -13,6 +13,7 @@ Vcs-Browser: http://svn.debian.org/viewsvn/python-modules/packages/python-django
 Package: python-django
 Architecture: all
 Depends: ${misc:Depends}, ${python:Depends}
+Recommends: libjs-jquery
 Suggests: python-psycopg2, python-psycopg, python-mysqldb, python-flup, python-sqlite
 Description: High-level Python web development framework
  Django is a high-level web application framework that loosely follows the

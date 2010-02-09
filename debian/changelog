@@ -1,3 +1,16 @@
+python-django (1.2~beta1-1) experimental; urgency=low
+
+  * New upstream development release.
+  * Switch to dpkg-source 3.0 (quilt) format
+  * Bump Standards-Version to 3.8.4.
+  * Remove "0.96 -> 1.x" NEWS entry.
+  * jQuery added to admin system upstream:
+    - Add libjs-jquery to python-django's Recommends
+    - Use symlinks so we use the version from libjs-query over an embedded code
+      copy.
+
+ -- Chris Lamb <lamby@debian.org>  Tue, 09 Feb 2010 13:47:34 +0000
+
 python-django (1.2~alpha1-1) experimental; urgency=low
 
   * New upstream development release:

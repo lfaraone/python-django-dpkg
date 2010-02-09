@@ -46,6 +46,12 @@ override_dh_install:
 	
 	# Rename django-admin.py to django-admin
 	mv $(PREFIX)/usr/bin/django-admin.py $(PREFIX)/usr/bin/django-admin
+	
+	# Remove embedded Javascript libraries
+	for FILENAME in jquery.js jquery.min.js; do \
+		find $(PREFIX) -name $$FILENAME -exec \
+			ln -sf /usr/share/javascript/jquery/$$FILENAME {} \;; \
+	done
 
 override_dh_installdocs:
 	dh_installdocs

@@ -1,16 +1,13 @@
 import datetime
 import decimal
-import os
 import re
 import time
 
 import django.utils.copycompat as copy
 
 from django.db import connection
-from django.db.models import signals
 from django.db.models.fields.subclassing import LegacyConnection
 from django.db.models.query_utils import QueryWrapper
-from django.dispatch import dispatcher
 from django.conf import settings
 from django import forms
 from django.core import exceptions, validators
@@ -18,7 +15,7 @@ from django.utils.datastructures import DictWrapper
 from django.utils.functional import curry
 from django.utils.itercompat import tee
 from django.utils.text import capfirst
-from django.utils.translation import ugettext_lazy as _, ugettext
+from django.utils.translation import ugettext_lazy as _
 from django.utils.encoding import smart_unicode, force_unicode, smart_str
 from django.utils import datetime_safe
 
@@ -198,8 +195,15 @@ class Field(object):
             # Skip validation for non-editable fields.
             return
         if self._choices and value:
-            if not value in dict(self.choices):
-                raise exceptions.ValidationError(self.error_messages['invalid_choice'] % value)
+            for option_key, option_value in self.choices:
+                if type(option_value) in (tuple, list):
+                    # This is an optgroup, so look inside the group for options.
+                    for optgroup_key, optgroup_value in option_value:
+                        if value == optgroup_key:
+                            return
+                elif value == option_key:
+                    return
+            raise exceptions.ValidationError(self.error_messages['invalid_choice'] % value)
 
         if value is None and not self.null:
             raise exceptions.ValidationError(self.error_messages['null'])
@@ -565,6 +569,9 @@ class CharField(Field):
             return value
         return smart_unicode(value)
 
+    def get_prep_value(self, value):
+        return self.to_python(value)
+    
     def formfield(self, **kwargs):
         # Passing max_length to forms.CharField means that the value's length
         # will be validated twice. This is considered acceptable since we want
@@ -1006,6 +1013,11 @@ class TextField(Field):
     def get_internal_type(self):
         return "TextField"
 
+    def get_prep_value(self, value):
+        if isinstance(value, basestring) or value is None:
+            return value
+        return smart_unicode(value)
+
     def formfield(self, **kwargs):
         defaults = {'widget': forms.Textarea}
         defaults.update(kwargs)
@@ -1036,7 +1048,7 @@ class TimeField(Field):
             # Not usually a good idea to pass in a datetime here (it loses
             # information), but this can be a side-effect of interacting with a
             # database backend (e.g. Oracle), so we'll be accommodating.
-            return value.time
+            return value.time()
 
         # Attempt to parse a datetime:
         value = smart_str(value)
