@@ -5,10 +5,7 @@ tests = r"""
 >>> import datetime
 >>> import time
 >>> import re
->>> try:
-...     from decimal import Decimal
-... except ImportError:
-...     from django.utils._decimal import Decimal
+>>> from decimal import Decimal
 
 #########
 # Forms #
@@ -294,6 +291,24 @@ attribute in the Form gets precedence.
 <input type="text" name="email" value="test@example.com" />
 >>> print f['get_spam']
 <input checked="checked" type="checkbox" name="get_spam" />
+
+'True' or 'true' should be rendered without a value attribute
+>>> f = SignupForm({'email': 'test@example.com', 'get_spam': 'True'}, auto_id=False)
+>>> print f['get_spam']
+<input checked="checked" type="checkbox" name="get_spam" />
+
+>>> f = SignupForm({'email': 'test@example.com', 'get_spam': 'true'}, auto_id=False)
+>>> print f['get_spam']
+<input checked="checked" type="checkbox" name="get_spam" />
+
+A value of 'False' or 'false' should be rendered unchecked
+>>> f = SignupForm({'email': 'test@example.com', 'get_spam': 'False'}, auto_id=False)
+>>> print f['get_spam']
+<input type="checkbox" name="get_spam" />
+
+>>> f = SignupForm({'email': 'test@example.com', 'get_spam': 'false'}, auto_id=False)
+>>> print f['get_spam']
+<input type="checkbox" name="get_spam" />
 
 Any Field can have a Widget class passed to its constructor:
 >>> class ContactForm(Form):

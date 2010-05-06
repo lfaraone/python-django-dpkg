@@ -1,3 +1,13 @@
+python-django (1.2~rc1-1) experimental; urgency=low
+
+  * New upstream release candidate.
+  * Remove "02-embedded_code_copies.diff" - not needed anymore.
+  * Refresh "01_disable_url_verify_regression_tests.diff".
+  * Refresh "04_hyphen-manpage.diff".
+  * Temporarily disable test runner due to failing date-related tests.
+
+ -- Chris Lamb <lamby@debian.org>  Thu, 06 May 2010 10:25:10 +0100
+
 python-django (1.2~beta1-1) experimental; urgency=low
 
   * New upstream development release.

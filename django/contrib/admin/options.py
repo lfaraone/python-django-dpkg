@@ -13,6 +13,7 @@ from django.db import models, transaction
 from django.db.models.fields import BLANK_CHOICE_DASH
 from django.http import Http404, HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, render_to_response
+from django.utils.decorators import method_decorator
 from django.utils.datastructures import SortedDict
 from django.utils.functional import update_wrapper
 from django.utils.html import escape
@@ -22,10 +23,6 @@ from django.utils.text import capfirst, get_text_list
 from django.utils.translation import ugettext as _
 from django.utils.translation import ungettext, ugettext_lazy
 from django.utils.encoding import force_unicode
-try:
-    set
-except NameError:
-    from sets import Set as set     # Python 2.3 fallback
 
 HORIZONTAL, VERTICAL = 1, 2
 # returns the <ul> class for a given radio_admin field
@@ -53,9 +50,11 @@ FORMFIELD_FOR_DBFIELD_DEFAULTS = {
     models.FileField:       {'widget': widgets.AdminFileWidget},
 }
 
+csrf_protect_m = method_decorator(csrf_protect)
 
 class BaseModelAdmin(object):
     """Functionality common to both ModelAdmin and InlineAdmin."""
+    __metaclass__ = forms.MediaDefiningClass
 
     raw_id_fields = ()
     fields = None
@@ -70,7 +69,9 @@ class BaseModelAdmin(object):
     readonly_fields = ()
 
     def __init__(self):
-        self.formfield_overrides = dict(FORMFIELD_FOR_DBFIELD_DEFAULTS, **self.formfield_overrides)
+        overrides = FORMFIELD_FOR_DBFIELD_DEFAULTS.copy()
+        overrides.update(self.formfield_overrides)
+        self.formfield_overrides = overrides
 
     def formfield_for_dbfield(self, db_field, **kwargs):
         """
@@ -184,7 +185,6 @@ class BaseModelAdmin(object):
 
 class ModelAdmin(BaseModelAdmin):
     "Encapsulates all admin options and functionality for a given model."
-    __metaclass__ = forms.MediaDefiningClass
 
     list_display = ('__str__',)
     list_display_links = ()
@@ -204,6 +204,7 @@ class ModelAdmin(BaseModelAdmin):
     change_form_template = None
     change_list_template = None
     delete_confirmation_template = None
+    delete_selected_confirmation_template = None
     object_history_template = None
 
     # Actions
@@ -266,11 +267,13 @@ class ModelAdmin(BaseModelAdmin):
     def _media(self):
         from django.conf import settings
 
-        js = ['js/core.js', 'js/admin/RelatedObjectLookups.js']
+        js = ['js/core.js', 'js/admin/RelatedObjectLookups.js',
+              'js/jquery.min.js', 'js/jquery.init.js']
         if self.actions is not None:
-            js.extend(['js/jquery.min.js', 'js/actions.min.js'])
+            js.extend(['js/actions.min.js'])
         if self.prepopulated_fields:
             js.append('js/urlify.js')
+            js.append('js/prepopulate.min.js')
         if self.opts.get_ordered_objects():
             js.extend(['js/getElementsBySelector.js', 'js/dom-drag.js' , 'js/admin/ordering.js'])
 
@@ -559,16 +562,16 @@ class ModelAdmin(BaseModelAdmin):
             for formset in formsets:
                 for added_object in formset.new_objects:
                     change_message.append(_('Added %(name)s "%(object)s".')
-                                          % {'name': added_object._meta.verbose_name,
+                                          % {'name': force_unicode(added_object._meta.verbose_name),
                                              'object': force_unicode(added_object)})
                 for changed_object, changed_fields in formset.changed_objects:
                     change_message.append(_('Changed %(list)s for %(name)s "%(object)s".')
                                           % {'list': get_text_list(changed_fields, _('and')),
-                                             'name': changed_object._meta.verbose_name,
+                                             'name': force_unicode(changed_object._meta.verbose_name),
                                              'object': force_unicode(changed_object)})
                 for deleted_object in formset.deleted_objects:
                     change_message.append(_('Deleted %(name)s "%(object)s".')
-                                          % {'name': deleted_object._meta.verbose_name,
+                                          % {'name': force_unicode(deleted_object._meta.verbose_name),
                                              'object': force_unicode(deleted_object)})
         change_message = ' '.join(change_message)
         return change_message or _('No fields changed.')
@@ -696,6 +699,7 @@ class ModelAdmin(BaseModelAdmin):
         changelist; it returns an HttpResponse if the action was handled, and
         None otherwise.
         """
+
         # There can be multiple action forms on the page (at the top
         # and bottom of the change list, for example). Get the action
         # whose button was pushed.
@@ -729,11 +733,12 @@ class ModelAdmin(BaseModelAdmin):
 
             # Get the list of selected PKs. If nothing's selected, we can't
             # perform an action on it, so bail. Except we want to perform
-            # the action explicitely on all objects.
+            # the action explicitly on all objects.
             selected = request.POST.getlist(helpers.ACTION_CHECKBOX_NAME)
             if not selected and not select_across:
                 # Reminder that something needs to be selected or nothing will happen
-                msg = _("Items must be selected in order to perform actions on them. No items have been changed.")
+                msg = _("Items must be selected in order to perform "
+                        "actions on them. No items have been changed.")
                 self.message_user(request, msg)
                 return None
 
@@ -753,8 +758,9 @@ class ModelAdmin(BaseModelAdmin):
         else:
             msg = _("No action selected.")
             self.message_user(request, msg)
+            return None
 
-    @csrf_protect
+    @csrf_protect_m
     @transaction.commit_on_success
     def add_view(self, request, form_url='', extra_context=None):
         "The 'add' admin view for this model."
@@ -844,7 +850,7 @@ class ModelAdmin(BaseModelAdmin):
         context.update(extra_context or {})
         return self.render_change_form(request, context, form_url=form_url, add=True)
 
-    @csrf_protect
+    @csrf_protect_m
     @transaction.commit_on_success
     def change_view(self, request, object_id, extra_context=None):
         "The 'change' admin view for this model."
@@ -936,7 +942,7 @@ class ModelAdmin(BaseModelAdmin):
         context.update(extra_context or {})
         return self.render_change_form(request, context, change=True, obj=obj)
 
-    @csrf_protect
+    @csrf_protect_m
     def changelist_view(self, request, extra_context=None):
         "The 'change list' admin view for this model."
         from django.contrib.admin.views.main import ERROR_FLAG
@@ -963,20 +969,46 @@ class ModelAdmin(BaseModelAdmin):
         except IncorrectLookupParameters:
             # Wacky lookup parameters were given, so redirect to the main
             # changelist page, without parameters, and pass an 'invalid=1'
-            # parameter via the query string. If wacky parameters were given and
-            # the 'invalid=1' parameter was already in the query string, something
-            # is screwed up with the database, so display an error page.
+            # parameter via the query string. If wacky parameters were given
+            # and the 'invalid=1' parameter was already in the query string,
+            # something is screwed up with the database, so display an error
+            # page.
             if ERROR_FLAG in request.GET.keys():
                 return render_to_response('admin/invalid_setup.html', {'title': _('Database error')})
             return HttpResponseRedirect(request.path + '?' + ERROR_FLAG + '=1')
 
-        # If the request was POSTed, this might be a bulk action or a bulk edit.
-        # Try to look up an action first, but if this isn't an action the POST
-        # will fall through to the bulk edit check, below.
-        if actions and request.method == 'POST':
-            response = self.response_action(request, queryset=cl.get_query_set())
-            if response:
-                return response
+        # If the request was POSTed, this might be a bulk action or a bulk
+        # edit. Try to look up an action or confirmation first, but if this
+        # isn't an action the POST will fall through to the bulk edit check,
+        # below.
+        action_failed = False
+        selected = request.POST.getlist(helpers.ACTION_CHECKBOX_NAME)
+
+        # Actions with no confirmation
+        if (actions and request.method == 'POST' and
+                'index' in request.POST and '_save' not in request.POST):
+            if selected:
+                response = self.response_action(request, queryset=cl.get_query_set())
+                if response:
+                    return response
+                else:
+                    action_failed = True
+            else:
+                msg = _("Items must be selected in order to perform "
+                        "actions on them. No items have been changed.")
+                self.message_user(request, msg)
+                action_failed = True
+
+        # Actions with confirmation
+        if (actions and request.method == 'POST' and
+                helpers.ACTION_CHECKBOX_NAME in request.POST and
+                'index' not in request.POST and '_save' not in request.POST):
+            if selected:
+                response = self.response_action(request, queryset=cl.get_query_set())
+                if response:
+                    return response
+                else:
+                    action_failed = True
 
         # If we're allowing changelist editing, we need to construct a formset
         # for the changelist given all the fields to be edited. Then we'll
@@ -984,7 +1016,8 @@ class ModelAdmin(BaseModelAdmin):
         formset = cl.formset = None
 
         # Handle POSTed bulk-edit data.
-        if request.method == "POST" and self.list_editable:
+        if (request.method == "POST" and self.list_editable and
+                '_save' in request.POST and not action_failed):
             FormSet = self.get_changelist_formset(request)
             formset = cl.formset = FormSet(request.POST, request.FILES, queryset=cl.result_list)
             if formset.is_valid():
@@ -1030,13 +1063,13 @@ class ModelAdmin(BaseModelAdmin):
         else:
             action_form = None
 
-        if cl.result_count == 1:
-            module_name = force_unicode(opts.verbose_name)
-        else:
-            module_name = force_unicode(opts.verbose_name_plural)
+        selection_note_all = ungettext('%(total_count)s selected',
+            'All %(total_count)s selected', cl.result_count)
 
         context = {
-            'module_name': module_name,
+            'module_name': force_unicode(opts.verbose_name_plural),
+            'selection_note': _('0 of %(cnt)s selected') % {'cnt': len(cl.result_list)},
+            'selection_note_all': selection_note_all % {'total_count': cl.result_count},
             'title': cl.title,
             'is_popup': cl.is_popup,
             'cl': cl,
@@ -1057,7 +1090,7 @@ class ModelAdmin(BaseModelAdmin):
             'admin/change_list.html'
         ], context, context_instance=context_instance)
 
-    @csrf_protect
+    @csrf_protect_m
     def delete_view(self, request, object_id, extra_context=None):
         "The 'delete' admin view for this model."
         opts = self.model._meta
@@ -1073,9 +1106,7 @@ class ModelAdmin(BaseModelAdmin):
 
         # Populate deleted_objects, a data structure of all related objects that
         # will also be deleted.
-        deleted_objects = [mark_safe(u'%s: <a href="../../%s/">%s</a>' % (escape(force_unicode(capfirst(opts.verbose_name))), object_id, escape(obj))), []]
-        perms_needed = set()
-        get_deleted_objects(deleted_objects, perms_needed, request.user, obj, opts, 1, self.admin_site)
+        (deleted_objects, perms_needed) = get_deleted_objects((obj,), opts, request.user, self.admin_site)
 
         if request.POST: # The user has already confirmed the deletion.
             if perms_needed:
@@ -1176,10 +1207,11 @@ class InlineModelAdmin(BaseModelAdmin):
     fk_name = None
     formset = BaseInlineFormSet
     extra = 3
-    max_num = 0
+    max_num = None
     template = None
     verbose_name = None
     verbose_name_plural = None
+    can_delete = True
 
     def __init__(self, parent_model, admin_site):
         self.admin_site = admin_site
@@ -1193,9 +1225,10 @@ class InlineModelAdmin(BaseModelAdmin):
 
     def _media(self):
         from django.conf import settings
-        js = ['js/jquery.min.js', 'js/inlines.min.js']
+        js = ['js/jquery.min.js', 'js/jquery.init.js', 'js/inlines.min.js']
         if self.prepopulated_fields:
             js.append('js/urlify.js')
+            js.append('js/prepopulate.min.js')
         if self.filter_vertical or self.filter_horizontal:
             js.extend(['js/SelectBox.js' , 'js/SelectFilter2.js'])
         return forms.Media(js=['%s%s' % (settings.ADMIN_MEDIA_PREFIX, url) for url in js])
@@ -1225,6 +1258,7 @@ class InlineModelAdmin(BaseModelAdmin):
             "formfield_callback": curry(self.formfield_for_dbfield, request=request),
             "extra": self.extra,
             "max_num": self.max_num,
+            "can_delete": self.can_delete,
         }
         defaults.update(kwargs)
         return inlineformset_factory(self.parent_model, self.model, **defaults)

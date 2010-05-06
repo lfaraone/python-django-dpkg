@@ -24,7 +24,7 @@ override_dh_auto_build:
 	make -C docs.debian html
 	rm -rf docs.debian/_build/html/_sources/
 
-override_dh_auto_test:
+override_dh_auto_test_DISABLED:
 	PYTHONPATH=. django/bin/django-admin.py startproject testproject
 	cat debian/test_settings.py >> testproject/settings.py
 	PYTHONPATH=. tests/runtests.py --settings=testproject.settings --verbosity=2

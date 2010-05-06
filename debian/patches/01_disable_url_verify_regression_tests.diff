@@ -5,10 +5,10 @@ Comment:
  .
  This is a Debian specific patch.
 
-diff -urNad /tmp/bp-build/Django-1.2-alpha-1.orig/tests/regressiontests/forms/fields.py /tmp/bp-build/Django-1.2-alpha-1/tests/regressiontests/forms/fields.py
---- Django-1.2-alpha-1.orig/tests/regressiontests/forms/fields.py	2010-01-06 11:25:04.000000000 +0000
-+++ Django-1.2-alpha-1/tests/regressiontests/forms/fields.py	2010-01-06 11:26:28.000000000 +0000
-@@ -511,26 +511,6 @@
+diff -urNad Django-1.2-rc-1.orig/tests/regressiontests/forms/fields.py Django-1.2-rc-1/tests/regressiontests/forms/fields.py
+--- Django-1.2-rc-1.orig/tests/regressiontests/forms/fields.py	2010-05-06 08:39:00.000000000 +0100
++++ Django-1.2-rc-1/tests/regressiontests/forms/fields.py	2010-05-06 08:39:41.000000000 +0100
+@@ -513,33 +513,6 @@
          self.assertRaisesErrorWithMessage(ValidationError, "[u'Enter a valid URL.']", f.clean, 'http://example.')
          self.assertRaisesErrorWithMessage(ValidationError, "[u'Enter a valid URL.']", f.clean, 'http://.com')
  
@@ -24,6 +24,13 @@ diff -urNad /tmp/bp-build/Django-1.2-alpha-1.orig/tests/regressiontests/forms/fi
 -        self.assertRaises(ValidationError, f.clean, 'http://google.com/we-love-microsoft.html') # good domain, bad page
 -        try:
 -            f.clean('http://google.com/we-love-microsoft.html') # good domain, bad page
+-        except ValidationError, e:
+-            self.assertEqual("[u'This URL appears to be a broken link.']", str(e))
+-        # Valid and existent IDN
+-        self.assertEqual(u'http://\u05e2\u05d1\u05e8\u05d9\u05ea.idn.icann.org/', f.clean(u'http://עברית.idn.icann.org/'))
+-        # Valid but non-existent IDN
+-        try:
+-            f.clean(u'http://broken.עברית.idn.icann.org/')
 -        except ValidationError, e:
 -            self.assertEqual("[u'This URL appears to be a broken link.']", str(e))
 -

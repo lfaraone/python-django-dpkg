@@ -44,7 +44,7 @@ LANGUAGES = (
     ('ar', gettext_noop('Arabic')),
     ('bg', gettext_noop('Bulgarian')),
     ('bn', gettext_noop('Bengali')),
-    ('bn', gettext_noop('Bosnian')),
+    ('bs', gettext_noop('Bosnian')),
     ('ca', gettext_noop('Catalan')),
     ('cs', gettext_noop('Czech')),
     ('cy', gettext_noop('Welsh')),
@@ -52,6 +52,7 @@ LANGUAGES = (
     ('de', gettext_noop('German')),
     ('el', gettext_noop('Greek')),
     ('en', gettext_noop('English')),
+    ('en-gb', gettext_noop('British English')),
     ('es', gettext_noop('Spanish')),
     ('es-ar', gettext_noop('Argentinean Spanish')),
     ('et', gettext_noop('Estonian')),
@@ -76,8 +77,11 @@ LANGUAGES = (
     ('lt', gettext_noop('Lithuanian')),
     ('lv', gettext_noop('Latvian')),
     ('mk', gettext_noop('Macedonian')),
+    ('mn', gettext_noop('Mongolian')),
     ('nl', gettext_noop('Dutch')),
     ('no', gettext_noop('Norwegian')),
+    ('nb', gettext_noop('Norwegian Bokmal')),
+    ('nn', gettext_noop('Norwegian Nynorsk')),
     ('pl', gettext_noop('Polish')),
     ('pt', gettext_noop('Portuguese')),
     ('pt-br', gettext_noop('Brazilian Portuguese')),
@@ -94,6 +98,7 @@ LANGUAGES = (
     ('th', gettext_noop('Thai')),
     ('tr', gettext_noop('Turkish')),
     ('uk', gettext_noop('Ukrainian')),
+    ('vi', gettext_noop('Vietnamese')),
     ('zh-cn', gettext_noop('Simplified Chinese')),
     ('zh-tw', gettext_noop('Traditional Chinese')),
 )
@@ -183,7 +188,7 @@ TEMPLATE_LOADERS = (
 # Each one should be a callable that takes the request object as its
 # only parameter and returns a dictionary to add to the context.
 TEMPLATE_CONTEXT_PROCESSORS = (
-    'django.core.context_processors.auth',
+    'django.contrib.auth.context_processors.auth',
     'django.core.context_processors.debug',
     'django.core.context_processors.i18n',
     'django.core.context_processors.media',
@@ -306,7 +311,7 @@ YEAR_MONTH_FORMAT = 'F Y'
 # http://docs.djangoproject.com/en/dev/ref/templates/builtins/#now
 MONTH_DAY_FORMAT = 'F j'
 
-# Default shortformatting for date objects. See all available format strings here:
+# Default short formatting for date objects. See all available format strings here:
 # http://docs.djangoproject.com/en/dev/ref/templates/builtins/#now
 SHORT_DATE_FORMAT = 'm/d/Y'
 
