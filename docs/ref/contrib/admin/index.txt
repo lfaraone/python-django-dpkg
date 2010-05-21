@@ -871,6 +871,20 @@ return a subset of objects for this foreign key field based on the user::
 This uses the ``HttpRequest`` instance to filter the ``Car`` foreign key field
 to only the cars owned by the ``User`` instance.
 
+.. method:: ModelAdmin.queryset(self, request)
+
+The ``queryset`` method on a ``ModelAdmin`` returns a
+:class:`~django.db.models.QuerySet` of all model instances that can be
+edited by the admin site. One use case for overriding this method is
+to show objects owned by the logged-in user::
+
+    class MyModelAdmin(admin.ModelAdmin):
+        def queryset(self, request):
+            qs = super(MyModelAdmin, self).queryset(request)
+            if request.user.is_superuser:
+                return qs
+            return qs.filter(author=request.user)
+
 Other methods
 ~~~~~~~~~~~~~
 
@@ -1035,9 +1049,11 @@ many possibilities of customization. Inlines are built around
 ``form``
 ~~~~~~~~
 
-The value for ``form`` defaults to ``BaseModelForm``. This is what is
+The value for ``form`` defaults to ``ModelForm``. This is what is
 passed through to ``inlineformset_factory`` when creating the formset for this
 inline.
+
+.. _ref-contrib-admin-inline-extra:
 
 ``extra``
 ~~~~~~~~~
@@ -1048,8 +1064,15 @@ to the initial forms. See the
 
 .. versionadded:: 1.2
 
-Extra forms for inlines will be hidden and replaced with a link to dynamically
-add any number of new inlines for users with Javascript enabled.
+For users with JavaScript-enabled browsers, an "Add another" link is
+provided to enable any number of additional inlines to be added in
+addition to those provided as a result of the ``extra`` argument.
+
+The dynamic link will not appear if the number of currently displayed
+forms exceeds ``max_num``, or if the user does not have JavaScript
+enabled.
+
+.. _ref-contrib-admin-inline-max-num:
 
 ``max_num``
 ~~~~~~~~~~~
