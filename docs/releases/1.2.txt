@@ -45,7 +45,7 @@ Django 1.2 introduces several large, important new features, including:
 These are just the highlights; full details and a complete list of features `may
 be found below`_.
 
-.. _may be found below: `what's new in django 1.2`
+.. _may be found below: `what's new in django 1.2`_
 
 .. seealso::
 
@@ -319,7 +319,7 @@ a named URL.
 GeoDjango
 ---------
 
-The most significant new feature for ref:`GeoDjango <ref-contrib-gis>`
+The most significant new feature for :ref:`GeoDjango <ref-contrib-gis>`
 in 1.2 is support for multiple spatial databases.  As a result,
 the following :ref:`spatial database backends <spatial-backends>`
 are now included:
@@ -342,7 +342,7 @@ The :class:`~django.contrib.gis.db.models.Extent3D` aggregate
 and :meth:`~django.contrib.gis.db.models.GeoQuerySet.extent3d` ``GeoQuerySet``
 method were added as a part of this feature.
 
-The following :class:`~django.contrib.gis.db.models.GeoQeurySet`
+The following :class:`~django.contrib.gis.db.models.GeoQuerySet`
 methods are new in 1.2:
 
 * :meth:`~django.contrib.gis.db.models.GeoQuerySet.force_rhr`
