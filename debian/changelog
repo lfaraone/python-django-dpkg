@@ -1,3 +1,26 @@
+python-django (1.2.3-1) unstable; urgency=low
+
+  [ Krzysztof Klimonda ]
+  * New upstream release. Closes: #596893 LP: #636482
+  * Fixes both a XSS vulnerability introduced in 1.2 series and
+    the regressions caused by 1.2.2 release. Closes: #596205
+  * debian/control:
+    - depend on language packs for en_US.utf8 locales required for unit tests.
+  * debian/rules:
+    - re-enable build time tests.
+    - set LC_ALL to en_US.utf8 for test suite.
+  * debian/patches/series:
+    - two new patches: 05_fix_regression_tests.diff and
+      06_fix_regression_tests.diff backported from 1.2.x branch to fix
+      test suite failures.
+
+  [ Raphaël Hertzog ]
+  * Update Standards-Version to 3.9.1.
+  * Drop "--with quilt" and quilt build-dependency since the package is
+    already using source format "3.0 (quilt)".
+
+ -- Raphaël Hertzog <hertzog@debian.org>  Sat, 18 Sep 2010 19:37:03 +0200
+
 python-django (1.2.1-1) unstable; urgency=low
 
   * New upstream bugfix release.

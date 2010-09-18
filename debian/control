@@ -3,8 +3,8 @@ Section: python
 Priority: optional
 Maintainer: Chris Lamb <lamby@debian.org>
 Uploaders: Debian Python Modules Team <python-modules-team@lists.alioth.debian.org>, Raphaël Hertzog <hertzog@debian.org>
-Standards-Version: 3.8.4
-Build-Depends: debhelper (>= 7.0.50), python-support, quilt (>= 0.46-7~), python (>= 2.5) | python-sqlite
+Standards-Version: 3.9.1
+Build-Depends: debhelper (>= 7.0.50), python-support, python (>= 2.5) | python-sqlite, locales-all | language-pack-en-base
 Build-Depends-Indep: python-sphinx, libjs-jquery
 Homepage: http://www.djangoproject.com/
 Vcs-Svn: svn://svn.debian.org/python-modules/packages/python-django/trunk/

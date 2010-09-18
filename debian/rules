@@ -5,11 +5,15 @@ include /usr/share/python/python.mk
 PREFIX = debian/python-django
 DJANGO_DIR = $(PREFIX)/$(call py_libdir_sh,`pyversions -d`)/django
 
+# FIXME: if the build is run while non-default python version are
+# available, the build process will install files in
+# /usr/lib/pyshared/pythonX.Y while we don't need them
+
 %:
-	dh --with quilt $@
+	dh $@
 
 override_dh_auto_clean:
-	rm -rf docs.debian testproject
+	rm -rf docs.debian tests/__init__.py
 	find -name "*.DS_Store" -delete
 	dh_auto_clean
 
@@ -24,10 +28,9 @@ override_dh_auto_build:
 	make -C docs.debian html
 	rm -rf docs.debian/_build/html/_sources/
 
-override_dh_auto_test_DISABLED:
-	PYTHONPATH=. django/bin/django-admin.py startproject testproject
-	cat debian/test_settings.py >> testproject/settings.py
-	PYTHONPATH=. tests/runtests.py --settings=testproject.settings --verbosity=2
+override_dh_auto_test:
+	touch tests/__init__.py
+	LC_ALL=en_US.utf8 PYTHONPATH=. tests/runtests.py --settings=tests.test_sqlite --verbosity=2
 
 override_dh_install:
 	dh_install
