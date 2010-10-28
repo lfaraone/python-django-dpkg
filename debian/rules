@@ -1,6 +1,13 @@
 #!/usr/bin/make -f
 
-include /usr/share/python/python.mk
+-include /usr/share/python/python.mk
+ifeq (,$(py_sitename))
+  py_sitename = site-packages
+  py_libdir = /usr/lib/python$(subst python,,$(1))/site-packages
+  py_sitename_sh = $(py_sitename)
+  py_libdir_sh = $(py_libdir)
+endif
+
 
 PREFIX = debian/python-django
 DJANGO_DIR = $(PREFIX)/$(call py_libdir_sh,`pyversions -d`)/django
