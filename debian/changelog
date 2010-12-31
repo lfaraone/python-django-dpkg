@@ -1,12 +1,16 @@
-python-django (1.2.3-3) testing; urgency=high
+python-django (1.2.4-1) unstable; urgency=high
 
-  * Squeeze upload with security fixes only:
+  * New bugfix-only upstream release. It includes security fixes.
     http://www.djangoproject.com/weblog/2010/dec/22/security/
-  * Add patches 08_fix_info_leakage.diff and 09_fix_dos_password_reset.diff
-    taken from upstream SVN repository. They did not apply cleanly, I had to
-    drop a test.
+  * Drop patches merged upstream:
+    - debian/patches/05_fix_regression_tests.diff
+    - debian/patches/06_fix_regression_tests.diff
+  * Update 01_disable_url_verify_regression_tests.diff to cope with the
+    updated regressions tests.
+  * Update 03_manpage.diff and 04_hyphen-manpage.diff to cope with changes in
+    the manual page.
 
- -- Raphaël Hertzog <hertzog@debian.org>  Sat, 01 Jan 2011 21:05:27 +0100
+ -- Raphaël Hertzog <hertzog@debian.org>  Fri, 31 Dec 2010 11:40:28 +0100
 
 python-django (1.2.3-2) unstable; urgency=low
 
