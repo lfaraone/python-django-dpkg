@@ -1,0 +1,126 @@
+Description: Fix information leakage in Django administrative interface
+ http://www.djangoproject.com/weblog/2010/dec/22/security/
+Origin: upstream, http://code.djangoproject.com/changeset/15033
+
+--- a/django/contrib/admin/options.py
++++ b/django/contrib/admin/options.py
+@@ -10,7 +10,9 @@ from django.contrib import messages
+ from django.views.decorators.csrf import csrf_protect
+ from django.core.exceptions import PermissionDenied, ValidationError
+ from django.db import models, transaction
+-from django.db.models.fields import BLANK_CHOICE_DASH
++from django.db.models.related import RelatedObject
++from django.db.models.fields import BLANK_CHOICE_DASH, FieldDoesNotExist
++from django.db.models.sql.constants import LOOKUP_SEP, QUERY_TERMS
+ from django.http import Http404, HttpResponse, HttpResponseRedirect
+ from django.shortcuts import get_object_or_404, render_to_response
+ from django.utils.decorators import method_decorator
+@@ -183,6 +185,30 @@ class BaseModelAdmin(object):
+     def get_readonly_fields(self, request, obj=None):
+         return self.readonly_fields
+ 
++    def lookup_allowed(self, lookup):
++        parts = lookup.split(LOOKUP_SEP)
++
++        # Last term in lookup is a query term (__exact, __startswith etc)
++        # This term can be ignored.
++        if len(parts) > 1 and parts[-1] in QUERY_TERMS:
++            parts.pop()
++
++        # Special case -- foo__id__exact and foo__id queries are implied
++        # if foo has been specificially included in the lookup list; so
++        # drop __id if it is the last part.
++        if len(parts) > 1 and parts[-1] == self.model._meta.pk.name:
++            parts.pop()
++
++        try:
++            self.model._meta.get_field_by_name(parts[0])
++        except FieldDoesNotExist:
++            # Lookups on non-existants fields are ok, since they're ignored
++            # later.
++            return True
++        else:
++            clean_lookup = LOOKUP_SEP.join(parts)
++            return clean_lookup in self.list_filter or clean_lookup == self.date_hierarchy
++
+ class ModelAdmin(BaseModelAdmin):
+     "Encapsulates all admin options and functionality for a given model."
+ 
+--- a/django/contrib/admin/views/main.py
++++ b/django/contrib/admin/views/main.py
+@@ -1,6 +1,7 @@
+ from django.contrib.admin.filterspecs import FilterSpec
+ from django.contrib.admin.options import IncorrectLookupParameters
+ from django.contrib.admin.util import quote
++from django.core.exceptions import SuspiciousOperation
+ from django.core.paginator import Paginator, InvalidPage
+ from django.db import models
+ from django.db.models.query import QuerySet
+@@ -187,13 +188,18 @@ class ChangeList(object):
+                 else:
+                     lookup_params[key] = True
+ 
++            if not self.model_admin.lookup_allowed(key):
++                raise SuspiciousOperation(
++                    "Filtering by %s not allowed" % key
++                )
++
+         # Apply lookup parameters from the query string.
+         try:
+             qs = qs.filter(**lookup_params)
+         # Naked except! Because we don't have any other way of validating "params".
+         # They might be invalid if the keyword arguments are incorrect, or if the
+         # values are not in the correct type, so we might get FieldError, ValueError,
+-        # ValicationError, or ? from a custom field that raises yet something else 
++        # ValicationError, or ? from a custom field that raises yet something else
+         # when handed impossible data.
+         except:
+             raise IncorrectLookupParameters
+--- a/tests/regressiontests/admin_views/models.py
++++ b/tests/regressiontests/admin_views/models.py
+@@ -92,7 +92,7 @@ class ChapterInline(admin.TabularInline)
+ 
+ class ArticleAdmin(admin.ModelAdmin):
+     list_display = ('content', 'date', callable_year, 'model_year', 'modeladmin_year')
+-    list_filter = ('date',)
++    list_filter = ('date', 'section')
+ 
+     def changelist_view(self, request):
+         "Test that extra_context works"
+@@ -584,6 +584,9 @@ class Album(models.Model):
+     owner = models.ForeignKey(User)
+     title = models.CharField(max_length=30)
+ 
++class AlbumAdmin(admin.ModelAdmin):
++    list_filter = ['title']
++
+ admin.site.register(Article, ArticleAdmin)
+ admin.site.register(CustomArticle, CustomArticleAdmin)
+ admin.site.register(Section, save_as=True, inlines=[ArticleInline])
+@@ -630,4 +633,4 @@ admin.site.register(Promo)
+ admin.site.register(ChapterXtra1)
+ admin.site.register(Pizza, PizzaAdmin)
+ admin.site.register(Topping)
+-admin.site.register(Album)
++admin.site.register(Album, AlbumAdmin)
+--- a/tests/regressiontests/admin_views/tests.py
++++ b/tests/regressiontests/admin_views/tests.py
+@@ -3,6 +3,7 @@
+ import re
+ import datetime
+ from django.conf import settings
++from django.core.exceptions import SuspiciousOperation
+ from django.core.files import temp as tempfile
+ from django.contrib.auth import admin # Register auth models with the admin.
+ from django.contrib.auth.models import User, Permission, UNUSABLE_PASSWORD
+@@ -297,6 +298,10 @@ class AdminViewBasicTest(TestCase):
+         self.assertContains(response, 'Choisir une heure')
+         deactivate()
+ 
++    def test_disallowed_filtering(self):
++        self.assertRaises(SuspiciousOperation,
++            self.client.get, "/test_admin/admin/admin_views/album/?owner__email__startswith=fuzzy"
++        )
+ 
+ class SaveAsTests(TestCase):
+     fixtures = ['admin-views-users.xml','admin-views-person.xml']

@@ -4,3 +4,5 @@
 05_fix_regression_tests.diff
 06_fix_regression_tests.diff
 07_disable_url_verify_model_tests.diff
+08_fix_info_leakage.diff
+09_fix_dos_password_reset.diff

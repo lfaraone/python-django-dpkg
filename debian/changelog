@@ -1,3 +1,13 @@
+python-django (1.2.3-3) testing; urgency=high
+
+  * Squeeze upload with security fixes only:
+    http://www.djangoproject.com/weblog/2010/dec/22/security/
+  * Add patches 08_fix_info_leakage.diff and 09_fix_dos_password_reset.diff
+    taken from upstream SVN repository. They did not apply cleanly, I had to
+    drop a test.
+
+ -- Raphaël Hertzog <hertzog@debian.org>  Sat, 01 Jan 2011 21:05:27 +0100
+
 python-django (1.2.3-2) unstable; urgency=low
 
   * Team upload.
