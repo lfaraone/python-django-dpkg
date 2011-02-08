@@ -1,3 +1,66 @@
+python-django (1.2.3-3+squeeze1) stable-security; urgency=high
+
+  * Resolve two vulnerabilities:
+
+    - Flaw in CSRF handling
+
+      Django includes a cross-site request forgery protection mechanism, which
+      makes use of a token inserted into outgoing forms. Middleware then checks
+      for the token's presence on form submission, and validates it.
+    
+      Previously, however, Django's CSRF protection made an exception for AJAX
+      requests, on the following basis:
+    
+      1. Many AJAX toolkits add an 'X-Requested-With' header when using
+         XMLHttpRequest.
+    
+      2. Browsers have strict same-origin policies regarding XMLHttpRequest.
+    
+      3. In the context of a browser, the only way that a custom header of this
+         nature can be added is with XMLHttpRequest.
+    
+      Therefore, for ease of use, Django did not apply CSRF checks to requests
+      that appeared to be AJAX on the basis of the X-Requested-With header. The
+      Ruby on Rails web framework had a similar exemption.
+    
+      Recently, engineers at Google made members of the Ruby on Rails
+      development team aware of a combination of browser plugins and redirects
+      which can allow an attacker to provide custom HTTP headers on a request
+      to any website. This can allow a forged request to appear to be an AJAX
+      request, thereby defeating CSRF protection which trusts the same-origin
+      nature of AJAX requests.
+    
+      Michael Koziarski of the Rails team brought this to the Django
+      developers attention, and we were able to produce a proof-of-concept
+      demonstrating the same vulnerability in Django's CSRF handling.
+    
+      To remedy this, Django will now apply full CSRF validation to all
+      requests, regardless of apparent AJAX origin. This is technically
+      backwards-incompatible, but the security risks have been judged to
+      outweigh the compatibility concerns in this case.
+
+      Extended notes on how to accomodate this change will be added to the
+      Django homepage in following days.
+    
+    - Potential XSS in file field rendering
+    
+      Django's form system includes form fields and widgets for performing file
+      uploads; in many cases, the name of the file currently stored in the
+      field is displayed. In the process of rendering, the filename is
+      displayed without being escaped.
+    
+      In many cases this does not result in a cross-site-scripting
+      vulnerability, as file-storage backends can and are encouraged to (and
+      the default backends provided with Django do) sanitize the supplied
+      filename according to their requirements. However, the risk of a
+      vulnerability appearing in a backend which does not sanitize, or which
+      performs insufficient sanitization, is such that Django will now
+      automatically escape filenames in form rendering.
+
+   Thanks to James Bennett <james@b-list.org>.
+
+ -- Chris Lamb <lamby@debian.org>  Tue, 08 Feb 2011 16:02:06 +0000
+
 python-django (1.2.3-3) testing; urgency=high
 
   * Squeeze upload with security fixes only:

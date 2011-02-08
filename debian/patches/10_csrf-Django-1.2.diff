@@ -1,0 +1,162 @@
+diff -r f09ea5fc806e django/middleware/csrf.py
+--- a/django/middleware/csrf.py	Fri Jan 28 15:48:35 2011 +0000
++++ b/django/middleware/csrf.py	Fri Jan 28 16:08:45 2011 +0000
+@@ -85,6 +85,7 @@
+     tag.
+     """
+     def process_view(self, request, callback, callback_args, callback_kwargs):
++
+         if getattr(request, 'csrf_processing_done', False):
+             return None
+ 
+@@ -126,31 +127,6 @@
+                 # any branches that call reject()
+                 return accept()
+ 
+-            if request.is_ajax():
+-                # .is_ajax() is based on the presence of X-Requested-With.  In
+-                # the context of a browser, this can only be sent if using
+-                # XmlHttpRequest.  Browsers implement careful policies for
+-                # XmlHttpRequest:
+-                #
+-                #  * Normally, only same-domain requests are allowed.
+-                #
+-                #  * Some browsers (e.g. Firefox 3.5 and later) relax this
+-                #    carefully:
+-                #
+-                #    * if it is a 'simple' GET or POST request (which can
+-                #      include no custom headers), it is allowed to be cross
+-                #      domain.  These requests will not be recognized as AJAX.
+-                #
+-                #    * if a 'preflight' check with the server confirms that the
+-                #      server is expecting and allows the request, cross domain
+-                #      requests even with custom headers are allowed. These
+-                #      requests will be recognized as AJAX, but can only get
+-                #      through when the developer has specifically opted in to
+-                #      allowing the cross-domain POST request.
+-                #
+-                # So in all cases, it is safe to allow these requests through.
+-                return accept()
+-
+             if request.is_secure():
+                 # Strict referer checking for HTTPS
+                 referer = request.META.get('HTTP_REFERER')
+@@ -181,7 +157,11 @@
+                 csrf_token = request.META["CSRF_COOKIE"]
+ 
+             # check incoming token
+-            request_csrf_token = request.POST.get('csrfmiddlewaretoken', None)
++            request_csrf_token = request.POST.get('csrfmiddlewaretoken', "")
++            if request_csrf_token == "":
++                # Fall back to X-CSRFToken, to make things easier for AJAX
++                request_csrf_token = request.META.get('HTTP_X_CSRFTOKEN', '')
++
+             if request_csrf_token != csrf_token:
+                 if cookie_is_new:
+                     # probably a problem setting the CSRF cookie
+diff -r f09ea5fc806e docs/ref/contrib/csrf.txt
+--- a/docs/ref/contrib/csrf.txt	Fri Jan 28 15:48:35 2011 +0000
++++ b/docs/ref/contrib/csrf.txt	Fri Jan 28 16:08:45 2011 +0000
+@@ -81,6 +81,47 @@
+ finding of code and templates that may need to be upgraded.  It contains full
+ help on how to use it.
+ 
++AJAX
++----
++
++While the above method can be used for AJAX POST requests, it has some
++inconveniences: you have to remember to pass the CSRF token in as POST data with
++every POST request. For this reason, there is an alternative method: on each
++XMLHttpRequest, set a custom `X-CSRFToken` header to the value of the CSRF
++token. This is often easier, because many javascript frameworks provide hooks
++that allow headers to be set on every request. In jQuery, you can use the
++``beforeSend`` hook as follows:
++
++.. code-block:: javascript
++
++    $.ajaxSetup({
++        beforeSend: function(xhr, settings) {
++            function getCookie(name) {
++                var cookieValue = null;
++                if (document.cookie && document.cookie != '') {
++                    var cookies = document.cookie.split(';');
++                    for (var i = 0; i < cookies.length; i++) {
++                        var cookie = jQuery.trim(cookies[i]);
++                        // Does this cookie string begin with the name we want?
++                        if (cookie.substring(0, name.length + 1) == (name + '=')) {
++                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
++                            break;
++                        }
++                    }
++                }
++                return cookieValue;
++            }
++            if (!(/^http:.*/.test(settings.url) || /^https:.*/.test(settings.url))) {
++                // Only send the token to relative URLs i.e. locally.
++                xhr.setRequestHeader("X-CSRFToken", getCookie('csrftoken'));
++            }
++        }
++    });
++
++Adding this to a javascript file that is included on your site will ensure that
++AJAX POST requests that are made via jQuery will not be caught by the CSRF
++protection.
++
+ The decorator method
+ --------------------
+ 
+@@ -262,10 +303,6 @@
+ (``CsrfResponseMiddleware``) respectively.  They can be used individually if
+ required.
+ 
+-You don't have to worry about doing this for most AJAX views. Any request sent
+-with "X-Requested-With: XMLHttpRequest" is automatically exempt. (See the `How
+-it works`_ section.)
+-
+ Subdomains
+ ----------
+ 
+@@ -343,24 +380,6 @@
+ response, and only pages that are served as 'text/html' or
+ 'application/xml+xhtml' are modified.
+ 
+-AJAX
+-----
+-
+-The middleware tries to be smart about requests that come in via AJAX. Most
+-modern JavaScript toolkits send an "X-Requested-With: XMLHttpRequest" HTTP
+-header; these requests are detected and automatically *not* handled by this
+-middleware.  We can do this safely because, in the context of a browser, the
+-header can only be added by using ``XMLHttpRequest``, and browsers already
+-implement a same-domain policy for ``XMLHttpRequest``.
+-
+-For the more recent browsers that relax this same-domain policy, custom headers
+-like "X-Requested-With" are only allowed after the browser has done a
+-'preflight' check to the server to see if the cross-domain request is allowed,
+-using a strictly 'opt in' mechanism, so the exception for AJAX is still safe—if
+-the developer has specifically opted in to allowing cross-site AJAX POST
+-requests on a specific URL, they obviously don't want the middleware to disallow
+-exactly that.
+-
+ .. _9.1.1 Safe Methods, HTTP 1.1, RFC 2616: http://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html
+ 
+ Caching
+diff -r f09ea5fc806e tests/regressiontests/csrf_tests/tests.py
+--- a/tests/regressiontests/csrf_tests/tests.py	Fri Jan 28 15:48:35 2011 +0000
++++ b/tests/regressiontests/csrf_tests/tests.py	Fri Jan 28 16:08:45 2011 +0000
+@@ -275,12 +275,12 @@
+         req2 = CsrfMiddleware().process_view(req, csrf_exempt(post_form_view), (), {})
+         self.assertEquals(None, req2)
+ 
+-    def test_ajax_exemption(self):
++    def test_csrf_token_in_header(self):
+         """
+-        Check that AJAX requests are automatically exempted.
++        Check that we can pass in the token in a header instead of in the form
+         """
+         req = self._get_POST_csrf_cookie_request()
+-        req.META['HTTP_X_REQUESTED_WITH'] = 'XMLHttpRequest'
++        req.META['HTTP_X_CSRFTOKEN'] = self._csrf_id
+         req2 = CsrfMiddleware().process_view(req, post_form_view, (), {})
+         self.assertEquals(None, req2)
+ 
