@@ -209,14 +209,16 @@ class AdminSplitDateTimeWidgetTest(TestCase):
 
         activate('de-at')
         old_USE_L10N = settings.USE_L10N
-        settings.USE_L10N = True
-        w.is_localized = True
-        self.assertEqual(
-            conditional_escape(w.render('test', datetime(2007, 12, 1, 9, 30))),
-            '<p class="datetime">Datum: <input value="01.12.2007" type="text" class="vDateField" name="test_0" size="10" /><br />Zeit: <input value="09:30:00" type="text" class="vTimeField" name="test_1" size="8" /></p>',
-        )
-        deactivate()
-        settings.USE_L10N = old_USE_L10N
+        try:
+            settings.USE_L10N = True
+            w.is_localized = True
+            self.assertEqual(
+                conditional_escape(w.render('test', datetime(2007, 12, 1, 9, 30))),
+                '<p class="datetime">Datum: <input value="01.12.2007" type="text" class="vDateField" name="test_0" size="10" /><br />Zeit: <input value="09:30:00" type="text" class="vTimeField" name="test_1" size="8" /></p>',
+            )
+        finally:
+            deactivate()
+            settings.USE_L10N = old_USE_L10N
 
 
 class AdminFileWidgetTest(DjangoTestCase):
@@ -236,6 +238,22 @@ class AdminFileWidgetTest(DjangoTestCase):
             conditional_escape(w.render('test', SimpleUploadedFile('test', 'content'))),
             '<input type="file" name="test" />',
         )
+
+    def test_render_escapes_html(self):
+        class StrangeFieldFile(object):
+            url = "something?chapter=1&sect=2&copy=3&lang=en"
+
+            def __unicode__(self):
+                return u'''something<div onclick="alert('oops')">.jpg'''
+
+        widget = AdminFileWidget()
+        field = StrangeFieldFile()
+        output = widget.render('myfile', field)
+        self.assertFalse(field.url in output)
+        self.assertTrue(u'href="something?chapter=1&amp;sect=2&amp;copy=3&amp;lang=en"' in output)
+        self.assertFalse(unicode(field) in output)
+        self.assertTrue(u'something&lt;div onclick=&quot;alert(&#39;oops&#39;)&quot;&gt;.jpg' in output)
+
 
 
 class ForeignKeyRawIdWidgetTest(DjangoTestCase):

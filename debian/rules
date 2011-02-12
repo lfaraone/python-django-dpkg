@@ -71,4 +71,4 @@ override_dh_installdocs:
 		&& ln -s ../../../../javascript/jquery/jquery.js .
 
 override_dh_compress:
-	dh_compress -X.js
+	dh_compress -X.js -Xobjects.inv

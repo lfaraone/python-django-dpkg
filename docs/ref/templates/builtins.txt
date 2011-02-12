@@ -19,8 +19,6 @@ Built-in tag reference
 autoescape
 ~~~~~~~~~~
 
-.. versionadded:: 1.0
-
 Control the current auto-escaping behavior. This tag takes either ``on`` or
 ``off`` as an argument and that determines whether auto-escaping is in effect
 inside the block. The block is closed with an ``endautoescape`` ending tag.
@@ -72,8 +70,7 @@ Forgeries </ref/contrib/csrf>`.
 cycle
 ~~~~~
 
-.. versionchanged:: 1.0
-    Cycle among the given strings or variables each time this tag is encountered.
+Cycle among the given strings or variables each time this tag is encountered.
 
 Within a loop, cycles among the given strings each time through the
 loop::
@@ -238,8 +235,6 @@ provided in ``athlete_list``::
     </ul>
 
 You can loop over a list in reverse by using ``{% for obj in list reversed %}``.
-
-.. versionadded:: 1.0
 
 If you need to loop over a list of lists, you can unpack the values
 in each sub-list into individual variables. For example, if your context
@@ -766,6 +761,27 @@ filter, if your data is in a list of dictionaries::
 
     {% regroup people|dictsort:"gender" by gender as gender_list %}
 
+
+Grouping on other properties
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Any valid template lookup is a legal grouping attribute for the regroup
+tag, including methods, attributes, dictionary keys and list items. For
+example, if the "gender" field is a foreign key to a class with
+an attribute "description," you could use::
+
+    {% regroup people by gender.description as gender_list %}
+
+Or, if ``gender`` is a field with ``choices``, it will have a
+:meth:`~django.db.models.Model.get_FOO_display` method available as an
+attribute, allowing  you to group on the display string rather than the
+``choices`` key::
+
+    {% regroup people by get_gender_display as gender_list %}
+
+``{{ gender.grouper }}`` will now display the value fields from the
+``choices`` set rather than the keys.
+
 .. templatetag:: spaceless
 
 spaceless
@@ -887,8 +903,6 @@ such as this:
 
 The template tag will output the string ``/clients/client/123/``.
 
-.. versionadded:: 1.0
-
 If you're using :ref:`named URL patterns <naming-url-patterns>`, you can
 refer to the name of the pattern in the ``url`` tag instead of using the
 path to the view.
@@ -896,8 +910,6 @@ path to the view.
 Note that if the URL you're reversing doesn't exist, you'll get an
 :exc:`NoReverseMatch` exception raised, which will cause your site to display an
 error page.
-
-.. versionadded:: 1.0
 
 If you'd like to retrieve a URL without displaying it, you can use a slightly
 different call::
@@ -959,8 +971,6 @@ which is rounded up to 88).
 
 with
 ~~~~
-
-.. versionadded:: 1.0
 
 Caches a complex variable under a simpler name. This is useful when accessing
 an "expensive" method (e.g., one that hits the database) multiple times.
@@ -1281,17 +1291,10 @@ applied to the result will only result in one round of escaping being done. So
 it is safe to use this function even in auto-escaping environments. If you want
 multiple escaping passes to be applied, use the ``force_escape`` filter.
 
-.. versionchanged:: 1.0
-    Due to auto-escaping, the behavior of this filter has changed slightly.
-    The replacements are only made once, after
-    all other filters are applied -- including filters before and after it.
-
 .. templatefilter:: escapejs
 
 escapejs
 ~~~~~~~~
-
-.. versionadded:: 1.0
 
 Escapes characters for use in JavaScript strings. This does *not* make the
 string safe for use in HTML, but does protect you from syntax errors when using
@@ -1336,8 +1339,9 @@ If ``value`` is the list ``['a', 'b', 'c']``, the output will be ``'a'``.
 fix_ampersands
 ~~~~~~~~~~~~~~
 
-.. versionchanged:: 1.0
-    This is rarely useful as ampersands are now automatically escaped. See escape_ for more information.
+..note::
+
+    This is rarely useful as ampersands are automatically escaped. See escape_ for more information.
 
 Replaces ampersands with ``&amp;`` entities.
 
@@ -1393,8 +1397,6 @@ with an argument of ``-1``.
 
 force_escape
 ~~~~~~~~~~~~
-
-.. versionadded:: 1.0
 
 Applies HTML escaping to a string (see the ``escape`` filter for details).
 This filter is applied *immediately* and returns a new, escaped string. This
@@ -1454,8 +1456,6 @@ If ``value`` is the list ``['a', 'b', 'c']``, the output will be the string
 
 last
 ~~~~
-
-.. versionadded:: 1.0
 
 Returns the last item in a list.
 
@@ -1926,9 +1926,6 @@ unordered_list
 Recursively takes a self-nested list and returns an HTML unordered list --
 WITHOUT opening and closing <ul> tags.
 
-.. versionchanged:: 1.0
-   The format accepted by ``unordered_list`` has changed to be easier to understand.
-
 The list is assumed to be in the proper format. For example, if ``var`` contains
 ``['States', ['Kansas', ['Lawrence', 'Topeka'], 'Illinois']]``, then
 ``{{ var|unordered_list }}`` would return::
@@ -1945,7 +1942,7 @@ The list is assumed to be in the proper format. For example, if ``var`` contains
     </ul>
     </li>
 
-Note: the previous more restrictive and verbose format is still supported:
+Note: An older, more restrictive and verbose input format is also supported:
 ``['States', [['Kansas', [['Lawrence', []], ['Topeka', []]]], ['Illinois', []]]]``,
 
 .. templatefilter:: upper
@@ -1980,38 +1977,54 @@ If ``value`` is ``"http://www.example.org/foo?a=b&c=d"``, the output will be
 urlize
 ~~~~~~
 
-Converts URLs in plain text into clickable links.
+Converts URLs in text into clickable links.
 
-Note that if ``urlize`` is applied to text that already contains HTML markup,
-things won't work as expected. Apply this filter only to *plain* text.
+Works on links beginning with ``http://``, ``https://``, or ``www.`` and
+ending with ``.org``, ``.net`` or ``.com``. Links can have trailing punctuation
+(periods, commas, close-parens) and leading punctuation (opening parens) and
+``urlize`` will still do the right thing.
+
+Links generated by ``urlize`` have a ``rel="nofollow"`` attribute added
+to them.
 
 For example::
 
     {{ value|urlize }}
 
 If ``value`` is ``"Check out www.djangoproject.com"``, the output will be
-``"Check out <a
-href="http://www.djangoproject.com">www.djangoproject.com</a>"``.
+``"Check out <a href="http://www.djangoproject.com"
+rel="nofollow">www.djangoproject.com</a>"``.
+
+The ``urlize`` filter also takes an optional parameter ``autoescape``. If
+``autoescape`` is ``True``, the link text and URLs will be escaped using
+Django's built-in :tfilter:`escape` filter. The default value for
+``autoescape`` is ``True``.
+
+.. note::
+
+    If ``urlize`` is applied to text that already contains HTML markup,
+    things won't work as expected. Apply this filter only to plain text.
 
 .. templatefilter:: urlizetrunc
 
 urlizetrunc
 ~~~~~~~~~~~
 
-Converts URLs into clickable links, truncating URLs longer than the given
-character limit.
+Converts URLs into clickable links just like urlize_, but truncates URLs
+longer than the given character limit.
 
-As with urlize_, this filter should only be applied to *plain* text.
-
-**Argument:** Length to truncate URLs to
+**Argument:** Number of characters that link text should be truncated to,
+including the ellipsis that's added if truncation is necessary.
 
 For example::
 
     {{ value|urlizetrunc:15 }}
 
 If ``value`` is ``"Check out www.djangoproject.com"``, the output would be
-``'Check out <a
-href="http://www.djangoproject.com">www.djangopr...</a>'``.
+``'Check out <a href="http://www.djangoproject.com"
+rel="nofollow">www.djangopr...</a>'``.
+
+As with urlize_, this filter should only be applied to plain text.
 
 .. templatefilter:: wordcount
 

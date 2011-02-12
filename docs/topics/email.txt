@@ -92,7 +92,7 @@ For example, the following code would send two different messages to
 two different sets of recipients; however, only one connection to the
 mail server would be opened::
 
-    message1 = ('Subject here', 'Here is the message', 'from@example.com, ['first@example.com', 'other@example.com'])
+    message1 = ('Subject here', 'Here is the message', 'from@example.com', ['first@example.com', 'other@example.com'])
     message2 = ('Another Subject', 'Here is another message', 'from@example.com', ['second@test.com'])
     send_mass_mail((message1, message2), fail_silently=False)
 
@@ -194,8 +194,6 @@ from the request's POST data, sends that to admin@example.com and redirects to
 
 The EmailMessage class
 ======================
-
-.. versionadded:: 1.0
 
 Django's :meth:`~django.core.mail.send_mail()` and
 :meth:`~django.core.mail.send_mass_mail()` functions are actually thin

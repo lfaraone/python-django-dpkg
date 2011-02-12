@@ -24,7 +24,7 @@ The basics:
     examples`_. (In the Django source distribution, these examples are in the
     ``tests/modeltests`` directory.)
 
-    .. _official repository of model examples: http://www.djangoproject.com/documentation/models/
+    .. _official repository of model examples: http://code.djangoproject.com/browser/django/trunk/tests/modeltests
 
 Quick example
 =============
@@ -320,7 +320,7 @@ whatever you want. For example::
 
     See the `Many-to-one relationship model example`_ for a full example.
 
-.. _Many-to-one relationship model example: http://www.djangoproject.com/documentation/models/many_to_one/
+.. _Many-to-one relationship model example: http://code.djangoproject.com/browser/django/trunk/tests/modeltests/many_to_one/models.py
 
 :class:`~django.db.models.ForeignKey` fields also accept a number of extra
 arguments which are explained in :ref:`the model field reference
@@ -375,7 +375,7 @@ form would let users select the toppings.
 
     See the `Many-to-many relationship model example`_ for a full example.
 
-.. _Many-to-many relationship model example: http://www.djangoproject.com/documentation/models/many_to_many/
+.. _Many-to-many relationship model example: http://code.djangoproject.com/browser/django/trunk/tests/modeltests/many_to_many/models.py
 
 :class:`~django.db.models.ManyToManyField` fields also accept a number of extra
 arguments which are explained in :ref:`the model field reference
@@ -386,8 +386,6 @@ work; all are optional.
 
 Extra fields on many-to-many relationships
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. versionadded:: 1.0
 
 When you're only dealing with simple many-to-many relationships such as
 mixing and matching pizzas and toppings, a standard :class:`~django.db.models.ManyToManyField` is all you need. However, sometimes
@@ -551,9 +549,7 @@ can be made; see :ref:`the model field reference <ref-onetoone>` for details.
 
     See the `One-to-one relationship model example`_ for a full example.
 
-.. _One-to-one relationship model example: http://www.djangoproject.com/documentation/models/one_to_one/
-
-.. versionadded:: 1.0
+.. _One-to-one relationship model example: http://code.djangoproject.com/browser/django/trunk/tests/modeltests/one_to_one/models.py
 
 :class:`~django.db.models.OneToOneField` fields also accept one optional argument
 described in the :ref:`model field reference <ref-onetoone>`.
@@ -605,8 +601,6 @@ particular database engine.
 
 Custom field types
 ------------------
-
-.. versionadded:: 1.0
 
 If one of the existing model fields cannot be used to fit your purposes, or if
 you wish to take advantage of some less common database column types, you can
@@ -757,6 +751,14 @@ built-in model methods, adding new arguments. If you use ``*args,
 **kwargs`` in your method definitions, you are guaranteed that your
 code will automatically support those arguments when they are added.
 
+.. admonition:: Overriding Delete
+
+    Note that the :meth:`~Model.delete()` method for an object is not
+    necessarily called when :ref:`deleting objects in bulk using a
+    QuerySet<topics-db-queries-delete>`. To ensure customized delete logic
+    gets executed, you can use :data:`~django.db.models.signals.pre_delete`
+    and/or :data:`~django.db.models.signals.post_delete` signals.
+
 Executing custom SQL
 --------------------
 
@@ -768,8 +770,6 @@ on :doc:`using raw SQL</topics/db/sql>`.
 
 Model inheritance
 =================
-
-.. versionadded:: 1.0
 
 Model inheritance in Django works almost identically to the way normal
 class inheritance works in Python. The only decision you have to make
