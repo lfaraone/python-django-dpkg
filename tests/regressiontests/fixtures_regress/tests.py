@@ -8,13 +8,13 @@ try:
 except ImportError:
     from StringIO import StringIO
 
-from django.conf import settings
 from django.core import management
 from django.core.management.commands.dumpdata import sort_dependencies
 from django.core.management.base import CommandError
 from django.db.models import signals
-from django.db import DEFAULT_DB_ALIAS, transaction
-from django.test import TestCase, TransactionTestCase
+from django.db import transaction
+from django.test import TestCase, TransactionTestCase, skipIfDBFeature, \
+    skipUnlessDBFeature
 
 from models import Animal, Stuff
 from models import Absolute, Parent, Child
@@ -60,39 +60,39 @@ class TestFixtures(TestCase):
             weight=2.2
         )
         animal.save()
-        self.assertTrue(animal.id > 1)
+        self.assertGreater(animal.id, 1)
 
-    if settings.DATABASES[DEFAULT_DB_ALIAS]['ENGINE'] != 'django.db.backends.oracle':
-        def test_pretty_print_xml(self):
-            """
-            Regression test for ticket #4558 -- pretty printing of XML fixtures
-            doesn't affect parsing of None values.
-            """
-            # Load a pretty-printed XML fixture with Nulls.
-            management.call_command(
-                'loaddata',
-                'pretty.xml',
-                verbosity=0,
-                commit=False
-            )
-            self.assertEqual(Stuff.objects.all()[0].name, None)
-            self.assertEqual(Stuff.objects.all()[0].owner, None)
+    @skipIfDBFeature('interprets_empty_strings_as_nulls')
+    def test_pretty_print_xml(self):
+        """
+        Regression test for ticket #4558 -- pretty printing of XML fixtures
+        doesn't affect parsing of None values.
+        """
+        # Load a pretty-printed XML fixture with Nulls.
+        management.call_command(
+            'loaddata',
+            'pretty.xml',
+            verbosity=0,
+            commit=False
+        )
+        self.assertEqual(Stuff.objects.all()[0].name, None)
+        self.assertEqual(Stuff.objects.all()[0].owner, None)
 
-    if settings.DATABASES[DEFAULT_DB_ALIAS]['ENGINE'] == 'django.db.backends.oracle':
-        def test_pretty_print_xml_empty_strings(self):
-            """
-            Regression test for ticket #4558 -- pretty printing of XML fixtures
-            doesn't affect parsing of None values.
-            """
-            # Load a pretty-printed XML fixture with Nulls.
-            management.call_command(
-                'loaddata',
-                'pretty.xml',
-                verbosity=0,
-                commit=False
-            )
-            self.assertEqual(Stuff.objects.all()[0].name, u'')
-            self.assertEqual(Stuff.objects.all()[0].owner, None)
+    @skipUnlessDBFeature('interprets_empty_strings_as_nulls')
+    def test_pretty_print_xml_empty_strings(self):
+        """
+        Regression test for ticket #4558 -- pretty printing of XML fixtures
+        doesn't affect parsing of None values.
+        """
+        # Load a pretty-printed XML fixture with Nulls.
+        management.call_command(
+            'loaddata',
+            'pretty.xml',
+            verbosity=0,
+            commit=False
+        )
+        self.assertEqual(Stuff.objects.all()[0].name, u'')
+        self.assertEqual(Stuff.objects.all()[0].owner, None)
 
     def test_absolute_path(self):
         """
@@ -349,7 +349,7 @@ class TestFixtures(TestCase):
         """
         stdout = StringIO()
         # Create an instance of the concrete class
-        Widget(name='grommet').save()
+        widget = Widget.objects.create(name='grommet')
         management.call_command(
             'dumpdata',
             'fixtures_regress.widget',
@@ -359,7 +359,8 @@ class TestFixtures(TestCase):
         )
         self.assertEqual(
             stdout.getvalue(),
-            """[{"pk": 1, "model": "fixtures_regress.widget", "fields": {"name": "grommet"}}]"""
+            """[{"pk": %d, "model": "fixtures_regress.widget", "fields": {"name": "grommet"}}]"""
+            % widget.pk
             )
 
 
@@ -610,9 +611,10 @@ class TestTicket11101(TransactionTestCase):
         self.assertEqual(Thingy.objects.count(), 1)
         transaction.rollback()
         self.assertEqual(Thingy.objects.count(), 0)
+        transaction.commit()
 
-    if settings.DATABASES[DEFAULT_DB_ALIAS]['ENGINE'] != 'django.db.backends.mysql':
-        def test_ticket_11101(self):
-            """Test that fixtures can be rolled back (ticket #11101)."""
-            ticket_11101 = transaction.commit_manually(self.ticket_11101)
-            ticket_11101()
+    @skipUnlessDBFeature('supports_transactions')
+    def test_ticket_11101(self):
+        """Test that fixtures can be rolled back (ticket #11101)."""
+        ticket_11101 = transaction.commit_manually(self.ticket_11101)
+        ticket_11101()

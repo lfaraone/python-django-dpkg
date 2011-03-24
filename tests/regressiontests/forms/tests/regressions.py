@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-from unittest import TestCase
 from django.forms import *
+from django.utils.unittest import TestCase
 from django.utils.translation import ugettext_lazy, activate, deactivate
 
 from regressiontests.forms.models import Cheese

@@ -3,7 +3,6 @@ import datetime
 from decimal import Decimal
 import re
 import time
-from unittest import TestCase
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.forms import *
@@ -12,6 +11,7 @@ from django.utils import copycompat as copy
 from django.utils import formats
 from django.utils.safestring import mark_safe
 from django.utils.translation import activate, deactivate
+from django.utils.unittest import TestCase
 
 
 
@@ -48,33 +48,27 @@ class FormsWidgetTestCase(TestCase):
         w = PasswordInput()
         self.assertEqual(w.render('email', ''), u'<input type="password" name="email" />')
         self.assertEqual(w.render('email', None), u'<input type="password" name="email" />')
+        self.assertEqual(w.render('email', 'secret'), u'<input type="password" name="email" />')
+
+        # The render_value argument lets you specify whether the widget should render
+        # its value. For security reasons, this is off by default.
+        w = PasswordInput(render_value=True)
+        self.assertEqual(w.render('email', ''), u'<input type="password" name="email" />')
+        self.assertEqual(w.render('email', None), u'<input type="password" name="email" />')
         self.assertEqual(w.render('email', 'test@example.com'), u'<input type="password" name="email" value="test@example.com" />')
         self.assertEqual(w.render('email', 'some "quoted" & ampersanded value'), u'<input type="password" name="email" value="some &quot;quoted&quot; &amp; ampersanded value" />')
         self.assertEqual(w.render('email', 'test@example.com', attrs={'class': 'fun'}), u'<input type="password" name="email" value="test@example.com" class="fun" />')
 
         # You can also pass 'attrs' to the constructor:
-        w = PasswordInput(attrs={'class': 'fun'})
+        w = PasswordInput(attrs={'class': 'fun'}, render_value=True)
         self.assertEqual(w.render('email', ''), u'<input type="password" class="fun" name="email" />')
         self.assertEqual(w.render('email', 'foo@example.com'), u'<input type="password" class="fun" value="foo@example.com" name="email" />')
 
         # 'attrs' passed to render() get precedence over those passed to the constructor:
-        w = PasswordInput(attrs={'class': 'pretty'})
+        w = PasswordInput(attrs={'class': 'pretty'}, render_value=True)
         self.assertEqual(w.render('email', '', attrs={'class': 'special'}), u'<input type="password" class="special" name="email" />')
 
         self.assertEqual(w.render('email', 'ŠĐĆŽćžšđ', attrs={'class': 'fun'}), u'<input type="password" class="fun" value="\u0160\u0110\u0106\u017d\u0107\u017e\u0161\u0111" name="email" />')
-
-        # The render_value argument lets you specify whether the widget should render
-        # its value. You may want to do this for security reasons.
-        w = PasswordInput(render_value=True)
-        self.assertEqual(w.render('email', 'secret'), u'<input type="password" name="email" value="secret" />')
-
-        w = PasswordInput(render_value=False)
-        self.assertEqual(w.render('email', ''), u'<input type="password" name="email" />')
-        self.assertEqual(w.render('email', None), u'<input type="password" name="email" />')
-        self.assertEqual(w.render('email', 'secret'), u'<input type="password" name="email" />')
-
-        w = PasswordInput(attrs={'class': 'fun'}, render_value=False)
-        self.assertEqual(w.render('email', 'secret'), u'<input type="password" class="fun" name="email" />')
 
     def test_hiddeninput(self):
         w = HiddenInput()
@@ -1068,3 +1062,97 @@ class WidgetTests(TestCase):
         form = SplitDateRequiredForm({'field': ['', '']})
         self.assertFalse(form.is_valid())
 
+
+class FakeFieldFile(object):
+    """
+    Quacks like a FieldFile (has a .url and unicode representation), but
+    doesn't require us to care about storages etc.
+
+    """
+    url = 'something'
+
+    def __unicode__(self):
+        return self.url
+
+class ClearableFileInputTests(TestCase):
+    def test_clear_input_renders(self):
+        """
+        A ClearableFileInput with is_required False and rendered with
+        an initial value that is a file renders a clear checkbox.
+
+        """
+        widget = ClearableFileInput()
+        widget.is_required = False
+        self.assertEqual(widget.render('myfile', FakeFieldFile()),
+                         u'Currently: <a href="something">something</a> <input type="checkbox" name="myfile-clear" id="myfile-clear_id" /> <label for="myfile-clear_id">Clear</label><br />Change: <input type="file" name="myfile" />')
+
+    def test_html_escaped(self):
+        """
+        A ClearableFileInput should escape name, filename and URL when
+        rendering HTML. Refs #15182.
+        """
+
+        class StrangeFieldFile(object):
+            url = "something?chapter=1&sect=2&copy=3&lang=en"
+
+            def __unicode__(self):
+                return u'''something<div onclick="alert('oops')">.jpg'''
+
+        widget = ClearableFileInput()
+        field = StrangeFieldFile()
+        output = widget.render('my<div>file', field)
+        self.assertFalse(field.url in output)
+        self.assertTrue(u'href="something?chapter=1&amp;sect=2&amp;copy=3&amp;lang=en"' in output)
+        self.assertFalse(unicode(field) in output)
+        self.assertTrue(u'something&lt;div onclick=&quot;alert(&#39;oops&#39;)&quot;&gt;.jpg' in output)
+        self.assertTrue(u'my&lt;div&gt;file' in output)
+        self.assertFalse(u'my<div>file' in output)
+
+    def test_clear_input_renders_only_if_not_required(self):
+        """
+        A ClearableFileInput with is_required=False does not render a clear
+        checkbox.
+
+        """
+        widget = ClearableFileInput()
+        widget.is_required = True
+        self.assertEqual(widget.render('myfile', FakeFieldFile()),
+                         u'Currently: <a href="something">something</a> <br />Change: <input type="file" name="myfile" />')
+
+    def test_clear_input_renders_only_if_initial(self):
+        """
+        A ClearableFileInput instantiated with no initial value does not render
+        a clear checkbox.
+
+        """
+        widget = ClearableFileInput()
+        widget.is_required = False
+        self.assertEqual(widget.render('myfile', None),
+                         u'<input type="file" name="myfile" />')
+
+    def test_clear_input_checked_returns_false(self):
+        """
+        ClearableFileInput.value_from_datadict returns False if the clear
+        checkbox is checked, if not required.
+
+        """
+        widget = ClearableFileInput()
+        widget.is_required = False
+        self.assertEqual(widget.value_from_datadict(
+                data={'myfile-clear': True},
+                files={},
+                name='myfile'), False)
+
+    def test_clear_input_checked_returns_false_only_if_not_required(self):
+        """
+        ClearableFileInput.value_from_datadict never returns False if the field
+        is required.
+
+        """
+        widget = ClearableFileInput()
+        widget.is_required = True
+        f = SimpleUploadedFile('something.txt', 'content')
+        self.assertEqual(widget.value_from_datadict(
+                data={'myfile-clear': True},
+                files={'myfile': f},
+                name='myfile'), f)

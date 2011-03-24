@@ -1,5 +1,6 @@
 # -*- coding:utf-8 -*-
 import gettext
+from os import path
 
 from django.conf import settings
 from django.test import TestCase
@@ -17,7 +18,7 @@ class I18NTests(TestCase):
             post_data = dict(language=lang_code, next='/views/')
             response = self.client.post('/views/i18n/setlang/', data=post_data)
             self.assertRedirects(response, 'http://testserver/views/')
-            self.assertEquals(self.client.session['django_language'], lang_code)
+            self.assertEqual(self.client.session['django_language'], lang_code)
 
     def test_jsi18n(self):
         """The javascript_catalog can be deployed with language settings"""
@@ -30,6 +31,9 @@ class I18NTests(TestCase):
             # catalog['this is to be translated'] = 'same_that_trans_txt'
             # javascript_quote is used to be able to check unicode strings
             self.assertContains(response, javascript_quote(trans_txt), 1)
+            if lang_code == 'fr':
+                # Message with context (msgctxt)
+                self.assertContains(response, "['month name\x04May'] = 'mai';", 1)
 
 
 class JsI18NTests(TestCase):
@@ -147,3 +151,11 @@ class JsI18NTestsMultiPackage(TestCase):
         response = self.client.get('/views/jsi18n_multi_packages2/')
         self.assertContains(response, javascript_quote('este texto de app3 debe ser traducido'))
         deactivate()
+
+    def testI18NWithLocalePaths(self):
+        settings.LANGUAGE_CODE = 'es-ar'
+        self.old_locale_paths = settings.LOCALE_PATHS
+        settings.LOCALE_PATHS += (path.join(path.dirname(path.dirname(path.abspath(__file__))), 'app3', 'locale'),)
+        response = self.client.get('/views/jsi18n/')
+        self.assertContains(response, javascript_quote('este texto de app3 debe ser traducido'))
+        settings.LOCALE_PATHS = self.old_locale_paths

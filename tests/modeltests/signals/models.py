@@ -11,3 +11,10 @@ class Person(models.Model):
 
     def __unicode__(self):
         return u"%s %s" % (self.first_name, self.last_name)
+
+class Car(models.Model):
+    make = models.CharField(max_length=20)
+    model = models.CharField(max_length=20)
+
+    def __unicode__(self):
+        return u"%s %s" % (self.make, self.model)

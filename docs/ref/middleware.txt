@@ -121,8 +121,6 @@ Reverse proxy middleware
 
 .. class:: SetRemoteAddrFromForwardedFor
 
-.. versionchanged:: 1.1
-
 This middleware was removed in Django 1.1. See :ref:`the release notes
 <removed-setremoteaddrfromforwardedfor-middleware>` for details.
 

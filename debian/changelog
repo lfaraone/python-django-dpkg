@@ -1,3 +1,15 @@
+python-django (1.3-1) unstable; urgency=low
+
+  * New upstream release.
+    - Update 01_disable_url_verify_regression_tests.diff.
+    - Update 07_disable_url_verify_model_tests.diff.
+    - Merge patch from Krzysztof Klimonda to disable more network access tests.
+      (Closes: #598674)
+  * Add workaround for missing "backup~" file in release tarball. See
+    <http://code.djangoproject.com/ticket/15677>.
+
+ -- Chris Lamb <lamby@debian.org>  Thu, 24 Mar 2011 15:04:53 +0000
+
 python-django (1.2.5-1) unstable; urgency=low
 
   * New upstream release.

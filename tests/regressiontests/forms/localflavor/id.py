@@ -1,3 +1,5 @@
+import warnings
+
 from django.contrib.localflavor.id.forms import (IDPhoneNumberField,
     IDPostCodeField, IDNationalIdentityNumberField, IDLicensePlateField,
     IDProvinceSelect, IDLicensePlatePrefixSelect)
@@ -6,9 +8,21 @@ from utils import LocalFlavorTestCase
 
 
 class IDLocalFlavorTests(LocalFlavorTestCase):
+    def setUp(self):
+        self.save_warnings_state()
+        warnings.filterwarnings(
+            "ignore",
+            category=RuntimeWarning,
+            module='django.contrib.localflavor.id.id_choices'
+        )
+
+    def tearDown(self):
+        self.restore_warnings_state()
+
     def test_IDProvinceSelect(self):
         f = IDProvinceSelect()
         out = u'''<select name="provinces">
+<option value="ACE">Aceh</option>
 <option value="BLI">Bali</option>
 <option value="BTN">Banten</option>
 <option value="BKL">Bengkulu</option>
@@ -28,7 +42,6 @@ class IDLocalFlavorTests(LocalFlavorTestCase):
 <option value="LPG" selected="selected">Lampung</option>
 <option value="MLK">Maluku</option>
 <option value="MUT">Maluku Utara</option>
-<option value="NAD">Nanggroe Aceh Darussalam</option>
 <option value="NTB">Nusa Tenggara Barat</option>
 <option value="NTT">Nusa Tenggara Timur</option>
 <option value="PPA">Papua</option>

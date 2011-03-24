@@ -21,6 +21,7 @@ DJANGO_DIR = $(PREFIX)/$(call py_libdir_sh,`pyversions -d`)/django
 
 override_dh_auto_clean:
 	rm -rf docs.debian tests/__init__.py
+	rm -f tests/regressiontests/staticfiles_tests/apps/test/static/test/backup~
 	find -name "*.DS_Store" -delete
 	dh_auto_clean
 
@@ -37,6 +38,8 @@ override_dh_auto_build:
 
 override_dh_auto_test:
 	touch tests/__init__.py
+	echo 'should be ignored' > \
+		tests/regressiontests/staticfiles_tests/apps/test/static/test/backup~
 	LC_ALL=en_US.utf8 PYTHONPATH=. tests/runtests.py --settings=tests.test_sqlite --verbosity=2
 
 override_dh_install:

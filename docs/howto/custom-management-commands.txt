@@ -58,7 +58,14 @@ look like this:
                 poll.opened = False
                 poll.save()
 
-                print 'Successfully closed poll "%s"' % poll_id
+                self.stdout.write('Successfully closed poll "%s"\n' % poll_id)
+
+.. note::
+    When you are using management commands and wish to provide console
+    output, you should write to ``self.stdout`` and ``self.stderr``,
+    instead of printing to ``stdout`` and ``stderr`` directly. By
+    using these proxies, it becomes much easier to test your custom
+    command.
 
 The new custom command can be called using ``python manage.py closepoll
 <poll_id>``.
@@ -95,8 +102,8 @@ default options such as :djadminopt:`--verbosity` and :djadminopt:`--traceback`.
 
     The :meth:`BaseCommand.execute` method sets the hardcoded ``en-us`` locale
     because the commands shipped with Django perform several tasks
-    (for example, user-visible content and database population) that require
-    a system-neutral string language (for which we use ``en-us``).
+    (for example, user-facing content rendering and database population) that
+    require a system-neutral string language (for which we use ``en-us``).
 
     If your custom management command uses another locale, you should manually
     activate and deactivate it in your :meth:`~BaseCommand.handle` or

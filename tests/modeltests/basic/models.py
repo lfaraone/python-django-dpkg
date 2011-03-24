@@ -4,7 +4,7 @@
 
 This is a basic model with only two non-primary-key fields.
 """
-from django.db import models, DEFAULT_DB_ALIAS
+from django.db import models, DEFAULT_DB_ALIAS, connection
 
 class Article(models.Model):
     headline = models.CharField(max_length=100, default='Default headline')

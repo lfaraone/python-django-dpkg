@@ -1,7 +1,8 @@
 from django.db.models import signals
+from django.dispatch import receiver
 from django.test import TestCase
 
-from models import Person
+from models import Person, Car
 
 
 # #8285: signals can be any callable
@@ -57,11 +58,21 @@ class SignalTests(TestCase):
         post_delete_test = PostDeleteHandler(data)
         signals.post_delete.connect(post_delete_test)
 
+        # throw a decorator syntax receiver into the mix
+        @receiver(signals.pre_save)
+        def pre_save_decorator_test(signal, sender, instance, **kwargs):
+            data.append(instance)
+
+        @receiver(signals.pre_save, sender=Car)
+        def pre_save_decorator_sender_test(signal, sender, instance, **kwargs):
+            data.append(instance)
+
         p1 = Person(first_name="John", last_name="Smith")
         self.assertEqual(data, [])
         p1.save()
         self.assertEqual(data, [
             (p1, False),
+            p1,
             (p1, True, False),
         ])
         data[:] = []
@@ -70,7 +81,19 @@ class SignalTests(TestCase):
         p1.save()
         self.assertEqual(data, [
             (p1, False),
+            p1,
             (p1, False, False),
+        ])
+        data[:] = []
+
+        # Car signal (sender defined)
+        c1 = Car(make="Volkswagon", model="Passat")
+        c1.save()
+        self.assertEqual(data, [
+            (c1, False),
+            c1,
+            c1,
+            (c1, True, False),
         ])
         data[:] = []
 
@@ -78,6 +101,7 @@ class SignalTests(TestCase):
         p1.save_base(raw=True)
         self.assertEqual(data, [
             (p1, True),
+            p1,
             (p1, False, True),
         ])
         data[:] = []
@@ -94,6 +118,7 @@ class SignalTests(TestCase):
         p2.save()
         self.assertEqual(data, [
             (p2, False),
+            p2,
             (p2, True, False),
         ])
         data[:] = []
@@ -102,6 +127,7 @@ class SignalTests(TestCase):
         p2.save()
         self.assertEqual(data, [
             (p2, False),
+            p2,
             (p2, True, False),
         ])
         data[:] = []
@@ -123,6 +149,8 @@ class SignalTests(TestCase):
         signals.pre_delete.disconnect(pre_delete_test)
         signals.post_save.disconnect(post_save_test)
         signals.pre_save.disconnect(pre_save_test)
+        signals.pre_save.disconnect(pre_save_decorator_test)
+        signals.pre_save.disconnect(pre_save_decorator_sender_test, sender=Car)
 
         # Check that all our signals got disconnected properly.
         post_signals = (

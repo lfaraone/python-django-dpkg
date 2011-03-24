@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-from unittest import TestCase
 from django.core.exceptions import ValidationError
 from django.forms.util import *
 from django.utils.translation import ugettext_lazy
+from django.utils.unittest import TestCase
 
 
 class FormsUtilTestCase(TestCase):

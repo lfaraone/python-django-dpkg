@@ -89,8 +89,6 @@ Django quotes column and table names behind the scenes.
 
 .. attribute:: Options.managed
 
-    .. versionadded:: 1.1
-
     Defaults to ``True``, meaning Django will create the appropriate database
     tables in :djadmin:`syncdb` and remove them as part of a :djadmin:`reset`
     management command. That is, Django *manages* the database tables' lifecycles.
@@ -217,8 +215,6 @@ Django quotes column and table names behind the scenes.
 ---------
 
 .. attribute:: Options.proxy
-
-    .. versionadded:: 1.1
 
     If ``proxy = True``, a model which subclasses another model will be treated as
     a :ref:`proxy model <proxy-models>`.

@@ -1,14 +1,13 @@
 # -*- coding: utf-8 -*-
 from datetime import datetime
 from StringIO import StringIO
-import unittest
 from xml.dom import minidom
 
 from django.conf import settings
 from django.core import serializers
 from django.db import transaction
 from django.test import TestCase, TransactionTestCase, Approximate
-from django.utils import simplejson
+from django.utils import simplejson, unittest
 
 from models import Category, Author, Article, AuthorProfile, Actor, \
                                     Movie, Score, Player, Team
@@ -35,9 +34,9 @@ class SerializerRegistrationTests(unittest.TestCase):
         serializers.register_serializer('json3', 'django.core.serializers.json')
 
         public_formats = serializers.get_public_serializer_formats()
-        self.assertTrue('json3' in public_formats)
-        self.assertTrue('json2' in public_formats)
-        self.assertTrue('xml' in public_formats)
+        self.assertIn('json3', public_formats)
+        self.assertIn('json2', public_formats)
+        self.assertIn('xml', public_formats)
 
     def test_unregister(self):
         "Unregistering a serializer doesn't cause the registry to be repopulated. Refs #14823"
@@ -46,22 +45,22 @@ class SerializerRegistrationTests(unittest.TestCase):
 
         public_formats = serializers.get_public_serializer_formats()
 
-        self.assertFalse('xml' in public_formats)
-        self.assertTrue('json3' in public_formats)
+        self.assertNotIn('xml', public_formats)
+        self.assertIn('json3', public_formats)
 
     def test_builtin_serializers(self):
         "Requesting a list of serializer formats popuates the registry"
         all_formats = set(serializers.get_serializer_formats())
         public_formats = set(serializers.get_public_serializer_formats())
 
-        self.assertTrue('xml' in all_formats),
-        self.assertTrue('xml' in public_formats)
+        self.assertIn('xml', all_formats),
+        self.assertIn('xml', public_formats)
 
-        self.assertTrue('json2' in all_formats)
-        self.assertTrue('json2' in public_formats)
+        self.assertIn('json2', all_formats)
+        self.assertIn('json2', public_formats)
 
-        self.assertTrue('python' in all_formats)
-        self.assertFalse('python' in public_formats)
+        self.assertIn('python', all_formats)
+        self.assertNotIn('python', public_formats)
 
 class SerializersTestBase(object):
     @staticmethod
@@ -226,7 +225,7 @@ class SerializersTestBase(object):
 
         serial_str = serializers.serialize(self.serializer_name, [a])
         date_values = self._get_field_values(serial_str, "pub_date")
-        self.assertEquals(date_values[0], "0001-02-03 04:05:06")
+        self.assertEqual(date_values[0], "0001-02-03 04:05:06")
 
     def test_pkless_serialized_strings(self):
         """

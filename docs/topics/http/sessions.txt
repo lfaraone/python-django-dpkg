@@ -48,9 +48,6 @@ Using cached sessions
 
 For better performance, you may want to use a cache-based session backend.
 
-.. versionchanged:: 1.1
-   Django 1.0 did not include the ``cached_db`` session backend.
-
 To store session data using Django's cache system, you'll first need to make
 sure you've configured your cache; see the :doc:`cache documentation
 </topics/cache>` for details.
@@ -405,9 +402,6 @@ A few :doc:`Django settings </ref/settings>` give you control over session behav
 SESSION_ENGINE
 --------------
 
-.. versionchanged:: 1.1
-   The ``cached_db`` backend was added
-
 Default: ``django.contrib.sessions.backends.db``
 
 Controls where Django stores session data. Valid values are:
@@ -442,6 +436,23 @@ Default: ``None``
 The domain to use for session cookies. Set this to a string such as
 ``".lawrence.com"`` (note the leading dot!) for cross-domain cookies, or use
 ``None`` for a standard domain cookie.
+
+SESSION_COOKIE_HTTPONLY
+-----------------------
+
+Default: ``False``
+
+Whether to use HTTPOnly flag on the session cookie. If this is set to
+``True``, client-side JavaScript will not to be able to access the
+session cookie.
+
+HTTPOnly_ is a flag included in a Set-Cookie HTTP response header. It
+is not part of the RFC2109 standard for cookies, and it isn't honored
+consistently by all browsers. However, when it is honored, it can be a
+useful way to mitigate the risk of client side script accessing the
+protected cookie data.
+
+.. _HTTPOnly: http://www.owasp.org/index.php/HTTPOnly
 
 SESSION_COOKIE_NAME
 -------------------

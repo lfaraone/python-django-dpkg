@@ -2,10 +2,10 @@ import copy
 import os
 import sys
 import time
-from unittest import TestCase
 
 from django.conf import Settings
 from django.db.models.loading import cache, load_app
+from django.utils.unittest import TestCase
 
 
 class InstalledAppsGlobbingTest(TestCase):
@@ -16,7 +16,7 @@ class InstalledAppsGlobbingTest(TestCase):
 
     def test_globbing(self):
         settings = Settings('test_settings')
-        self.assertEquals(settings.INSTALLED_APPS, ['parent.app', 'parent.app1', 'parent.app_2'])
+        self.assertEqual(settings.INSTALLED_APPS, ['parent.app', 'parent.app1', 'parent.app_2'])
 
     def tearDown(self):
         sys.path = self.OLD_SYS_PATH

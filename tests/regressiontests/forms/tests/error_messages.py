@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-import unittest
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.forms import *
 from django.test import TestCase
 from django.utils.safestring import mark_safe
+from django.utils import unittest
 
 class AssertFormErrorsMixin(object):
     def assertFormErrors(self, expected, the_callable, *args, **kwargs):

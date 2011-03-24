@@ -1,7 +1,5 @@
 from datetime import date
 
-from django.conf import settings
-from django.db import connection
 from django.db.models.sql.query import InvalidQuery
 from django.test import TestCase
 
@@ -32,10 +30,10 @@ class RawQueryTests(TestCase):
 
             for field in model._meta.fields:
                 # Check that all values on the model are equal
-                self.assertEquals(getattr(item,field.attname),
+                self.assertEqual(getattr(item,field.attname),
                                   getattr(orig_item,field.attname))
                 # This includes checking that they are the same type
-                self.assertEquals(type(getattr(item,field.attname)),
+                self.assertEqual(type(getattr(item,field.attname)),
                                   type(getattr(orig_item,field.attname)))
 
     def assertNoAnnotations(self, results):
@@ -55,16 +53,6 @@ class RawQueryTests(TestCase):
                 self.assertTrue(hasattr(result, annotation))
                 self.assertEqual(getattr(result, annotation), value)
 
-    def assert_num_queries(self, n, func, *args, **kwargs):
-        old_DEBUG = settings.DEBUG
-        settings.DEBUG = True
-        starting_queries = len(connection.queries)
-        try:
-            func(*args, **kwargs)
-        finally:
-            settings.DEBUG = old_DEBUG
-        self.assertEqual(starting_queries + n, len(connection.queries))
-
     def testSimpleRawQuery(self):
         """
         Basic test of raw query with a simple database query
@@ -79,9 +67,9 @@ class RawQueryTests(TestCase):
         iterated over.
         """
         q = Author.objects.raw('SELECT * FROM raw_query_author')
-        self.assert_(q.query.cursor is None)
+        self.assertTrue(q.query.cursor is None)
         list(q)
-        self.assert_(q.query.cursor is not None)
+        self.assertTrue(q.query.cursor is not None)
 
     def testFkeyRawQuery(self):
         """
@@ -181,10 +169,6 @@ class RawQueryTests(TestCase):
         authors = Author.objects.all()
         self.assertSuccessfulRawQuery(Author, query, authors, expected_annotations)
 
-    def testInvalidQuery(self):
-        query = "UPDATE raw_query_author SET first_name='thing' WHERE first_name='Joe'"
-        self.assertRaises(InvalidQuery, Author.objects.raw, query)
-
     def testWhiteSpaceQuery(self):
         query = "    SELECT * FROM raw_query_author"
         authors = Author.objects.all()
@@ -216,7 +200,7 @@ class RawQueryTests(TestCase):
         self.assertEqual(third_author.first_name, 'Bob')
 
         first_two = Author.objects.raw(query)[0:2]
-        self.assertEquals(len(first_two), 2)
+        self.assertEqual(len(first_two), 2)
 
         self.assertRaises(TypeError, lambda: Author.objects.raw(query)['test'])
 
@@ -231,6 +215,6 @@ class RawQueryTests(TestCase):
         )
 
     def test_query_count(self):
-        self.assert_num_queries(1,
+        self.assertNumQueries(1,
             list, Author.objects.raw("SELECT * FROM raw_query_author")
         )

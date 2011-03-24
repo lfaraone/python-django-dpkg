@@ -36,6 +36,7 @@ models, which comprise a Weblog application:
         headline = models.CharField(max_length=255)
         body_text = models.TextField()
         pub_date = models.DateTimeField()
+        mod_date = models.DateTimeField()
         authors = models.ManyToManyField(Author)
         n_comments = models.IntegerField()
         n_pingbacks = models.IntegerField()
@@ -529,8 +530,6 @@ filtering on different linked objects.
 Filters can reference fields on the model
 -----------------------------------------
 
-.. versionadded:: 1.1
-
 In the examples given so far, we have constructed filters that compare
 the value of a model field with a constant. But what if you want to compare
 the value of a model field with another field on the same model?
@@ -564,9 +563,18 @@ You can also use the double underscore notation to span relationships in
 an ``F()`` object. An ``F()`` object with a double underscore will introduce
 any joins needed to access the related object. For example, to retrieve all
 the entries where the author's name is the same as the blog name, we could
-issue the query:
+issue the query::
 
     >>> Entry.objects.filter(authors__name=F('blog__name'))
+
+.. versionadded:: 1.3
+
+For date and date/time fields, you can add or subtract a ``datetime.timedelta``
+object.  The following would return all entries that were modified more than 3 days
+after they were published::
+   
+    >>> from datetime import timedelta
+    >>> Entry.objects.filter(mod_date__gt=F('pub_date') + timedelta(days=3))
 
 The pk lookup shortcut
 ----------------------
@@ -671,6 +679,7 @@ collection of keyword arguments. These keyword arguments are specified as in
 
 For example, this ``Q`` object encapsulates a single ``LIKE`` query::
 
+    from django.db.models import Q
     Q(question__startswith='What')
 
 ``Q`` objects can be combined using the ``&`` and ``|`` operators. When an
@@ -779,14 +788,19 @@ model (e.g., by iterating over a ``QuerySet`` and calling ``delete()``
 on each object individually) rather than using the bulk ``delete()``
 method of a ``QuerySet``.
 
-When Django deletes an object, it emulates the behavior of the SQL
-constraint ``ON DELETE CASCADE`` -- in other words, any objects which
-had foreign keys pointing at the object to be deleted will be deleted
-along with it. For example::
+When Django deletes an object, by default it emulates the behavior of the SQL
+constraint ``ON DELETE CASCADE`` -- in other words, any objects which had
+foreign keys pointing at the object to be deleted will be deleted along with
+it. For example::
 
     b = Blog.objects.get(pk=1)
     # This will delete the Blog and all of its Entry objects.
     b.delete()
+
+.. versionadded:: 1.3
+    This cascade behavior is customizable via the
+    :attr:`~django.db.models.ForeignKey.on_delete` argument to the
+    :class:`~django.db.models.ForeignKey`.
 
 Note that ``delete()`` is the only ``QuerySet`` method that is not exposed on a
 ``Manager`` itself. This is a safety mechanism to prevent you from accidentally
@@ -839,8 +853,6 @@ Just loop over them and call ``save()``::
     for item in my_queryset:
         item.save()
 
-.. versionadded:: 1.1
-
 Calls to update can also use :ref:`F() objects <query-expressions>` to update
 one field based on the value of another field in the model. This is especially
 useful for incrementing counters based upon their current value. For example, to
@@ -855,6 +867,8 @@ a join with an ``F()`` object, a ``FieldError`` will be raised::
 
     # THIS WILL RAISE A FieldError
     >>> Entry.objects.update(headline=F('blog__name'))
+
+.. _topics-db-queries-related:
 
 Related objects
 ===============

@@ -1,21 +1,21 @@
 # encoding: utf-8
 
 from datetime import datetime
-from unittest import TestCase
 
 from django import forms
 from django.conf import settings
 from django.contrib import admin
 from django.contrib.admin import widgets
-from django.contrib.admin.widgets import FilteredSelectMultiple, AdminSplitDateTime
-from django.contrib.admin.widgets import (AdminFileWidget, ForeignKeyRawIdWidget,
-    ManyToManyRawIdWidget)
+from django.contrib.admin.widgets import (FilteredSelectMultiple,
+    AdminSplitDateTime, AdminFileWidget, ForeignKeyRawIdWidget, AdminRadioSelect,
+    RelatedFieldWidgetWrapper, ManyToManyRawIdWidget)
 from django.core.files.storage import default_storage
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db.models import DateField
 from django.test import TestCase as DjangoTestCase
 from django.utils.html import conditional_escape
 from django.utils.translation import activate, deactivate
+from django.utils.unittest import TestCase
 
 import models
 
@@ -31,7 +31,8 @@ class AdminFormfieldForDBFieldTests(TestCase):
         and verify that the returned formfield is appropriate.
         """
         # Override any settings on the model admin
-        class MyModelAdmin(admin.ModelAdmin): pass
+        class MyModelAdmin(admin.ModelAdmin):
+            pass
         for k in admin_overrides:
             setattr(MyModelAdmin, k, admin_overrides[k])
 
@@ -46,7 +47,7 @@ class AdminFormfieldForDBFieldTests(TestCase):
             widget = ff.widget
 
         # Check that we got a field of the right type
-        self.assert_(
+        self.assertTrue(
             isinstance(widget, widgetclass),
             "Wrong widget for %s.%s: expected %s, got %s" % \
                 (model.__class__.__name__, fieldname, widgetclass, type(widget))
@@ -126,8 +127,8 @@ class AdminFormfieldForDBFieldWithRequestTests(DjangoTestCase):
         """
         self.client.login(username="super", password="secret")
         response = self.client.get("/widget_admin/admin_widgets/cartire/add/")
-        self.assert_("BMW M3" not in response.content)
-        self.assert_("Volkswagon Passat" in response.content)
+        self.assertTrue("BMW M3" not in response.content)
+        self.assertTrue("Volkswagon Passat" in response.content)
 
 
 class AdminForeignKeyWidgetChangeList(DjangoTestCase):
@@ -231,29 +232,13 @@ class AdminFileWidgetTest(DjangoTestCase):
         w = AdminFileWidget()
         self.assertEqual(
             conditional_escape(w.render('test', album.cover_art)),
-            'Currently: <a target="_blank" href="%(STORAGE_URL)salbums/hybrid_theory.jpg">albums\hybrid_theory.jpg</a> <br />Change: <input type="file" name="test" />' % {'STORAGE_URL': default_storage.url('')},
+            '<p class="file-upload">Currently: <a href="%(STORAGE_URL)salbums/hybrid_theory.jpg">albums\hybrid_theory.jpg</a> <span class="clearable-file-input"><input type="checkbox" name="test-clear" id="test-clear_id" /> <label for="test-clear_id">Clear</label></span><br />Change: <input type="file" name="test" /></p>' % { 'STORAGE_URL': default_storage.url('') },
         )
 
         self.assertEqual(
             conditional_escape(w.render('test', SimpleUploadedFile('test', 'content'))),
             '<input type="file" name="test" />',
         )
-
-    def test_render_escapes_html(self):
-        class StrangeFieldFile(object):
-            url = "something?chapter=1&sect=2&copy=3&lang=en"
-
-            def __unicode__(self):
-                return u'''something<div onclick="alert('oops')">.jpg'''
-
-        widget = AdminFileWidget()
-        field = StrangeFieldFile()
-        output = widget.render('myfile', field)
-        self.assertFalse(field.url in output)
-        self.assertTrue(u'href="something?chapter=1&amp;sect=2&amp;copy=3&amp;lang=en"' in output)
-        self.assertFalse(unicode(field) in output)
-        self.assertTrue(u'something&lt;div onclick=&quot;alert(&#39;oops&#39;)&quot;&gt;.jpg' in output)
-
 
 
 class ForeignKeyRawIdWidgetTest(DjangoTestCase):
@@ -332,3 +317,11 @@ class ManyToManyRawIdWidgetTest(DjangoTestCase):
         self.assertEqual(w._has_changed([1, 2], [u'1', u'2']), False)
         self.assertEqual(w._has_changed([1, 2], [u'1']), True)
         self.assertEqual(w._has_changed([1, 2], [u'1', u'3']), True)
+
+class RelatedFieldWidgetWrapperTests(DjangoTestCase):
+    def test_no_can_add_related(self):
+        rel = models.Inventory._meta.get_field('parent').rel
+        w = AdminRadioSelect()
+        # Used to fail with a name error.
+        w = RelatedFieldWidgetWrapper(w, rel, admin.site)
+        self.assertFalse(w.can_add_related)
