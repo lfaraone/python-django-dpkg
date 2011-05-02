@@ -3,7 +3,7 @@ Section: python
 Priority: optional
 Maintainer: Chris Lamb <lamby@debian.org>
 Uploaders: Debian Python Modules Team <python-modules-team@lists.alioth.debian.org>, Raphaël Hertzog <hertzog@debian.org>
-Standards-Version: 3.9.1
+Standards-Version: 3.9.2
 Build-Depends: debhelper (>= 7.0.50), python-support, python (>= 2.5) | python-sqlite, locales-all | language-pack-en-base
 Build-Depends-Indep: python-sphinx, libjs-jquery
 Homepage: http://www.djangoproject.com/

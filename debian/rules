@@ -10,18 +10,12 @@ endif
 
 
 PREFIX = debian/python-django
-DJANGO_DIR = $(PREFIX)/$(call py_libdir_sh,`pyversions -d`)/django
-
-# FIXME: if the build is run while non-default python version are
-# available, the build process will install files in
-# /usr/lib/pyshared/pythonX.Y while we don't need them
 
 %:
 	dh $@
 
 override_dh_auto_clean:
 	rm -rf docs.debian tests/__init__.py
-	rm -f tests/regressiontests/staticfiles_tests/apps/test/static/test/backup~
 	find -name "*.DS_Store" -delete
 	dh_auto_clean
 
@@ -38,21 +32,30 @@ override_dh_auto_build:
 
 override_dh_auto_test:
 	touch tests/__init__.py
-	echo 'should be ignored' > \
-		tests/regressiontests/staticfiles_tests/apps/test/static/test/backup~
 	LC_ALL=en_US.utf8 PYTHONPATH=. tests/runtests.py --settings=tests.test_sqlite --verbosity=2
+
+override_dh_clean:
+	# backup~ is used in tests
+	dh_clean -Xbackup~
 
 override_dh_install:
 	dh_install
 	
-	# Use default shebang
-	perl -pi -e 's|^#!/usr/bin/env python.*|#!/usr/bin/python|' $(DJANGO_DIR)/conf/project_template/manage.py
-	chmod +x $(DJANGO_DIR)/conf/project_template/manage.py
-	
-	# Move scripts to /usr/lib/python-django
-	mkdir -p $(PREFIX)/usr/lib/python-django
-	mv $(DJANGO_DIR)/bin $(PREFIX)/usr/lib/python-django
-	
+	# Use default shebang and m move scripts to /usr/lib/python-django
+	set -e; for ver in $(shell pyversions -vr); do \
+		[ -f /usr/bix/python$$ver ] || continue;\
+		FILE=$(PREFIX)/$(call py_libdir_sh,$$ver)/django/conf/project_template/manage.py; \
+		if [ -f $$FILE ]; then\
+			perl -pi -e 's|^#!/usr/bin/env python.*|#!/usr/bin/python|' $$FILE;\
+			chmod +x $$FILE;\
+		fi;\
+		if [ -d $(PREFIX)/usr/lib/python-django ]; then\
+			rm -rf $(PREFIX)/$(call py_libdir_sh,$$ver)/django/bin;\
+		else\
+			mkdir -p $(PREFIX)/usr/lib/python-django;\
+			mv $(PREFIX)/$(call py_libdir_sh,$$ver)/django/bin $(PREFIX)/usr/lib/python-django;\
+		fi;\
+	done
 	# Fix permissions
 	chmod 644 $(PREFIX)/etc/bash_completion.d/django_bash_completion
 	find $(PREFIX)/usr/lib/python-django/bin/ -name '*.py' -not -name '__init__.py' -print0 | xargs -0r chmod 755
@@ -61,7 +64,7 @@ override_dh_install:
 	mv $(PREFIX)/usr/bin/django-admin.py $(PREFIX)/usr/bin/django-admin
 	
 	# Remove embedded Javascript libraries
-	for FILENAME in jquery.js jquery.min.js; do \
+	set -e; for FILENAME in jquery.js jquery.min.js; do \
 		find $(PREFIX) -name $$FILENAME -exec \
 			ln -sf /usr/share/javascript/jquery/$$FILENAME {} \;; \
 	done
