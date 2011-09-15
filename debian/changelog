@@ -1,3 +1,29 @@
+python-django (1.3.1-1) unstable; urgency=low
+
+  * New upstream release. It includes security updates described here:
+    https://www.djangoproject.com/weblog/2011/sep/09/security-releases-issued/
+    Closes: #641405
+  * Update 01_disable_url_verify_regression_tests.diff and merge
+    07_disable_url_verify_model_tests.diff into it.
+  * Update patch headers to conform to DEP-3.
+  * Apply patch from Steve Langasek to dynamically build the UTF-8
+    locale required by the test-suite instead of build-depending on
+    locales-all. Closes: #630421
+  * Use "dh --with sphinxdoc" to clean up the Sphinx generated documentation
+    and avoid the embedded-javascript-library lintian warning. Build-Depends
+    on python-sphinx >= 1.0.7+dfsg-1 for this and also add
+    ${sphinxdoc:Depends} to python-django-doc Depends field.
+  * Cleanup build-dependencies now that even oldstable has python 2.5.
+  * Switch to dh_python2 as python helper tool. Drop legacy files
+    debian/pyversions and debian/pycompat.
+  * New patch 02_disable-sources-in-sphinxdoc.diff to not generate
+    the _sources directory that we used to remove manually within the rules
+    file. But must be kept disabled until #641710 is fixed.
+  * Properly support DEB_BUILD_OPTIONS=nocheck despite the override
+    of dh_auto_test.
+
+ -- Raphaël Hertzog <hertzog@debian.org>  Thu, 15 Sep 2011 12:43:51 +0200
+
 python-django (1.3-2) unstable; urgency=low
 
   * Team upload.

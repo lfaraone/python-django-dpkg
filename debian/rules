@@ -12,11 +12,12 @@ endif
 PREFIX = debian/python-django
 
 %:
-	dh $@
+	dh $@ --with sphinxdoc,python2
 
 override_dh_auto_clean:
 	rm -rf docs.debian tests/__init__.py
 	find -name "*.DS_Store" -delete
+	chmod a-x django/contrib/gis/tests/data/texas.dbf
 	dh_auto_clean
 
 override_dh_auto_build:
@@ -28,11 +29,15 @@ override_dh_auto_build:
 	cp -r docs docs.debian
 	find docs.debian -type f -print0 | xargs -0r perl -pi -e 's|(?<!/)(django-admin)\.py|$$1|'
 	make -C docs.debian html
-	rm -rf docs.debian/_build/html/_sources/
 
 override_dh_auto_test:
+ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
 	touch tests/__init__.py
-	LC_ALL=en_US.utf8 PYTHONPATH=. tests/runtests.py --settings=tests.test_sqlite --verbosity=2
+	mkdir -p tmp-locales
+	localedef -i /usr/share/i18n/locales/en_US -c -f UTF-8 -A /usr/share/locale/locale.alias tmp-locales/en_US.UTF-8
+	LOCPATH=$(CURDIR)/tmp-locales LC_ALL=en_US.UTF-8 PYTHONPATH=. tests/runtests.py --settings=tests.test_sqlite --verbosity=2
+	rm -rf tmp-locales
+endif
 
 override_dh_clean:
 	# backup~ is used in tests
@@ -68,13 +73,6 @@ override_dh_install:
 		find $(PREFIX) -name $$FILENAME -exec \
 			ln -sf /usr/share/javascript/jquery/$$FILENAME {} \;; \
 	done
-
-override_dh_installdocs:
-	dh_installdocs
-	# Remove embedded copy of libjs-jquery
-	cd debian/python-django-doc/usr/share/doc/python-django-doc/html/_static \
-		&& rm jquery.js \
-		&& ln -s ../../../../javascript/jquery/jquery.js .
 
 override_dh_compress:
 	dh_compress -X.js -Xobjects.inv

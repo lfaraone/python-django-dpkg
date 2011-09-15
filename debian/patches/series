@@ -1,4 +1,5 @@
 01_disable_url_verify_regression_tests.diff
+# Disabled until 641710 is fixed
+# 02_disable-sources-in-sphinxdoc.diff
 03_manpage.diff
 04_hyphen-manpage.diff
-07_disable_url_verify_model_tests.diff

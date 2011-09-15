@@ -4,8 +4,8 @@ Priority: optional
 Maintainer: Chris Lamb <lamby@debian.org>
 Uploaders: Debian Python Modules Team <python-modules-team@lists.alioth.debian.org>, Raphaël Hertzog <hertzog@debian.org>
 Standards-Version: 3.9.2
-Build-Depends: debhelper (>= 7.0.50), python-support, python (>= 2.5) | python-sqlite, locales-all | language-pack-en-base
-Build-Depends-Indep: python-sphinx, libjs-jquery
+Build-Depends: debhelper (>= 7.0.50), python (>= 2.6.6-3~), python-sphinx (>= 1.0.7+dfsg), locales
+Build-Depends-Indep: libjs-jquery
 Homepage: http://www.djangoproject.com/
 Vcs-Svn: svn://svn.debian.org/python-modules/packages/python-django/trunk/
 Vcs-Browser: http://svn.debian.org/viewsvn/python-modules/packages/python-django/trunk/
@@ -40,8 +40,7 @@ Description: High-level Python web development framework
 Package: python-django-doc
 Section: doc
 Architecture: all
-Depends: ${misc:Depends}
-Recommends: libjs-jquery
+Depends: ${misc:Depends}, ${sphinxdoc:Depends}
 Description: High-level Python web development framework (documentation)
  Django is a high-level web application framework that loosely follows the
  model-view-controller design pattern.
