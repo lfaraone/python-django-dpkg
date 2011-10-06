@@ -1,0 +1,45 @@
+Description: Fix directory-traversal vulnerability on Windows
+Origin: upstream, http://code.djangoproject.com/changeset/15468
+Bug: http://www.djangoproject.com/weblog/2011/feb/08/security/
+
+Index: Django/django/contrib/sessions/tests.py
+===================================================================
+--- Django/django/contrib/sessions/tests.py	(revision 9934)
++++ Django/django/contrib/sessions/tests.py	(revision 15468)
+@@ -130,4 +130,15 @@
+ >>> file_session.save()
+ 
++# Ensure we don't allow directory traversal
++>>> FileSession("a/b/c").load()
++Traceback (innermost last):
++    ...
++SuspiciousOperation: Invalid characters in session key
++
++>>> FileSession("a\\b\\c").load()
++Traceback (innermost last):
++    ...
++SuspiciousOperation: Invalid characters in session key
++
+ # Make sure the file backend checks for a good storage dir
+ >>> settings.SESSION_FILE_PATH = "/if/this/directory/exists/you/have/a/weird/computer"
+Index: Django/django/contrib/sessions/backends/file.py
+===================================================================
+--- Django/django/contrib/sessions/backends/file.py	(revision 8812)
++++ Django/django/contrib/sessions/backends/file.py	(revision 15468)
+@@ -27,4 +27,6 @@
+         super(SessionStore, self).__init__(session_key)
+ 
++    VALID_KEY_CHARS = set("abcdef0123456789")
++
+     def _key_to_file(self, session_key=None):
+         """
+@@ -37,7 +39,7 @@
+         # should always be md5s, so they should never contain directory
+         # components.
+-        if os.path.sep in session_key:
++        if not set(session_key).issubset(self.VALID_KEY_CHARS):
+             raise SuspiciousOperation(
+-                "Invalid characters (directory components) in session key")
++                "Invalid characters in session key")
+ 
+         return os.path.join(self.storage_path, self.file_prefix + session_key)

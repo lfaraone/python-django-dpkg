@@ -6,6 +6,9 @@
 07_disable_url_verify_model_tests.diff
 08_fix_info_leakage.diff
 09_fix_dos_password_reset.diff
-10_csrf-Django-1.2.diff
-11_filename-escaping-Django-1.2.diff
-12_session-file-storage-Django-1.2-and-1.1.diff
+10_fix_csrf_ajax.diff
+11_fix_admin_file_widget.diff
+12_fix_file_session_backend.diff
+13_fix_safety_issue_with_session_data.diff
+14_fix_dos_with_urlfield.diff
+15_fix_spoofing_issue_with_x_forwarded_host.diff

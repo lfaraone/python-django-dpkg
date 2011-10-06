@@ -1,7 +1,10 @@
-diff -r f09ea5fc806e django/middleware/csrf.py
---- a/django/middleware/csrf.py	Fri Jan 28 15:48:35 2011 +0000
-+++ b/django/middleware/csrf.py	Fri Jan 28 16:08:45 2011 +0000
-@@ -85,6 +85,7 @@
+Description: Fix flaw in CSRF handling
+Origin: backport, http://code.djangoproject.com/changeset/15465
+Bug: http://www.djangoproject.com/weblog/2011/feb/08/security/
+
+--- a/django/middleware/csrf.py
++++ b/django/middleware/csrf.py
+@@ -85,6 +85,7 @@ class CsrfViewMiddleware(object):
      tag.
      """
      def process_view(self, request, callback, callback_args, callback_kwargs):
@@ -9,7 +12,7 @@ diff -r f09ea5fc806e django/middleware/csrf.py
          if getattr(request, 'csrf_processing_done', False):
              return None
  
-@@ -126,31 +127,6 @@
+@@ -126,31 +127,6 @@ class CsrfViewMiddleware(object):
                  # any branches that call reject()
                  return accept()
  
@@ -41,7 +44,7 @@ diff -r f09ea5fc806e django/middleware/csrf.py
              if request.is_secure():
                  # Strict referer checking for HTTPS
                  referer = request.META.get('HTTP_REFERER')
-@@ -181,7 +157,11 @@
+@@ -181,7 +157,11 @@ class CsrfViewMiddleware(object):
                  csrf_token = request.META["CSRF_COOKIE"]
  
              # check incoming token
@@ -54,10 +57,27 @@ diff -r f09ea5fc806e django/middleware/csrf.py
              if request_csrf_token != csrf_token:
                  if cookie_is_new:
                      # probably a problem setting the CSRF cookie
-diff -r f09ea5fc806e docs/ref/contrib/csrf.txt
---- a/docs/ref/contrib/csrf.txt	Fri Jan 28 15:48:35 2011 +0000
-+++ b/docs/ref/contrib/csrf.txt	Fri Jan 28 16:08:45 2011 +0000
-@@ -81,6 +81,47 @@
+--- a/tests/regressiontests/csrf_tests/tests.py
++++ b/tests/regressiontests/csrf_tests/tests.py
+@@ -275,12 +275,12 @@ class CsrfMiddlewareTest(TestCase):
+         req2 = CsrfMiddleware().process_view(req, csrf_exempt(post_form_view), (), {})
+         self.assertEquals(None, req2)
+ 
+-    def test_ajax_exemption(self):
++    def test_csrf_token_in_header(self):
+         """
+-        Check that AJAX requests are automatically exempted.
++        Check that we can pass in the token in a header instead of in the form
+         """
+         req = self._get_POST_csrf_cookie_request()
+-        req.META['HTTP_X_REQUESTED_WITH'] = 'XMLHttpRequest'
++        req.META['HTTP_X_CSRFTOKEN'] = self._csrf_id
+         req2 = CsrfMiddleware().process_view(req, post_form_view, (), {})
+         self.assertEquals(None, req2)
+ 
+--- a/docs/ref/contrib/csrf.txt
++++ b/docs/ref/contrib/csrf.txt
+@@ -81,6 +81,47 @@ The utility script ``extras/csrf_migrati
  finding of code and templates that may need to be upgraded.  It contains full
  help on how to use it.
  
@@ -105,7 +125,7 @@ diff -r f09ea5fc806e docs/ref/contrib/csrf.txt
  The decorator method
  --------------------
  
-@@ -262,10 +303,6 @@
+@@ -262,10 +303,6 @@ in the same module.  These disable the v
  (``CsrfResponseMiddleware``) respectively.  They can be used individually if
  required.
  
@@ -116,7 +136,7 @@ diff -r f09ea5fc806e docs/ref/contrib/csrf.txt
  Subdomains
  ----------
  
-@@ -343,24 +380,6 @@
+@@ -343,24 +380,6 @@ request ought to be harmless.
  response, and only pages that are served as 'text/html' or
  'application/xml+xhtml' are modified.
  
@@ -141,22 +161,3 @@ diff -r f09ea5fc806e docs/ref/contrib/csrf.txt
  .. _9.1.1 Safe Methods, HTTP 1.1, RFC 2616: http://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html
  
  Caching
-diff -r f09ea5fc806e tests/regressiontests/csrf_tests/tests.py
---- a/tests/regressiontests/csrf_tests/tests.py	Fri Jan 28 15:48:35 2011 +0000
-+++ b/tests/regressiontests/csrf_tests/tests.py	Fri Jan 28 16:08:45 2011 +0000
-@@ -275,12 +275,12 @@
-         req2 = CsrfMiddleware().process_view(req, csrf_exempt(post_form_view), (), {})
-         self.assertEquals(None, req2)
- 
--    def test_ajax_exemption(self):
-+    def test_csrf_token_in_header(self):
-         """
--        Check that AJAX requests are automatically exempted.
-+        Check that we can pass in the token in a header instead of in the form
-         """
-         req = self._get_POST_csrf_cookie_request()
--        req.META['HTTP_X_REQUESTED_WITH'] = 'XMLHttpRequest'
-+        req.META['HTTP_X_CSRFTOKEN'] = self._csrf_id
-         req2 = CsrfMiddleware().process_view(req, post_form_view, (), {})
-         self.assertEquals(None, req2)
- 

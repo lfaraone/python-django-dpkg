@@ -1,0 +1,71 @@
+Description: Add protection against spoofing of X_FORWARDED_HOST headers
+ Note that the non-regression test has been dropped as it didn't apply to
+ the version of Django in Debian stable.
+Origin: upstream, https://code.djangoproject.com/changeset/16764
+Bug: https://www.djangoproject.com/weblog/2011/sep/09/security-releases-issued/
+
+--- a/django/http/__init__.py
++++ b/django/http/__init__.py
+@@ -45,7 +45,8 @@ class HttpRequest(object):
+     def get_host(self):
+         """Returns the HTTP host using the environment or request headers."""
+         # We try three options, in order of decreasing preference.
+-        if 'HTTP_X_FORWARDED_HOST' in self.META:
++        if settings.USE_X_FORWARDED_HOST and (
++            'HTTP_X_FORWARDED_HOST' in self.META):
+             host = self.META['HTTP_X_FORWARDED_HOST']
+         elif 'HTTP_HOST' in self.META:
+             host = self.META['HTTP_HOST']
+--- a/django/conf/global_settings.py
++++ b/django/conf/global_settings.py
+@@ -390,6 +390,8 @@ URL_VALIDATOR_USER_AGENT = "Django/%s (h
+ DEFAULT_TABLESPACE = ''
+ DEFAULT_INDEX_TABLESPACE = ''
+ 
++USE_X_FORWARDED_HOST = False
++
+ ##############
+ # MIDDLEWARE #
+ ##############
+--- a/docs/ref/request-response.txt
++++ b/docs/ref/request-response.txt
+@@ -191,12 +191,11 @@ Methods
+ 
+    .. versionadded:: 1.0
+ 
+-   Returns the originating host of the request using information from the
+-   ``HTTP_X_FORWARDED_HOST`` and ``HTTP_HOST`` headers (in that order). If
+-   they don't provide a value, the method uses a combination of
+-   ``SERVER_NAME`` and ``SERVER_PORT`` as detailed in `PEP 333`_.
+-
+-   .. _PEP 333: http://www.python.org/dev/peps/pep-0333/
++   Returns the originating host of the request using information from
++   the ``HTTP_X_FORWARDED_HOST`` (if enabled in the settings) and
++   ``HTTP_HOST`` headers (in that order). If they don't provide a value,
++   the method uses a combination of ``SERVER_NAME`` and ``SERVER_PORT`` as
++   detailed in :pep:`3333`.
+ 
+    Example: ``"127.0.0.1:8000"``
+ 
+--- a/docs/ref/settings.txt
++++ b/docs/ref/settings.txt
+@@ -1688,6 +1688,19 @@ and ``NUMBER_GROUPING`` from current loc
+ 
+ See also ``THOUSAND_SEPARATOR`` and ``NUMBER_GROUPING``.
+ 
++.. setting:: USE_X_FORWARDED_HOST
++
++USE_X_FORWARDED_HOST
++--------------------
++
++.. versionadded:: 1.3.1
++
++Default: ``False``
++
++A boolean that specifies whether to use the X-Forwarded-Host header in
++preference to the Host header. This should only be enabled if a proxy
++which sets this header is in use.
++
+ .. setting:: YEAR_MONTH_FORMAT
+ 
+ YEAR_MONTH_FORMAT

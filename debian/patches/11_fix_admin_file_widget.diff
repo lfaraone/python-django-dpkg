@@ -1,0 +1,37 @@
+Description: Fix potential XSS in file field rendering
+Origin: upstream, http://code.djangoproject.com/changeset/15472
+Bug: http://www.djangoproject.com/weblog/2011/feb/08/security/
+
+--- a/django/contrib/admin/widgets.py
++++ b/django/contrib/admin/widgets.py
+@@ -96,7 +96,7 @@ class AdminFileWidget(forms.FileInput):
+         output = []
+         if value and hasattr(value, "url"):
+             output.append('%s <a target="_blank" href="%s">%s</a> <br />%s ' % \
+-                (_('Currently:'), value.url, value, _('Change:')))
++                (_('Currently:'), escape(value.url), escape(value), _('Change:')))
+         output.append(super(AdminFileWidget, self).render(name, value, attrs))
+         return mark_safe(u''.join(output))
+ 
+--- a/tests/regressiontests/admin_widgets/tests.py
++++ b/tests/regressiontests/admin_widgets/tests.py
+@@ -151,3 +151,19 @@ class AdminForeignKeyRawIdWidget(DjangoT
+             post_data)
+         self.assertContains(response,
+             'Select a valid choice. That choice is not one of the available choices.')
++
++class AdminFileWidgetTest(DjangoTestCase):
++    def test_render_escapes_html(self):
++        class StrangeFieldFile(object):
++            url = "something?chapter=1&sect=2&copy=3&lang=en"
++
++            def __unicode__(self):
++                return u'''something<div onclick="alert('oops')">.jpg'''
++
++        widget = widgets.AdminFileWidget()
++        field = StrangeFieldFile()
++        output = widget.render('myfile', field)
++        self.assertFalse(field.url in output)
++        self.assertTrue(u'href="something?chapter=1&amp;sect=2&amp;copy=3&amp;lang=en"' in output)
++        self.assertFalse(unicode(field) in output)
++        self.assertTrue(u'something&lt;div onclick=&quot;alert(&#39;oops&#39;)&quot;&gt;.jpg' in output)

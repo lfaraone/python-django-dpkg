@@ -1,0 +1,42 @@
+Description: Fix denial of service attack via URLField
+ Note that changes on tests/modeltests/validation/tests.py have been
+ dropped as they are already present in the patch
+ 07_disable_url_verify_model_tests.diff.
+Origin: upstream, https://code.djangoproject.com/changeset/16766
+Bug: https://www.djangoproject.com/weblog/2011/sep/09/security-releases-issued/
+
+--- a/django/db/models/fields/__init__.py
++++ b/django/db/models/fields/__init__.py
+@@ -1111,7 +1111,7 @@ class TimeField(Field):
+ class URLField(CharField):
+     description = _("URL")
+ 
+-    def __init__(self, verbose_name=None, name=None, verify_exists=True, **kwargs):
++    def __init__(self, verbose_name=None, name=None, verify_exists=False, **kwargs):
+         kwargs['max_length'] = kwargs.get('max_length', 200)
+         CharField.__init__(self, verbose_name, name, **kwargs)
+         self.validators.append(validators.URLValidator(verify_exists=verify_exists))
+--- a/docs/ref/models/fields.txt
++++ b/docs/ref/models/fields.txt
+@@ -796,7 +796,7 @@ shortcuts.
+ ``URLField``
+ ------------
+ 
+-.. class:: URLField([verify_exists=True, max_length=200, **options])
++.. class:: URLField([verify_exists=False, max_length=200, **options])
+ 
+ A :class:`CharField` for a URL. Has one extra optional argument:
+ 
+@@ -809,6 +809,12 @@ A :class:`CharField` for a URL. Has one
+     validating a URL being served by the same server will hang. This should not
+     be a problem for multithreaded servers.
+ 
++.. versionchanged:: 1.2
++
++    The default value of ``verify_exists`` has been changed to
++    ``False``. This argument should not be set to ``True`` because it
++    has security and performance problems.
++
+ The admin represents this as an ``<input type="text">`` (a single-line input).
+ 
+ Like all :class:`CharField` subclasses, :class:`URLField` takes the optional
