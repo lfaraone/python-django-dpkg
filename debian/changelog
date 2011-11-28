@@ -1,3 +1,17 @@
+python-django (1.3.1-3) unstable; urgency=low
+
+  * Add 06_use_debian_geoip_database_as_default.diff to use the default
+    location of the GeoIP database used by the Debian package
+    geoip-database-contrib. Closes: #645094
+    Add this package to suggests. Thanks to Tapio Rantala
+    <tapio.rantala@iki.fi> for the patch.
+  * Bump build-dep on python-sphinx to 1.0.8 to ensure we have a version
+    where #641710 is fixed. Closes: #647134
+  * Add 07_fix_for_sphinx1.1.2.diff to fix build with Sphinx 1.1.2. Thanks to
+    Jakub Wilk for the advance warning. Closes: #649624
+
+ -- Raphaël Hertzog <hertzog@debian.org>  Mon, 28 Nov 2011 09:03:13 +0100
+
 python-django (1.3.1-2) unstable; urgency=low
 
   * Update Build-Depends on locales to included a version requirement
