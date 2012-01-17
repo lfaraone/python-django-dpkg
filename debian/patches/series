@@ -5,3 +5,4 @@
 05_fix_djangodocs_sphinx_ext.diff
 06_use_debian_geoip_database_as_default.diff
 07_fix_for_sphinx1.1.2.diff
+08_fix_test_week_view_allow_future.diff

@@ -1,0 +1,15 @@
+Description: Fix regression test test_week_view_allow_future that only worked in 2011
+Bug: https://code.djangoproject.com/ticket/17488
+Bug-Debian: http://bugs.debian.org/655666
+Origin: upstream, https://code.djangoproject.com/changeset/17321
+
+--- a/tests/regressiontests/generic_views/dates.py	(revision 16981)
++++ b/tests/regressiontests/generic_views/dates.py	(revision 17321)
+@@ -258,5 +258,6 @@
+ 
+     def test_week_view_allow_future(self):
+-        future = datetime.date(datetime.date.today().year + 1, 1, 1)
++        # January 7th always falls in week 1, given Python's definition of week numbers
++        future = datetime.date(datetime.date.today().year + 1, 1, 7)
+         b = Book.objects.create(name="The New New Testement", pages=600, pubdate=future)
+ 
