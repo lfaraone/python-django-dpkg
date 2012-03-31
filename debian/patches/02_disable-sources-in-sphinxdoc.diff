@@ -9,7 +9,7 @@ Origin: vendor
 
 --- a/docs/conf.py
 +++ b/docs/conf.py
-@@ -158,7 +158,10 @@ html_additional_pages = {}
+@@ -168,7 +168,10 @@ html_additional_pages = {}
  #html_split_index = False
  
  # If true, links to the reST sources are added to the pages.

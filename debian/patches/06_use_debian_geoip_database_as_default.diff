@@ -7,9 +7,9 @@ Bug-Debian: http://bugs.debian.org/645094
 Forwarded: not-needed
 Author: Tapio Rantala <tapio.rantala@iki.fi>
 
---- a/django/contrib/gis/utils/geoip.py
-+++ b/django/contrib/gis/utils/geoip.py
-@@ -164,7 +164,8 @@ class GeoIP(object):
+--- a/django/contrib/gis/geoip/base.py
++++ b/django/contrib/gis/geoip/base.py
+@@ -61,7 +61,8 @@ class GeoIP(object):
          * path: Base directory to where GeoIP data is located or the full path
              to where the city or country data files (*.dat) are located.
              Assumes that both the city and country data sets are located in
@@ -18,26 +18,27 @@ Author: Tapio Rantala <tapio.rantala@iki.fi>
 +            If neither is set, defaults to '/usr/share/GeoIP'.
  
          * cache: The cache settings when opening up the GeoIP datasets,
-             and may be an integer in (0, 1, 2, 4) corresponding to
-@@ -173,11 +174,13 @@ class GeoIP(object):
-             respectively.  Defaults to 0, meaning that the data is read
+             and may be an integer in (0, 1, 2, 4, 8) corresponding to
+@@ -70,11 +71,13 @@ class GeoIP(object):
+             settings,  respectively.  Defaults to 0, meaning that the data is read
              from the disk.
  
 -        * country: The name of the GeoIP country data file.  Defaults to
 -            'GeoIP.dat'; overrides the GEOIP_COUNTRY settings attribute.
+-
+-        * city: The name of the GeoIP city data file.  Defaults to
+-            'GeoLiteCity.dat'; overrides the GEOIP_CITY settings attribute.
 +        * country: The name of the GeoIP country data file. Overrides
 +            the GEOIP_COUNTRY settings attribute. If neither is set,
 +            defaults to 'GeoIP.dat'
- 
--        * city: The name of the GeoIP city data file.  Defaults to
--            'GeoLiteCity.dat'; overrides the GEOIP_CITY settings attribute.
++
 +        * city: The name of the GeoIP city data file. Overrides the
 +            GEOIP_CITY settings attribute. If neither is set, defaults
 +            to 'GeoIPCity.dat'.
          """
          # Checking the given cache option.
          if cache in self.cache_options:
-@@ -187,8 +190,7 @@ class GeoIP(object):
+@@ -84,8 +87,7 @@ class GeoIP(object):
  
          # Getting the GeoIP data path.
          if not path:
@@ -47,12 +48,12 @@ Author: Tapio Rantala <tapio.rantala@iki.fi>
          if not isinstance(path, basestring):
              raise TypeError('Invalid path type: %s' % type(path).__name__)
  
-@@ -201,7 +203,7 @@ class GeoIP(object):
-                 self._country = geoip_open(country_db, cache)
+@@ -98,7 +100,7 @@ class GeoIP(object):
+                 self._country = GeoIP_open(country_db, cache)
                  self._country_file = country_db
  
 -            city_db = os.path.join(path, city or GEOIP_SETTINGS.get('GEOIP_CITY', 'GeoLiteCity.dat'))
 +            city_db = os.path.join(path, city or GEOIP_SETTINGS.get('GEOIP_CITY', 'GeoIPCity.dat'))
              if os.path.isfile(city_db):
-                 self._city = geoip_open(city_db, cache)
+                 self._city = GeoIP_open(city_db, cache)
                  self._city_file = city_db
