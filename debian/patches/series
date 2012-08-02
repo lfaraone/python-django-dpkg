@@ -1,5 +1,3 @@
-01_disable_broken_test.diff
 02_disable-sources-in-sphinxdoc.diff
 03_manpage.diff
-04_hyphen-manpage.diff
 06_use_debian_geoip_database_as_default.diff

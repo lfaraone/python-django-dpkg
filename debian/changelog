@@ -1,3 +1,12 @@
+python-django (1.4.1-1) unstable; urgency=low
+
+  * New upstream security and maintenance release. Closes: #683364
+    Fixes: CVE-2012-3442 CVE-2012-3443 CVE-2012-3444
+  * Drop 01_disable_broken_test.diff and 04_hyphen-manpage.diff which
+    have been merged upstream.
+
+ -- Raphaël Hertzog <hertzog@debian.org>  Thu, 02 Aug 2012 10:44:02 +0200
+
 python-django (1.4-1) unstable; urgency=low
 
   * New upstream release. Closes: #666003
