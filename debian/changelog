@@ -1,3 +1,16 @@
+python-django (1.2.3-3+squeeze3) stable-security; urgency=high
+
+  * Stable security upload:
+    https://www.djangoproject.com/weblog/2012/jul/30/security-releases-issued/
+    Fixes: CVE-2012-3442 CVE-2012-3443 CVE-2012-3444
+  * Apply/backport the 3 security patches:
+    - debian/patches/16_fix_cross_site_scripting_in_authentication.diff
+    - debian/patches/17_fix_dos_in_image_validation.diff
+    - debian/patches/18_fix_dos_via_get_image_dimensions.diff
+    Closes: #683364
+
+ -- Raphaël Hertzog <hertzog@debian.org>  Thu, 02 Aug 2012 11:05:53 +0200
+
 python-django (1.2.3-3+squeeze2) stable-security; urgency=low
 
   * Stable security upload:

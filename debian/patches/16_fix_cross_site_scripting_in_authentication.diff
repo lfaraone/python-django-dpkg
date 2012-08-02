@@ -1,0 +1,86 @@
+Description: Fix cross site scripting issue in authentication views
+Origin: backport, https://github.com/django/django/commit/4dea4883e6c50d75f215a6b9bcbd95273f57c72d
+Forwarded: not needed, it comes from upstream
+Bug-Debian: http://bugs.debian.org/683364
+
+--- a/django/http/__init__.py
++++ b/django/http/__init__.py
+@@ -3,13 +3,14 @@ import re
+ from Cookie import BaseCookie, SimpleCookie, CookieError
+ from pprint import pformat
+ from urllib import urlencode
+-from urlparse import urljoin
++from urlparse import urljoin, urlparse
+ try:
+     # The mod_python version is more efficient, so try importing it first.
+     from mod_python.util import parse_qsl
+ except ImportError:
+     from cgi import parse_qsl
+ 
++from django.core.exceptions import SuspiciousOperation
+ from django.utils.datastructures import MultiValueDict, ImmutableList
+ from django.utils.encoding import smart_str, iri_to_uri, force_unicode
+ from django.http.multipartparser import MultiPartParser
+@@ -430,19 +431,21 @@ class HttpResponse(object):
+             raise Exception("This %s instance cannot tell its position" % self.__class__)
+         return sum([len(chunk) for chunk in self._container])
+ 
+-class HttpResponseRedirect(HttpResponse):
+-    status_code = 302
++class HttpResponseRedirectBase(HttpResponse):
++    allowed_schemes = ['http', 'https', 'ftp']
+ 
+     def __init__(self, redirect_to):
+-        HttpResponse.__init__(self)
++        super(HttpResponseRedirectBase, self).__init__()
++        parsed = urlparse(redirect_to)
++        if parsed.scheme and parsed.scheme not in self.allowed_schemes:
++            raise SuspiciousOperation("Unsafe redirect to URL with scheme '%s'" % parsed.scheme)
+         self['Location'] = iri_to_uri(redirect_to)
+ 
+-class HttpResponsePermanentRedirect(HttpResponse):
+-    status_code = 301
++class HttpResponseRedirect(HttpResponseRedirectBase):
++    status_code = 302
+ 
+-    def __init__(self, redirect_to):
+-        HttpResponse.__init__(self)
+-        self['Location'] = iri_to_uri(redirect_to)
++class HttpResponsePermanentRedirect(HttpResponseRedirectBase):
++    status_code = 301
+ 
+ class HttpResponseNotModified(HttpResponse):
+     status_code = 304
+--- a/tests/regressiontests/httpwrappers/tests.py
++++ b/tests/regressiontests/httpwrappers/tests.py
+@@ -1,7 +1,10 @@
+ import copy
+ import pickle
+ import unittest
+-from django.http import QueryDict, HttpResponse, CompatCookie, BadHeaderError
++from django.core.exceptions import SuspiciousOperation
++from django.http import (QueryDict, HttpResponse, HttpResponseRedirect,
++                         HttpResponsePermanentRedirect,
++                         CompatCookie, BadHeaderError)
+ 
+ class QueryDictTests(unittest.TestCase):
+     def test_missing_key(self):
+@@ -231,6 +234,18 @@ class HttpResponseTests(unittest.TestCas
+         self.assertRaises(BadHeaderError, r.__setitem__, 'test\rstr', 'test')
+         self.assertRaises(BadHeaderError, r.__setitem__, 'test\nstr', 'test')
+ 
++    def test_unsafe_redirects(self):
++        bad_urls = [
++            'data:text/html,<script>window.alert("xss")</script>',
++            'mailto:test@example.com',
++            'file:///etc/passwd',
++        ]
++        for url in bad_urls:
++            self.assertRaises(SuspiciousOperation,
++                              HttpResponseRedirect, url)
++            self.assertRaises(SuspiciousOperation,
++                              HttpResponsePermanentRedirect, url)
++
+ class CookieTests(unittest.TestCase):
+     def test_encode(self):
+         """

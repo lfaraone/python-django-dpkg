@@ -1,0 +1,28 @@
+Description: Fix denial of service via get_image_dimensions()
+Origin: upstream, https://github.com/django/django/commit/9ca0ff6268eeff92d0d0ac2c315d4b6a8e229155/download
+Bug-Debian: http://bugs.debian.org/683364
+
+diff --git a/django/core/files/images.py b/django/core/files/images.py
+index 228a711..7d7eac6 100644
+--- a/django/core/files/images.py
++++ b/django/core/files/images.py
+@@ -47,13 +47,18 @@ def get_image_dimensions(file_or_path, close=False):
+         file = open(file_or_path, 'rb')
+         close = True
+     try:
++        # Most of the time PIL only needs a small chunk to parse the image and
++        # get the dimensions, but with some TIFF files PIL needs to parse the
++        # whole file.
++        chunk_size = 1024
+         while 1:
+-            data = file.read(1024)
++            data = file.read(chunk_size)
+             if not data:
+                 break
+             p.feed(data)
+             if p.image:
+                 return p.image.size
++            chunk_size = chunk_size*2
+         return None
+     finally:
+         if close:

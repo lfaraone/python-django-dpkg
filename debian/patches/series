@@ -12,3 +12,6 @@
 13_fix_safety_issue_with_session_data.diff
 14_fix_dos_with_urlfield.diff
 15_fix_spoofing_issue_with_x_forwarded_host.diff
+16_fix_cross_site_scripting_in_authentication.diff
+17_fix_dos_in_image_validation.diff
+18_fix_dos_via_get_image_dimensions.diff
