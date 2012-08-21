@@ -1,3 +1,14 @@
+python-django (1.4.1-2) unstable; urgency=low
+
+  * New patch 01_use_stdlib_htmlparser_when_possible.diff to not override
+    Python stdlib's HTMLParser with Python versions which are unaffected by
+    http://bugs.python.org/issue670664 Closes: #683648
+    Thanks to David Watson <david@planetwatson.co.uk> for the patch.
+  * Update the above patch to use the version committed upstream (commit
+    57d9ccc).
+
+ -- Raphaël Hertzog <hertzog@debian.org>  Tue, 21 Aug 2012 08:42:10 +0200
+
 python-django (1.4.1-1) unstable; urgency=low
 
   * New upstream security and maintenance release. Closes: #683364
