@@ -1,3 +1,12 @@
+python-django (1.4.2-1) unstable; urgency=high
+
+  * New upstream security and maintenance release. Closes: #691145
+    Fixes: CVE-2012-4520
+  * Drop 01_use_stdlib_htmlparser_when_possible.diff which has been
+    merged upstream.
+
+ -- Raphaël Hertzog <hertzog@debian.org>  Mon, 22 Oct 2012 10:53:30 +0200
+
 python-django (1.4.1-2) unstable; urgency=low
 
   * New patch 01_use_stdlib_htmlparser_when_possible.diff to not override
