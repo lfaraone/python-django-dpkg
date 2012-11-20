@@ -1,3 +1,12 @@
+python-django (1.4.2-2) unstable; urgency=low
+
+  * Don't fail self-tests if MANAGERS or ADMINS is defined in settings.py.
+    Add upstream patch debian/patches/01_fix-self-tests.diff.
+    Thanks to Jamie Strandboge <jamie@ubuntu.com> for the report.
+    Closes: #693752 LP: #1080204
+
+ -- Raphaël Hertzog <hertzog@debian.org>  Tue, 20 Nov 2012 08:28:37 +0100
+
 python-django (1.4.2-1) unstable; urgency=high
 
   * New upstream security and maintenance release. Closes: #691145

@@ -1,3 +1,4 @@
+01_fix-self-tests.diff
 02_disable-sources-in-sphinxdoc.diff
 03_manpage.diff
 06_use_debian_geoip_database_as_default.diff

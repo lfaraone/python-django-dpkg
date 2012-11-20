@@ -1,0 +1,36 @@
+From: Claude Paroz <claude@2xlibre.net>
+Date: Mon, 29 Oct 2012 17:26:10 +0100
+Subject: [PATCH] Fixed #19172 -- Isolated poisoned_http_host tests from 500 handlers
+Origin: upstream, https://code.djangoproject.com/changeset/ad2d57a2ccb6316001205739090a2a1d79453207
+Bug: https://code.djangoproject.com/ticket/19172
+Applied-Upstream: 1.4.3
+Bug-Debian: http://bugs.debian.org/693752
+Bug-Ubuntu: https://bugs.launchpad.net/ubuntu/+source/python-django/+bug/1080204
+
+Thanks bernardofontes for the report.
+---
+ django/contrib/auth/tests/views.py |    4 ++++
+ 1 file changed, 4 insertions(+)
+
+Index: python-django-1.4.1/django/contrib/auth/tests/views.py
+===================================================================
+--- python-django-1.4.1.orig/django/contrib/auth/tests/views.py	2012-11-19 14:15:53.000000000 -0600
++++ python-django-1.4.1/django/contrib/auth/tests/views.py	2012-11-19 14:15:53.000000000 -0600
+@@ -118,6 +118,8 @@
+         self.assertTrue("http://adminsite.com" in mail.outbox[0].body)
+         self.assertEqual(settings.DEFAULT_FROM_EMAIL, mail.outbox[0].from_email)
+ 
++    # Skip any 500 handler action (like sending more mail...)
++    @override_settings(DEBUG_PROPAGATE_EXCEPTIONS=True)
+     def test_poisoned_http_host(self):
+         "Poisoned HTTP_HOST headers can't be used for reset emails"
+         # This attack is based on the way browsers handle URLs. The colon
+@@ -134,6 +136,8 @@
+             )
+         self.assertEqual(len(mail.outbox), 0)
+ 
++    # Skip any 500 handler action (like sending more mail...)
++    @override_settings(DEBUG_PROPAGATE_EXCEPTIONS=True)
+     def test_poisoned_http_host_admin_site(self):
+         "Poisoned HTTP_HOST headers can't be used for reset emails on admin views"
+         with self.assertRaises(SuspiciousOperation):
