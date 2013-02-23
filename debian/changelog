@@ -1,3 +1,17 @@
+python-django (1.4.4-1) unstable; urgency=low
+
+  * New upstream security and maintenance release. Closes: #701186 
+    https://www.djangoproject.com/weblog/2013/feb/19/security/
+    Fixes mulptiple security issues:
+    - Further fixes for Host header poisoning. CVE-2012-4520
+    - XML attacks via entity expansion. CVE-2013-1665
+    - Data leakage via admin history log. CVE-2013-0305
+    - Formset denial-of-service. CVE-2013-0306
+  * Add gettext to Suggests since it's required for django-admin
+    compilemessages / makemessages. Closes: #700483
+
+ -- Raphaël Hertzog <hertzog@debian.org>  Sat, 23 Feb 2013 09:33:13 +0100
+
 python-django (1.4.3-1) unstable; urgency=high
 
   * New upstream security and maintenance release. Closes: #696535

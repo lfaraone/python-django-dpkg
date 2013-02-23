@@ -14,7 +14,7 @@ Package: python-django
 Architecture: all
 Depends: ${misc:Depends}, ${python:Depends}
 Recommends: libjs-jquery
-Suggests: python-psycopg2, python-psycopg, python-mysqldb, python-flup, python-sqlite, python-yaml, geoip-database-contrib
+Suggests: python-psycopg2, python-psycopg, python-mysqldb, python-flup, python-sqlite, python-yaml, geoip-database-contrib, gettext
 Description: High-level Python web development framework
  Django is a high-level web application framework that loosely follows the
  model-view-controller design pattern.
