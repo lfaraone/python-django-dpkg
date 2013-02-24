@@ -1,0 +1,164 @@
+Origin: backport, commit:27cd872e6e36a81d0bb6f5b8765a1705fecfc253
+Description: Added ALLOWED_HOSTS setting for HTTP host header validation.
+Bug-Debian: http://bugs.debian.org/701186
+
+--- a/django/conf/global_settings.py
++++ b/django/conf/global_settings.py
+@@ -29,6 +29,10 @@ ADMINS = ()
+ #   * Receive x-headers
+ INTERNAL_IPS = ()
+ 
++# Hosts/domain names that are valid for this site.
++# "*" matches anything, ".example.com" matches example.com and all subdomains
++ALLOWED_HOSTS = ['*']
++
+ # Local time zone for this installation. All choices can be found here:
+ # http://en.wikipedia.org/wiki/List_of_tz_zones_by_name (although not all
+ # systems may support all possibilities).
+--- a/django/conf/project_template/settings.py
++++ b/django/conf/project_template/settings.py
+@@ -20,6 +20,10 @@ DATABASES = {
+     }
+ }
+ 
++# Hosts/domain names that are valid for this site; required if DEBUG is False
++# See https://docs.djangoproject.com/en/{{ docs_version }}/ref/settings/#allowed-hosts
++ALLOWED_HOSTS = []
++
+ # Local time zone for this installation. Choices can be found here:
+ # http://en.wikipedia.org/wiki/List_of_tz_zones_by_name
+ # although not all choices may be available on all operating systems.
+--- a/django/http/__init__.py
++++ b/django/http/__init__.py
+@@ -60,11 +60,15 @@ class HttpRequest(object):
+             if server_port != (self.is_secure() and '443' or '80'):
+                 host = '%s:%s' % (host, server_port)
+ 
+-        # Disallow potentially poisoned hostnames.
+-        if not host_validation_re.match(host.lower()):
+-            raise SuspiciousOperation('Invalid HTTP_HOST header: %s' % host)
+-
+-        return host
++        if settings.DEBUG:
++            allowed_hosts = ['*']
++        else:
++            allowed_hosts = settings.ALLOWED_HOSTS
++        if validate_host(host, allowed_hosts):
++            return host
++        else:
++            raise SuspiciousOperation(
++                "Invalid HTTP_HOST header (you may need to set ALLOWED_HOSTS): %s" % host)
+ 
+     def get_full_path(self):
+         return ''
+@@ -505,3 +509,43 @@ def str_to_unicode(s, encoding):
+     else:
+         return s
+ 
++def validate_host(host, allowed_hosts):
++    """
++    Validate the given host header value for this site.
++
++    Check that the host looks valid and matches a host or host pattern in the
++    given list of ``allowed_hosts``. Any pattern beginning with a period
++    matches a domain and all its subdomains (e.g. ``.example.com`` matches
++    ``example.com`` and any subdomain), ``*`` matches anything, and anything
++    else must match exactly.
++
++    Return ``True`` for a valid host, ``False`` otherwise.
++
++    """
++    # All validation is case-insensitive
++    host = host.lower()
++
++    # Basic sanity check
++    if not host_validation_re.match(host):
++        return False
++
++    # Validate only the domain part.
++    if host[-1] == ']':
++        # It's an IPv6 address without a port.
++        domain = host
++    else:
++        domain = host.rsplit(':', 1)[0]
++
++    for pattern in allowed_hosts:
++        pattern = pattern.lower()
++        match = (
++            pattern == '*' or
++            pattern.startswith('.') and (
++                domain.endswith(pattern) or domain == pattern[1:]
++                ) or
++            pattern == domain
++            )
++        if match:
++            return True
++
++    return False
+--- a/django/test/utils.py
++++ b/django/test/utils.py
+@@ -62,6 +62,9 @@ def setup_test_environment():
+     mail.original_email_backend = settings.EMAIL_BACKEND
+     settings.EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
+ 
++    settings._original_allowed_hosts = settings.ALLOWED_HOSTS
++    settings.ALLOWED_HOSTS = ['*']
++
+     mail.outbox = []
+ 
+     deactivate()
+@@ -82,6 +85,9 @@ def teardown_test_environment():
+     settings.EMAIL_BACKEND = mail.original_email_backend
+     del mail.original_email_backend
+ 
++    settings.ALLOWED_HOSTS = settings._original_allowed_hosts
++    del settings._original_allowed_hosts
++
+     del mail.outbox
+ 
+ def get_runner(settings):
+--- a/docs/ref/settings.txt
++++ b/docs/ref/settings.txt
+@@ -74,6 +74,42 @@ of (Full name, e-mail address). Example:
+ Note that Django will e-mail *all* of these people whenever an error happens.
+ See :doc:`/howto/error-reporting` for more information.
+ 
++.. setting:: ALLOWED_HOSTS
++
++ALLOWED_HOSTS
++-------------
++
++Default: ``['*']``
++
++A list of strings representing the host/domain names that this Django site can
++serve. This is a security measure to prevent an attacker from poisoning caches
++and password reset emails with links to malicious hosts by submitting requests
++with a fake HTTP ``Host`` header, which is possible even under many
++seemingly-safe webserver configurations.
++
++Values in this list can be fully qualified names (e.g. ``'www.example.com'``),
++in which case they will be matched against the request's ``Host`` header
++exactly (case-insensitive, not including port). A value beginning with a period
++can be used as a subdomain wildcard: ``'.example.com'`` will match
++``example.com``, ``www.example.com``, and any other subdomain of
++``example.com``. A value of ``'*'`` will match anything; in this case you are
++responsible to provide your own validation of the ``Host`` header (perhaps in a
++middleware; if so this middleware must be listed first in
++:setting:`MIDDLEWARE_CLASSES`).
++
++If the ``Host`` header (or ``X-Forwarded-Host`` if
++:setting:`USE_X_FORWARDED_HOST` is enabled) does not match any value in this
++list, the :meth:`django.http.HttpRequest.get_host()` method will raise
++:exc:`~django.core.exceptions.SuspiciousOperation`.
++
++When :setting:`DEBUG` is ``True`` or when running tests, host validation is
++disabled; any host will be accepted. Thus it's usually only necessary to set it
++in production.
++
++This validation only applies via :meth:`~django.http.HttpRequest.get_host()`;
++if your code accesses the ``Host`` header directly from ``request.META`` you
++are bypassing this security protection.
++
+ .. setting:: ALLOWED_INCLUDE_ROOTS
+ 
+ ALLOWED_INCLUDE_ROOTS

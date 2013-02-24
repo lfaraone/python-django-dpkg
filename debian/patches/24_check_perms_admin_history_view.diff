@@ -1,0 +1,56 @@
+Origin: backport, commit:d3a45e10c8ac8268899999129daa27652ec0da35
+Description: Check object permissions on admin history view.
+ Patch by Russell Keith-Magee.
+Bug-Debian: http://bugs.debian.org/701186
+    
+--- a/django/contrib/admin/options.py
++++ b/django/contrib/admin/options.py
+@@ -1168,15 +1168,21 @@ class ModelAdmin(BaseModelAdmin):
+     def history_view(self, request, object_id, extra_context=None):
+         "The 'history' admin view for this model."
+         from django.contrib.admin.models import LogEntry
++        # First check if the user can see this history.
+         model = self.model
++        obj = get_object_or_404(model, pk=unquote(object_id))
++
++        if not self.has_change_permission(request, obj):
++            raise PermissionDenied
++
++        # Then get the history for this object.
+         opts = model._meta
+         app_label = opts.app_label
+         action_list = LogEntry.objects.filter(
+             object_id = object_id,
+             content_type__id__exact = ContentType.objects.get_for_model(model).id
+         ).select_related().order_by('action_time')
+-        # If no history was found, see whether this object even exists.
+-        obj = get_object_or_404(model, pk=unquote(object_id))
++
+         context = {
+             'title': _('Change history: %s') % force_unicode(obj),
+             'action_list': action_list,
+--- a/tests/regressiontests/admin_views/tests.py
++++ b/tests/regressiontests/admin_views/tests.py
+@@ -609,6 +609,22 @@ class AdminViewPermissionsTest(TestCase)
+                         'Plural error message not found in response to post with multiple errors.')
+         self.client.get('/test_admin/admin/logout/')
+ 
++    def testHistoryView(self):
++        """History view should restrict access."""
++
++        # add user shoud not be able to view the list of article or change any of them
++        self.client.get('/test_admin/admin/')
++        self.client.post('/test_admin/admin/', self.adduser_login)
++        response = self.client.get('/test_admin/admin/admin_views/article/1/history/')
++        self.assertEqual(response.status_code, 403)
++        self.client.get('/test_admin/admin/logout/')
++
++        # change user can view all items and edit them
++        self.client.get('/test_admin/admin/')
++        self.client.post('/test_admin/admin/', self.changeuser_login)
++        response = self.client.get('/test_admin/admin/admin_views/article/1/history/')
++        self.assertEqual(response.status_code, 200)
++
+     def testCustomModelAdminTemplates(self):
+         self.client.get('/test_admin/admin/')
+         self.client.post('/test_admin/admin/', self.super_login)

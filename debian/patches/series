@@ -15,3 +15,10 @@
 16_fix_cross_site_scripting_in_authentication.diff
 17_fix_dos_in_image_validation.diff
 18_fix_dos_via_get_image_dimensions.diff
+19_fix_host_header_poisoning.diff
+20_fix_get_host.diff
+21_fix_redirect_poisoning.diff
+22_add_allowed_hosts.diff
+23_restrict_xml_deserializer.diff
+24_check_perms_admin_history_view.diff
+25_limit_number_of_forms_in_formset.diff

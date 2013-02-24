@@ -1,0 +1,101 @@
+Description: Fix Host header poisoning
+Origin: backport, https://github.com/django/django/commit/b45c377f8f488955e0c7069cad3f3dd21910b071/download
+Bug-Debian: http://bugs.debian.org/691145
+
+--- a/django/contrib/auth/tests/urls.py
++++ b/django/contrib/auth/tests/urls.py
+@@ -1,5 +1,6 @@
+ from django.conf.urls.defaults import patterns
+ from django.contrib.auth.urls import urlpatterns
++from django.contrib.auth.views import password_reset
+ from django.http import HttpResponse
+ from django.template import Template, RequestContext
+ 
+@@ -13,6 +14,7 @@ def remote_user_auth_view(request):
+ urlpatterns += patterns('',
+     (r'^logout/custom_query/$', 'django.contrib.auth.views.logout', dict(redirect_field_name='follow')),
+     (r'^logout/next_page/$', 'django.contrib.auth.views.logout', dict(next_page='/somewhere/')),
++    (r'^admin_password_reset/$', 'django.contrib.auth.views.password_reset', dict(is_admin_site=True)),
+     (r'^remote_user/$', remote_user_auth_view),
+ )
+ 
+--- a/django/contrib/auth/tests/views.py
++++ b/django/contrib/auth/tests/views.py
+@@ -9,6 +9,7 @@ from django.contrib.sites.models import
+ from django.contrib.auth.models import User
+ from django.test import TestCase
+ from django.core import mail
++from django.core.exceptions import SuspiciousOperation
+ from django.core.urlresolvers import reverse
+ 
+ class AuthViewsTestCase(TestCase):
+@@ -53,6 +54,44 @@ class PasswordResetTest(AuthViewsTestCas
+         self.assertEquals(len(mail.outbox), 1)
+         self.assert_("http://" in mail.outbox[0].body)
+ 
++    def test_admin_reset(self):
++        "If the reset view is marked as being for admin, the HTTP_HOST header is used for a domain override."
++        response = self.client.post('/admin_password_reset/',
++            {'email': 'staffmember@example.com'},
++            HTTP_HOST='adminsite.com'
++        )
++        self.assertEqual(response.status_code, 302)
++        self.assertEqual(len(mail.outbox), 1)
++        self.assertTrue("http://adminsite.com" in mail.outbox[0].body)
++        self.assertEqual(settings.DEFAULT_FROM_EMAIL, mail.outbox[0].from_email)
++
++    def test_poisoned_http_host(self):
++        "Poisoned HTTP_HOST headers can't be used for reset emails"
++        # This attack is based on the way browsers handle URLs. The colon
++        # should be used to separate the port, but if the URL contains an @,
++        # the colon is interpreted as part of a username for login purposes,
++        # making 'evil.com' the request domain. Since HTTP_HOST is used to
++        # produce a meaningful reset URL, we need to be certain that the
++        # HTTP_HOST header isn't poisoned. This is done as a check when get_host()
++        # is invoked, but we check here as a practical consequence.
++        def test_host_poisoning():
++            self.client.post('/password_reset/',
++                {'email': 'staffmember@example.com'},
++                HTTP_HOST='www.example:dr.frankenstein@evil.tld'
++            )
++        self.assertRaises(SuspiciousOperation, test_host_poisoning)
++        self.assertEqual(len(mail.outbox), 0)
++
++    def test_poisoned_http_host_admin_site(self):
++        "Poisoned HTTP_HOST headers can't be used for reset emails on admin views"
++        def test_host_poisoning():
++            self.client.post('/admin_password_reset/',
++                {'email': 'staffmember@example.com'},
++                HTTP_HOST='www.example:dr.frankenstein@evil.tld'
++            )
++        self.assertRaises(SuspiciousOperation, test_host_poisoning)
++        self.assertEqual(len(mail.outbox), 0)
++
+     def _test_confirm_start(self):
+         # Start by creating the email
+         response = self.client.post('/password_reset/', {'email': 'staffmember@example.com'})
+--- a/django/contrib/auth/views.py
++++ b/django/contrib/auth/views.py
+@@ -115,7 +115,7 @@ def password_reset(request, is_admin_sit
+             opts['use_https'] = request.is_secure()
+             opts['token_generator'] = token_generator
+             if is_admin_site:
+-                opts['domain_override'] = request.META['HTTP_HOST']
++                opts['domain_override'] = request.get_host()
+             else:
+                 opts['email_template_name'] = email_template_name
+                 if not Site._meta.installed:
+--- a/django/http/__init__.py
++++ b/django/http/__init__.py
+@@ -57,6 +57,11 @@ class HttpRequest(object):
+             server_port = str(self.META['SERVER_PORT'])
+             if server_port != (self.is_secure() and '443' or '80'):
+                 host = '%s:%s' % (host, server_port)
++
++        # Disallow potentially poisoned hostnames.
++        if set(';/?@&=+$,').intersection(host):
++            raise SuspiciousOperation('Invalid HTTP_HOST header: %s' % host)
++
+         return host
+ 
+     def get_full_path(self):
