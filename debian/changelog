@@ -1,3 +1,11 @@
+python-django (1.4.5-1) unstable; urgency=high
+
+  * New upstream maintenance release dropping some undesired .pyc files
+    and fixing a documentation link.
+  * High urgency due to former security updates.
+
+ -- Raphaël Hertzog <hertzog@debian.org>  Sun, 24 Feb 2013 10:28:08 +0100
+
 python-django (1.4.4-1) unstable; urgency=low
 
   * New upstream security and maintenance release. Closes: #701186 
