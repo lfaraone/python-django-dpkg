@@ -1,3 +1,9 @@
+python-django (1.5-1) experimental; urgency=low
+
+  * New upstream release. Closes: #646634, #663230, #436983
+
+ -- Luke Faraone <lfaraone@debian.org>  Fri, 22 Mar 2013 17:52:30 -0400
+
 python-django (1.4.5-1) unstable; urgency=high
 
   * New upstream maintenance release dropping some undesired .pyc files

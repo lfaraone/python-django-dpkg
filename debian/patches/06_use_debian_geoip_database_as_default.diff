@@ -9,7 +9,7 @@ Author: Tapio Rantala <tapio.rantala@iki.fi>
 
 --- a/django/contrib/gis/geoip/base.py
 +++ b/django/contrib/gis/geoip/base.py
-@@ -61,7 +61,8 @@ class GeoIP(object):
+@@ -63,7 +63,8 @@
          * path: Base directory to where GeoIP data is located or the full path
              to where the city or country data files (*.dat) are located.
              Assumes that both the city and country data sets are located in
@@ -19,7 +19,7 @@ Author: Tapio Rantala <tapio.rantala@iki.fi>
  
          * cache: The cache settings when opening up the GeoIP datasets,
              and may be an integer in (0, 1, 2, 4, 8) corresponding to
-@@ -70,11 +71,13 @@ class GeoIP(object):
+@@ -72,11 +73,13 @@
              settings,  respectively.  Defaults to 0, meaning that the data is read
              from the disk.
  
@@ -38,17 +38,17 @@ Author: Tapio Rantala <tapio.rantala@iki.fi>
          """
          # Checking the given cache option.
          if cache in self.cache_options:
-@@ -84,8 +87,7 @@ class GeoIP(object):
+@@ -86,8 +89,7 @@
  
          # Getting the GeoIP data path.
          if not path:
 -            path = GEOIP_SETTINGS.get('GEOIP_PATH', None)
 -            if not path: raise GeoIPException('GeoIP path must be provided via parameter or the GEOIP_PATH setting.')
 +            path = GEOIP_SETTINGS.get('GEOIP_PATH', '/usr/share/GeoIP')
-         if not isinstance(path, basestring):
+         if not isinstance(path, six.string_types):
              raise TypeError('Invalid path type: %s' % type(path).__name__)
  
-@@ -98,7 +100,7 @@ class GeoIP(object):
+@@ -100,7 +102,7 @@
                  self._country = GeoIP_open(country_db, cache)
                  self._country_file = country_db
  
