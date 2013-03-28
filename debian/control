@@ -2,7 +2,9 @@ Source: python-django
 Section: python
 Priority: optional
 Maintainer: Chris Lamb <lamby@debian.org>
-Uploaders: Debian Python Modules Team <python-modules-team@lists.alioth.debian.org>, Raphaël Hertzog <hertzog@debian.org>
+Uploaders: Debian Python Modules Team <python-modules-team@lists.alioth.debian.org>,
+ Raphaël Hertzog <hertzog@debian.org>,
+ Luke Faraone <lfaraone@debian.org>
 Standards-Version: 3.9.3
 Build-Depends: debhelper (>= 7.0.50), python (>= 2.6.6-3~), python-sphinx (>= 1.0.8), locales (>= 0)
 Build-Depends-Indep: libjs-jquery

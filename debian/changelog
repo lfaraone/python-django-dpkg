@@ -1,3 +1,10 @@
+python-django (1.5.1-1) experimental; urgency=low
+
+  * New upstream release.
+  * Add self to uploaders field.
+
+ -- Luke Faraone <lfaraone@debian.org>  Thu, 28 Mar 2013 17:17:10 -0400
+
 python-django (1.5-1) experimental; urgency=low
 
   * New upstream release. Closes: #646634, #663230, #436983
