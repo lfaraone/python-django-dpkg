@@ -1,3 +1,13 @@
+python-django (1.4.5-1+deb7u1) stable-security; urgency=high
+
+  * New upstream security release.
+    https://www.djangoproject.com/weblog/2013/aug/13/security-releases-issued/
+    - Possible cross-site scripting via django.utils.http.is_safe_url
+  * Update uploaders field.
+  * Patch testcases to use an invalid domain.
+
+ -- Luke Faraone <lfaraone@debian.org>  Tue, 13 Aug 2013 15:54:19 -0400
+
 python-django (1.4.5-1) unstable; urgency=high
 
   * New upstream maintenance release dropping some undesired .pyc files
