@@ -22,3 +22,4 @@
 23_restrict_xml_deserializer.diff
 24_check_perms_admin_history_view.diff
 25_limit_number_of_forms_in_formset.diff
+26_is_safe_url-1.4.diff

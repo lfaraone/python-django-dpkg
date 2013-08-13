@@ -1,0 +1,59 @@
+Origin: upstream
+Last-Update: 2013-09-08
+Subject: Possible XSS via ``is_safe_url``
+
+A common pattern in Django applications is for a view to accept, via
+querystring parameter, a URL to redirect to upon successful completion
+of the view's processing. This pattern is used in code bundled with
+Django itself; for example, the ``login`` view in
+``django.contrib.auth.views``, which accepts such a parameter to
+determine where to send a user following successful login.
+
+A utility function -- ``django.utils.http.is_safe_url()`` -- is
+provided and used to validate that this URL is on the current host
+(either via fully-qualified or relative URL), so as to avoid
+potentially dangerous redirects from maliciously-constructed
+querystrings.
+
+The ``is_safe_url()`` function works as intended for HTTP and HTTPS
+URLs, but due to the manner in which it parses the URL, will permit
+redirects to other schemes, such as ``javascript:``. While the Django
+project is unaware of any demonstrated ability to perform cross-site
+scripting attacks via this mechanism, the potential for such is
+sufficient to trigger a security response.
+
+To remedy this issue, the ``is_safe_url()`` function will be modified
+to properly recognize and reject URLs which specify a scheme other
+than HTTP or HTTPS.
+
+--- a/django/contrib/auth/tests/views.py
++++ b/django/contrib/auth/tests/views.py
+@@ -231,7 +231,8 @@
+         for bad_url in ('http://example.com',
+                         'https://example.com',
+                         'ftp://exampel.com',
+-                        '//example.com'):
++                        '//example.com',
++                        'javascript:alert("XSS")'):
+ 
+             nasty_url = '%(url)s?%(next)s=%(bad_url)s' % {
+                 'url': login_url,
+--- a/django/utils/http.py
++++ b/django/utils/http.py
+@@ -126,12 +126,13 @@
+ def is_safe_url(url, host=None):
+     """
+     Return ``True`` if the url is a safe redirection (i.e. it doesn't point to
+-    a different host).
++    a different host and uses a safe scheme).
+ 
+     Always returns ``False`` on an empty url.
+     """
+     if not url:
+         return False
+-    netloc = urlparse.urlparse(url)[1]
+-    return not netloc or netloc == host
++    url_info = urlparse.urlparse(url)
++    return (not url_info[1] or url_info[1] == host) and \
++        (not url_info[0] or url_info[0] in ['http', 'https'])
+ 

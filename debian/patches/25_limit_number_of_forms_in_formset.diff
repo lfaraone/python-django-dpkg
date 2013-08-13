@@ -6,7 +6,7 @@ Description: Add a default limit to the maximum number of forms in a formset.
 
 --- a/django/forms/formsets.py
 +++ b/django/forms/formsets.py
-@@ -16,6 +16,9 @@ MAX_NUM_FORM_COUNT = 'MAX_NUM_FORMS'
+@@ -16,6 +16,9 @@
  ORDERING_FIELD_NAME = 'ORDER'
  DELETION_FIELD_NAME = 'DELETE'
  
@@ -16,7 +16,7 @@ Description: Add a default limit to the maximum number of forms in a formset.
  class ManagementForm(Form):
      """
      ``ManagementForm`` is used to keep track of how many form instances
-@@ -93,7 +96,7 @@ class BaseFormSet(StrAndUnicode):
+@@ -93,7 +96,7 @@
      def _construct_forms(self):
          # instantiate all the forms and put them in self.forms
          self.forms = []
@@ -25,7 +25,7 @@ Description: Add a default limit to the maximum number of forms in a formset.
              self.forms.append(self._construct_form(i))
  
      def _construct_form(self, i, **kwargs):
-@@ -331,9 +334,14 @@ class BaseFormSet(StrAndUnicode):
+@@ -331,9 +334,14 @@
  def formset_factory(form, formset=BaseFormSet, extra=1, can_order=False,
                      can_delete=False, max_num=None):
      """Return a FormSet for the given form class."""
@@ -43,7 +43,7 @@ Description: Add a default limit to the maximum number of forms in a formset.
  def all_valid(formsets):
 --- a/docs/topics/forms/formsets.txt
 +++ b/docs/topics/forms/formsets.txt
-@@ -88,8 +88,10 @@ If the value of ``max_num`` is greater t
+@@ -88,8 +88,10 @@
  objects, up to ``extra`` additional blank forms will be added to the formset,
  so long as the total number of forms does not exceed ``max_num``.
  
@@ -58,7 +58,7 @@ Description: Add a default limit to the maximum number of forms in a formset.
  Formset validation
 --- a/docs/topics/forms/modelforms.txt
 +++ b/docs/topics/forms/modelforms.txt
-@@ -687,8 +687,8 @@ so long as the total number of forms doe
+@@ -687,8 +687,8 @@
  
  .. versionchanged:: 1.2
  
@@ -71,7 +71,7 @@ Description: Add a default limit to the maximum number of forms in a formset.
  -------------------------------
 --- a/tests/regressiontests/forms/formsets.py
 +++ b/tests/regressiontests/forms/formsets.py
-@@ -20,7 +20,7 @@ but we'll look at how to do so later.
+@@ -20,7 +20,7 @@
  
  >>> formset = ChoiceFormSet(auto_id=False, prefix='choices')
  >>> print formset

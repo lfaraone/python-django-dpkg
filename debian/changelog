@@ -1,3 +1,12 @@
+python-django (1.2.3-3+squeeze6) oldstable-security; urgency=high
+
+  * Stable security upload:
+    https://www.djangoproject.com/weblog/2013/aug/13/security-releases-issued/
+    - Possible cross-site scripting via django.utils.http.is_safe_url
+  * Update uploaders field.
+
+ -- Luke Faraone <lfaraone@debian.org>  Tue, 13 Aug 2013 13:25:29 -0400
+
 python-django (1.2.3-3+squeeze5) stable-security; urgency=high
 
   * Stable security upload:
