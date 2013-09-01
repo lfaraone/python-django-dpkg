@@ -1,3 +1,9 @@
+python-django (1.4.5-1+deb7u2) stable-security; urgency=high
+
+  * No change rebuild. Brings back missing jquery symlinks. Closes: #721397
+
+ -- Raphaël Hertzog <hertzog@debian.org>  Sun, 01 Sep 2013 08:46:49 +0200
+
 python-django (1.4.5-1+deb7u1) stable-security; urgency=high
 
   * New upstream security release.
