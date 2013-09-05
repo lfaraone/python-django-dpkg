@@ -1,0 +1,84 @@
+Origin: upstream
+Last-Update: 2013-09-03
+Subject: directory traversal with ``ssi`` template tag
+
+Django's template language includes two methods of including and
+rendering one template inside another:
+
+1. The ``{% include %}`` tag takes a template name, and uses Django's
+   template loading mechanism (which is restricted to the directories
+   specified in the ``TEMPLATE_DIRS`` setting, as with any other
+   normal template load in Django).
+
+2. The ``{% ssi %}`` tag, which takes a file path and includes that
+   file's contents (optionally parsing and rendering it as a
+   template).
+
+Since the ``ssi`` tag is not restricted to ``TEMPLATE_DIRS``, it
+represents a security risk; the setting ``ALLOWED_INCLUDE_ROOTS`` thus
+is required, and specifies filesystem locations from which ``ssi`` may
+read files.
+
+To remedy this, the ``ssi`` tag will now use Python's
+``os.path.abspath`` to determine the absolute path of the file, and
+whether it is actually located within a directory permitted by
+``ALLOWED_INCLUDE_ROOTS``.
+
+diff --git a/django/template/defaulttags.py b/django/template/defaulttags.py
+index 954c5d6..f977901 100644
+--- a/django/template/defaulttags.py
++++ b/django/template/defaulttags.py
+@@ -1,5 +1,6 @@
+ """Default tags used by the template system, available to all templates."""
+ 
++import os
+ import sys
+ import re
+ from datetime import datetime
+@@ -309,6 +310,7 @@ def render(self, context):
+         return ''
+ 
+ def include_is_allowed(filepath):
++    filepath = os.path.abspath(filepath)
+     for root in settings.ALLOWED_INCLUDE_ROOTS:
+         if filepath.startswith(root):
+             return True
+diff --git a/tests/regressiontests/templates/tests.py b/tests/regressiontests/templates/tests.py
+index f74aa75..07bc384 100644
+--- a/tests/regressiontests/templates/tests.py
++++ b/tests/regressiontests/templates/tests.py
+@@ -1764,3 +1764,34 @@ def test_include_only(self):
+             template.Template('{% include "child" only %}').render(ctx),
+             'none'
+         )
++
++
++class SSITests(unittest.TestCase):
++    def setUp(self):
++        self.this_dir = os.path.dirname(os.path.abspath(__file__))
++        self.ssi_dir = os.path.join(self.this_dir, "templates", "first")
++
++    def render_ssi(self, path):
++        # the path must exist for the test to be reliable
++        self.assertTrue(os.path.exists(path))
++        return template.Template('{%% load ssi from future %%}{%% ssi "%s" %%}' % path).render(Context())
++
++    def test_allowed_paths(self):
++        acceptable_path = os.path.join(self.ssi_dir, "..", "first", "test.html")
++        with override_settings(ALLOWED_INCLUDE_ROOTS=(self.ssi_dir,)):
++            self.assertEqual(self.render_ssi(acceptable_path), 'First template\n')
++
++    def test_relative_include_exploit(self):
++        """
++        May not bypass ALLOWED_INCLUDE_ROOTS with relative paths
++
++        e.g. if ALLOWED_INCLUDE_ROOTS = ("/var/www",), it should not be
++        possible to do {% ssi "/var/www/../../etc/passwd" %}
++        """
++        disallowed_paths = [
++            os.path.join(self.ssi_dir, "..", "ssi_include.html"),
++            os.path.join(self.ssi_dir, "..", "second", "test.html"),
++        ]
++        with override_settings(ALLOWED_INCLUDE_ROOTS=(self.ssi_dir,)):
++            for path in disallowed_paths:
++                self.assertEqual(self.render_ssi(path), '')

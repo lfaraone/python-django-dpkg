@@ -3,3 +3,4 @@
 06_use_debian_geoip_database_as_default.diff
 is_safe_url-1.4.diff
 uri-fix.diff
+ssi-tag-1.4.diff

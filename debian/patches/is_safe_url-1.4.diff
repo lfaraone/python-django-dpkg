@@ -1,5 +1,5 @@
 Origin: upstream
-Last-Update: 2013-09-08
+Last-Update: 2013-08-08
 Subject: Possible XSS via ``is_safe_url``
 
 A common pattern in Django applications is for a view to accept, via

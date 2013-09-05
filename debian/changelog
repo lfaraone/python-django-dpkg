@@ -1,3 +1,12 @@
+python-django (1.4.5-1+deb7u3) stable-security; urgency=high
+
+  * New upstream security release.
+    https://www.djangoproject.com/weblog/2013/sep/
+    - Directory traversal with ``ssi`` template tag
+  * Correct invalid date on patch headers.
+
+ -- Luke Faraone <lfaraone@debian.org>  Thu, 05 Sep 2013 14:14:34 -0400
+
 python-django (1.4.5-1+deb7u2) stable-security; urgency=high
 
   * No change rebuild. Brings back missing jquery symlinks. Closes: #721397
