@@ -1,3 +1,12 @@
+python-django (1.2.3-3+squeeze7) oldstable-security; urgency=high
+
+  * Stable security upload:
+    https://www.djangoproject.com/weblog/2013/sep/
+    - Directory traversal with ``ssi`` template tag
+  * Correct invalid date on patch headers.
+
+ -- Luke Faraone <lfaraone@debian.org>  Thu, 05 Sep 2013 21:14:16 -0400
+
 python-django (1.2.3-3+squeeze6) oldstable-security; urgency=high
 
   * Stable security upload:
