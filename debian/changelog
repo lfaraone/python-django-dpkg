@@ -1,3 +1,14 @@
+python-django (1.5.3-1) unstable; urgency=high
+
+  * New upstream security release. Fixes CVE-2013-4315. Closes: #722605
+    https://www.djangoproject.com/weblog/2013/sep/10/security-releases-issued/
+    - Directory traversal with ssi template tag
+  * Update doc-base file to drop some removed directory in the HTML doc.
+  * Update Standards-Version to 3.9.4.
+  * Bump debhelper compat level to 9.
+
+ -- Raphaël Hertzog <hertzog@debian.org>  Fri, 13 Sep 2013 00:05:19 +0200
+
 python-django (1.5.2-1) unstable; urgency=high
 
   * New upstream security release.

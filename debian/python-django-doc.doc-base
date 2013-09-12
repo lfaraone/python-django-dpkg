@@ -14,7 +14,6 @@ Files: /usr/share/doc/python-django-doc/html/*.html
  /usr/share/doc/python-django-doc/html/internals/*.html
  /usr/share/doc/python-django-doc/html/intro/*.html
  /usr/share/doc/python-django-doc/html/misc/*.html
- /usr/share/doc/python-django-doc/html/obsolete/*.html
  /usr/share/doc/python-django-doc/html/ref/*.html
  /usr/share/doc/python-django-doc/html/releases/*.html
  /usr/share/doc/python-django-doc/html/topics/*.html
