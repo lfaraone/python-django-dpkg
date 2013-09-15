@@ -1,3 +1,11 @@
+python-django (1.5.4-1) unstable; urgency=high
+
+  * New upstream security release. Fixes CVE-2013-1443. Closes: #723043.
+    https://www.djangoproject.com/weblog/2013/sep/15/security/
+    - Denial-of-service via large passwords. CVE-2013-1443
+
+ -- Luke Faraone <lfaraone@debian.org>  Sun, 15 Sep 2013 15:50:10 -0400
+
 python-django (1.5.3-1) unstable; urgency=high
 
   * New upstream security release. Fixes CVE-2013-4315. Closes: #722605
