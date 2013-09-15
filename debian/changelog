@@ -1,11 +1,19 @@
+python-django (1.2.3-3+squeeze8) oldstable-security; urgency=high
+
+  * Stable security upload:
+    https://www.djangoproject.com/weblog/2013/sep/15/security/
+    - Denial-of-service via large passwords. CVE-2013-1443
+    Closes: #723043
+
+ -- Luke Faraone <lfaraone@debian.org>  Sun, 15 Sep 2013 15:57:34 -0400
+
 python-django (1.2.3-3+squeeze7) oldstable-security; urgency=high
 
   * Stable security upload:
     https://www.djangoproject.com/weblog/2013/sep/
-    - Directory traversal with ``ssi`` template tag
-  * Correct invalid date on patch headers.
+    - Directory traversal with ``ssi`` template tag. CVE-2013-431
 
- -- Luke Faraone <lfaraone@debian.org>  Thu, 05 Sep 2013 21:14:16 -0400
+ -- Luke Faraone <lfaraone@debian.org>  Mon, 09 Sep 2013 20:22:57 -0800
 
 python-django (1.2.3-3+squeeze6) oldstable-security; urgency=high
 
