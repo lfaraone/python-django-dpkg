@@ -4,3 +4,5 @@
 is_safe_url-1.4.diff
 uri-fix.diff
 ssi-tag-1.4.diff
+password-dos.diff
+password-2.5-compat.diff
