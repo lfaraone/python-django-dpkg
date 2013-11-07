@@ -1,3 +1,14 @@
+python-django (1.6-1) unstable; urgency=low
+
+  * New upstream version. Closes: #557474, #724637.
+  * python-django now also suggests the installation of ipython,
+    bpython, python-django-doc, and libgdal1.
+    Closes: #636511, #686333, #704203
+  * Set package maintainer to Debian Python Modules Team.
+  * Bump standards version to 3.9.5, no changes needed.
+
+ -- Luke Faraone <lfaraone@debian.org>  Thu, 07 Nov 2013 15:33:49 -0500
+
 python-django (1.5.4-1) unstable; urgency=high
 
   * New upstream security release. Fixes CVE-2013-1443. Closes: #723043.

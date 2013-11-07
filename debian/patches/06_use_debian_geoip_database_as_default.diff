@@ -9,7 +9,7 @@ Author: Tapio Rantala <tapio.rantala@iki.fi>
 
 --- a/django/contrib/gis/geoip/base.py
 +++ b/django/contrib/gis/geoip/base.py
-@@ -63,7 +63,8 @@
+@@ -64,7 +64,8 @@
          * path: Base directory to where GeoIP data is located or the full path
              to where the city or country data files (*.dat) are located.
              Assumes that both the city and country data sets are located in
@@ -19,7 +19,7 @@ Author: Tapio Rantala <tapio.rantala@iki.fi>
  
          * cache: The cache settings when opening up the GeoIP datasets,
              and may be an integer in (0, 1, 2, 4, 8) corresponding to
-@@ -72,11 +73,13 @@
+@@ -73,11 +74,13 @@
              settings,  respectively.  Defaults to 0, meaning that the data is read
              from the disk.
  
@@ -38,7 +38,7 @@ Author: Tapio Rantala <tapio.rantala@iki.fi>
          """
          # Checking the given cache option.
          if cache in self.cache_options:
-@@ -86,8 +89,7 @@
+@@ -87,8 +90,7 @@
  
          # Getting the GeoIP data path.
          if not path:
@@ -48,12 +48,12 @@ Author: Tapio Rantala <tapio.rantala@iki.fi>
          if not isinstance(path, six.string_types):
              raise TypeError('Invalid path type: %s' % type(path).__name__)
  
-@@ -100,7 +102,7 @@
-                 self._country = GeoIP_open(country_db, cache)
+@@ -101,7 +103,7 @@
+                 self._country = GeoIP_open(force_bytes(country_db), cache)
                  self._country_file = country_db
  
 -            city_db = os.path.join(path, city or GEOIP_SETTINGS.get('GEOIP_CITY', 'GeoLiteCity.dat'))
 +            city_db = os.path.join(path, city or GEOIP_SETTINGS.get('GEOIP_CITY', 'GeoIPCity.dat'))
              if os.path.isfile(city_db):
-                 self._city = GeoIP_open(city_db, cache)
+                 self._city = GeoIP_open(force_bytes(city_db), cache)
                  self._city_file = city_db
