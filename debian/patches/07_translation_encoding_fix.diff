@@ -1,0 +1,34 @@
+Description: Remove doubly-UTF-8-encoded comment from German translations.
+
+We instead replace the offending line with the attribution information
+currently available in master.
+
+Author: Luke Faraone <lfaraone@debian.org>
+Origin: vendor
+Bug: https://code.djangoproject.com/ticket/21601
+Bug-Debian: http://bugs.debian.org/729194
+Forwarded: https://code.djangoproject.com/attachment/ticket/21601/21601.diff
+Last-Update: 2013-12-12
+
+--- python-django-1.6.1.orig/django/contrib/admindocs/locale/de/LC_MESSAGES/django.po
++++ python-django-1.6.1/django/contrib/admindocs/locale/de/LC_MESSAGES/django.po
+@@ -1,7 +1,7 @@
+ # This file is distributed under the same license as the Django package.
+ #
+ # Translators:
+-# Jannis , 2013
++# Jannis Leidel <jannis@leidel.info>, 2013
+ msgid ""
+ msgstr ""
+ "Project-Id-Version: django-core\n"
+--- python-django-1.6.1.orig/django/contrib/auth/locale/de/LC_MESSAGES/django.po
++++ python-django-1.6.1/django/contrib/auth/locale/de/LC_MESSAGES/django.po
+@@ -3,7 +3,7 @@
+ # Translators:
+ # André Hagenbruch <ahagenbruch@googlemail.com>, 2011
+ # apollo13 <florian@apolloner.eu>, 2012
+-# Jannis , 2013
++# Jannis Leidel <jannis@leidel.info>, 2013
+ # Markus Holtermann <inyoka@markusholtermann.eu>, 2013
+ msgid ""
+ msgstr ""

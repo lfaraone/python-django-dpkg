@@ -376,7 +376,10 @@ class ExceptionReporter(object):
         """
         source = None
         if loader is not None and hasattr(loader, "get_source"):
-            source = loader.get_source(module_name)
+            try:
+                source = loader.get_source(module_name)
+            except ImportError:
+                pass
             if source is not None:
                 source = source.splitlines()
         if source is None:
@@ -468,7 +471,7 @@ def technical_404_response(request, exception):
             or (request.path == '/'
                 and len(tried) == 1             # default URLconf
                 and len(tried[0]) == 1
-                and tried[0][0].app_name == tried[0][0].namespace == 'admin')):
+                and getattr(tried[0][0], 'app_name', '') == getattr(tried[0][0], 'namespace', '') == 'admin')):
             return default_urlconf(request)
 
     urlconf = getattr(request, 'urlconf', settings.ROOT_URLCONF)

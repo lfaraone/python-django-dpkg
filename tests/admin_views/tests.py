@@ -7,6 +7,7 @@ import datetime
 
 from django.conf import settings, global_settings
 from django.core import mail
+from django.core.exceptions import ImproperlyConfigured
 from django.core.files import temp as tempfile
 from django.core.urlresolvers import reverse
 # Register auth models with the admin.
@@ -16,6 +17,7 @@ from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
 from django.contrib.admin.models import LogEntry, DELETION
 from django.contrib.admin.sites import LOGIN_FORM_KEY
 from django.contrib.admin.util import quote
+from django.contrib.admin.validation import ModelAdminValidator
 from django.contrib.admin.views.main import IS_POPUP_VAR
 from django.contrib.admin.tests import AdminSeleniumWebDriverTestCase
 from django.contrib.auth import REDIRECT_FIELD_NAME
@@ -2240,6 +2242,15 @@ class AdminSearchTest(TestCase):
         self.assertContains(response, "\n1 pluggable search person\n")
         self.assertContains(response, "Amy")
 
+    def test_reset_link(self):
+        """
+        Test presence of reset link in search bar ("1 result (_x total_)").
+        """
+        response = self.client.get('/test_admin/admin/admin_views/person/?q=Gui')
+        self.assertContains(response,
+            """<span class="small quiet">1 result (<a href="?">3 total</a>)</span>""",
+            html=True)
+
 
 @override_settings(PASSWORD_HASHERS=('django.contrib.auth.hashers.SHA1PasswordHasher',))
 class AdminInheritedInlinesTest(TestCase):
@@ -2663,17 +2674,17 @@ class AdminCustomQuerysetTest(TestCase):
             resp = self.client.get('/test_admin/admin/admin_views/person/')
             self.assertEqual(resp.context['selection_note'], '0 of 2 selected')
             self.assertEqual(resp.context['selection_note_all'], 'All 2 selected')
-        with self.assertNumQueries(4):
+        # here one more count(*) query will run, because filters were applied
+        with self.assertNumQueries(5):
             extra = {'q': 'not_in_name'}
             resp = self.client.get('/test_admin/admin/admin_views/person/', extra)
             self.assertEqual(resp.context['selection_note'], '0 of 0 selected')
             self.assertEqual(resp.context['selection_note_all'], 'All 0 selected')
-        with self.assertNumQueries(4):
+        with self.assertNumQueries(5):
             extra = {'q': 'person'}
             resp = self.client.get('/test_admin/admin/admin_views/person/', extra)
             self.assertEqual(resp.context['selection_note'], '0 of 2 selected')
             self.assertEqual(resp.context['selection_note_all'], 'All 2 selected')
-        # here one more count(*) query will run, because filters were applied
         with self.assertNumQueries(5):
             extra = {'gender__exact': '1'}
             resp = self.client.get('/test_admin/admin/admin_views/person/', extra)
@@ -4361,3 +4372,20 @@ class AdminKeepChangeListFiltersTests(TestCase):
 
 class NamespacedAdminKeepChangeListFiltersTests(AdminKeepChangeListFiltersTests):
     admin_site = site2
+
+
+class AdminGenericRelationTests(TestCase):
+    def test_generic_relation_fk_list_filter(self):
+        """
+        Validates a model with a generic relation to a model with
+        a foreign key can specify the generic+fk relationship
+        path as a list_filter. See trac #21428.
+        """
+        class GenericFKAdmin(admin.ModelAdmin):
+            list_filter = ('tags__content_type',)
+
+        validator = ModelAdminValidator()
+        try:
+            validator.validate_list_filter(GenericFKAdmin, Plot)
+        except ImproperlyConfigured:
+            self.fail("Couldn't validate a GenericRelation -> FK path in ModelAdmin.list_filter")

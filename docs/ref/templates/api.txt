@@ -311,10 +311,12 @@ If you ``pop()`` too much, it'll raise
     >>> c = Context()
     >>> c['foo'] = 'first level'
     >>> c.push()
+    {}
     >>> c['foo'] = 'second level'
     >>> c['foo']
     'second level'
     >>> c.pop()
+    {'foo': 'second level'}
     >>> c['foo']
     'first level'
     >>> c['foo'] = 'overwritten'
@@ -683,7 +685,7 @@ class. Here are the template loaders that come with Django:
     with your own ``admin/base_site.html`` in ``myproject.polls``. You must
     then make sure that your ``myproject.polls`` comes *before*
     ``django.contrib.admin`` in :setting:`INSTALLED_APPS`, otherwise
-    ``django.contrib.admin``'s will be loaded first and yours will be ignored.
+    ``django.contrib.admin``’s will be loaded first and yours will be ignored.
 
     Note that the loader performs an optimization when it is first imported:
     it caches a list of which :setting:`INSTALLED_APPS` packages have a

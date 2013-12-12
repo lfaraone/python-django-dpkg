@@ -82,7 +82,12 @@ def save_instance(form, instance, fields=None, fail_message='saved',
     # Wrap up the saving of m2m data as a function.
     def save_m2m():
         cleaned_data = form.cleaned_data
-        for f in opts.many_to_many:
+        # Note that for historical reasons we want to include also
+        # virtual_fields here. (GenericRelation was previously a fake
+        # m2m field).
+        for f in opts.many_to_many + opts.virtual_fields:
+            if not hasattr(f, 'save_form_data'):
+                continue
             if fields and f.name not in fields:
                 continue
             if exclude and f.name in exclude:
@@ -118,8 +123,8 @@ def model_to_dict(instance, fields=None, exclude=None):
     from django.db.models.fields.related import ManyToManyField
     opts = instance._meta
     data = {}
-    for f in opts.concrete_fields + opts.many_to_many:
-        if not f.editable:
+    for f in opts.concrete_fields + opts.virtual_fields + opts.many_to_many:
+        if not getattr(f, 'editable', False):
             continue
         if fields and not f.name in fields:
             continue
@@ -168,8 +173,12 @@ def fields_for_model(model, fields=None, exclude=None, widgets=None,
     field_list = []
     ignored = []
     opts = model._meta
-    for f in sorted(opts.concrete_fields + opts.many_to_many):
-        if not f.editable:
+    # Avoid circular import
+    from django.db.models.fields import Field as ModelField
+    sortable_virtual_fields = [f for f in opts.virtual_fields
+                               if isinstance(f, ModelField)]
+    for f in sorted(opts.concrete_fields + sortable_virtual_fields + opts.many_to_many):
+        if not getattr(f, 'editable', False):
             continue
         if fields is not None and not f.name in fields:
             continue
@@ -822,7 +831,7 @@ class BaseInlineFormSet(BaseModelFormSet):
         self.save_as_new = save_as_new
         if queryset is None:
             queryset = self.model._default_manager
-        if self.instance.pk:
+        if self.instance.pk is not None:
             qs = queryset.filter(**{self.fk.name: self.instance})
         else:
             qs = queryset.none()
@@ -1157,6 +1166,12 @@ class ModelMultipleChoiceField(ModelChoiceField):
         if isinstance(self.widget, SelectMultiple) and not isinstance(self.widget, CheckboxSelectMultiple):
             msg = _('Hold down "Control", or "Command" on a Mac, to select more than one.')
             self.help_text = string_concat(self.help_text, ' ', msg)
+
+    def to_python(self, value):
+        if not value:
+            return []
+        to_py = super(ModelMultipleChoiceField, self).to_python
+        return [to_py(val) for val in value]
 
     def clean(self, value):
         if self.required and not value:
