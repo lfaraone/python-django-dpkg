@@ -2,3 +2,4 @@
 03_manpage.diff
 06_use_debian_geoip_database_as_default.diff
 07_translation_encoding_fix.diff
+ticket21869.diff
