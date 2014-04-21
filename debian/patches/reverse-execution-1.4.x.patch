@@ -1,0 +1,185 @@
+Origin: upstream
+Last-Update: 2014-04-18
+Subject: Unexpected code execution using ``reverse()``
+
+Django's URL handling is based on a mapping of regex patterns
+(representing the URLs) to callable views, and Django's own processing
+consists of matching a requested URL against those patterns to
+determine the appropriate view to invoke.
+
+Django also provides a convenience function --
+``django.core.urlresolvers.reverse()`` -- which performs this process
+in the opposite direction. The ``reverse()`` function takes
+information about a view, and returns a URL which would invoke that
+view. Use of ``reverse()`` is encouraged for application developers,
+as the output of ``reverse()`` is always based on the current URL
+patterns, meaning developers do not need to change other code when
+making changes to URLs.
+
+One argument signature for ``reverse()`` is to pass a dotted Python
+path to the desired view. In this situation, Django will import the
+module indicated by that dotted path as part of generating the
+rsulting URL. If such a module has import-time side effects, those
+side effects will occur.
+
+Thus it is possible for an attacker to cause unexpected code
+execution, given the following conditions:
+
+1. One or more views are present which construct a URL based on user
+   input (commonly, a "next" parameter in a querystring indicating
+   where to redirect upon successful completion of an action).
+
+2. One or more modules known to an attacker to exist on the server's
+   Python import path, which perform code execution with side effects
+   on importing.
+
+To remedy this, ``reverse()`` will now only accept and import dotted
+paths based on the view-containing modules listed in the project's URL
+pattern configuration, so as to ensure that only modules the developer
+intended to be imported in this fashion can or will be imported.
+
+diff --git a/django/core/urlresolvers.py b/django/core/urlresolvers.py
+index 1497d43..6a2aec7 100644
+--- a/django/core/urlresolvers.py
++++ b/django/core/urlresolvers.py
+@@ -230,6 +230,10 @@ class RegexURLResolver(LocaleRegexProvider):
+         self._reverse_dict = {}
+         self._namespace_dict = {}
+         self._app_dict = {}
++        # set of dotted paths to all functions and classes that are used in
++        # urlpatterns
++        self._callback_strs = set()
++        self._populated = False
+ 
+     def __repr__(self):
+         return smart_str(u'<%s %s (%s:%s) %s>' % (self.__class__.__name__, self.urlconf_name, self.app_name, self.namespace, self.regex.pattern))
+@@ -240,6 +244,15 @@ class RegexURLResolver(LocaleRegexProvider):
+         apps = {}
+         language_code = get_language()
+         for pattern in reversed(self.url_patterns):
++            if hasattr(pattern, '_callback_str'):
++                self._callback_strs.add(pattern._callback_str)
++            elif hasattr(pattern, '_callback'):
++                callback = pattern._callback
++                if not hasattr(callback, '__name__'):
++                    lookup_str = callback.__module__ + "." + callback.__class__.__name__
++                else:
++                    lookup_str = callback.__module__ + "." + callback.__name__
++                self._callback_strs.add(lookup_str)
+             p_pattern = pattern.regex.pattern
+             if p_pattern.startswith('^'):
+                 p_pattern = p_pattern[1:]
+@@ -260,6 +273,7 @@ class RegexURLResolver(LocaleRegexProvider):
+                         namespaces[namespace] = (p_pattern + prefix, sub_pattern)
+                     for app_name, namespace_list in pattern.app_dict.items():
+                         apps.setdefault(app_name, []).extend(namespace_list)
++                    self._callback_strs.update(pattern._callback_strs)
+             else:
+                 bits = normalize(p_pattern)
+                 lookups.appendlist(pattern.callback, (bits, p_pattern, pattern.default_args))
+@@ -268,6 +282,7 @@ class RegexURLResolver(LocaleRegexProvider):
+         self._reverse_dict[language_code] = lookups
+         self._namespace_dict[language_code] = namespaces
+         self._app_dict[language_code] = apps
++        self._populated = True
+ 
+     @property
+     def reverse_dict(self):
+@@ -356,8 +371,13 @@ class RegexURLResolver(LocaleRegexProvider):
+     def _reverse_with_prefix(self, lookup_view, _prefix, *args, **kwargs):
+         if args and kwargs:
+             raise ValueError("Don't mix *args and **kwargs in call to reverse()!")
++
++        if not self._populated:
++            self._populate()
++
+         try:
+-            lookup_view = get_callable(lookup_view, True)
++            if lookup_view in self._callback_strs:
++                lookup_view = get_callable(lookup_view, True)
+         except (ImportError, AttributeError), e:
+             raise NoReverseMatch("Error importing '%s': %s." % (lookup_view, e))
+         possibilities = self.reverse_dict.getlist(lookup_view)
+diff --git a/tests/regressiontests/urlpatterns_reverse/nonimported_module.py b/tests/regressiontests/urlpatterns_reverse/nonimported_module.py
+new file mode 100644
+index 0000000..df04633
+--- /dev/null
++++ b/tests/regressiontests/urlpatterns_reverse/nonimported_module.py
+@@ -0,0 +1,3 @@
++def view(request):
++    """Stub view"""
++    pass
+diff --git a/tests/regressiontests/urlpatterns_reverse/tests.py b/tests/regressiontests/urlpatterns_reverse/tests.py
+index a1c9244..0ea732b 100644
+--- a/tests/regressiontests/urlpatterns_reverse/tests.py
++++ b/tests/regressiontests/urlpatterns_reverse/tests.py
+@@ -1,8 +1,11 @@
++# -*- coding: utf-8 -*-
+ """
+ Unit tests for reverse URL lookups.
+ """
+ from __future__ import absolute_import
+ 
++import sys
++
+ from django.conf import settings
+ from django.core.exceptions import ImproperlyConfigured, ViewDoesNotExist
+ from django.core.urlresolvers import (reverse, resolve, NoReverseMatch,
+@@ -267,6 +270,25 @@ class ReverseShortcutTests(TestCase):
+         self.assertEqual(res['Location'], '/foo/')
+         res = redirect('http://example.com/')
+         self.assertEqual(res['Location'], 'http://example.com/')
++        # Assert that we can redirect using UTF-8 strings
++        res = redirect('/æøå/abc/')
++        self.assertEqual(res['Location'], '/%C3%A6%C3%B8%C3%A5/abc/')
++        # Assert that no imports are attempted when dealing with a relative path
++        # (previously, the below would resolve in a UnicodeEncodeError from __import__ )
++        res = redirect('/æøå.abc/')
++        self.assertEqual(res['Location'], '/%C3%A6%C3%B8%C3%A5.abc/')
++        res = redirect('os.path')
++        self.assertEqual(res['Location'], 'os.path')
++
++    def test_no_illegal_imports(self):
++        # modules that are not listed in urlpatterns should not be importable
++        redirect("urlpatterns_reverse.nonimported_module.view")
++        self.assertNotIn("urlpatterns_reverse.nonimported_module", sys.modules)
++
++    def test_reverse_by_path_nested(self):
++        # Views that are added to urlpatterns using include() should be
++        # reversable by doted path.
++        self.assertEqual(reverse('regressiontests.urlpatterns_reverse.views.nested_view'), '/includes/nested_path/')
+ 
+     def test_redirect_view_object(self):
+         from .views import absolute_kwargs_view
+@@ -510,4 +532,3 @@ class ErroneousViewTests(TestCase):
+         self.assertRaises(ViewDoesNotExist, self.client.get, '/missing_inner/')
+         self.assertRaises(ViewDoesNotExist, self.client.get, '/missing_outer/')
+         self.assertRaises(ViewDoesNotExist, self.client.get, '/uncallable/')
+-
+diff --git a/tests/regressiontests/urlpatterns_reverse/urls.py b/tests/regressiontests/urlpatterns_reverse/urls.py
+index 1d4ae73..2af306b 100644
+--- a/tests/regressiontests/urlpatterns_reverse/urls.py
++++ b/tests/regressiontests/urlpatterns_reverse/urls.py
+@@ -7,6 +7,7 @@ from .views import empty_view, absolute_kwargs_view
+ 
+ other_patterns = patterns('',
+     url(r'non_path_include/$', empty_view, name='non_path_include'),
++    url(r'nested_path/$', 'regressiontests.urlpatterns_reverse.views.nested_view'),
+ )
+ 
+ urlpatterns = patterns('',
+diff --git a/tests/regressiontests/urlpatterns_reverse/views.py b/tests/regressiontests/urlpatterns_reverse/views.py
+index f631acf..84b0708 100644
+--- a/tests/regressiontests/urlpatterns_reverse/views.py
++++ b/tests/regressiontests/urlpatterns_reverse/views.py
+@@ -16,6 +16,10 @@ def absolute_kwargs_view(request, arg1=1, arg2=2):
+ def defaults_view(request, arg1, arg2):
+     pass
+ 
++def nested_view(request):
++    pass
++
++
+ def erroneous_view(request):
+     import non_existent
+ 

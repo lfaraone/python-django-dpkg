@@ -6,3 +6,6 @@ uri-fix.diff
 ssi-tag-1.4.diff
 password-dos.diff
 password-2.5-compat.diff
+reverse-execution-1.4.x.patch
+cache-csrf-1.4.x.patch
+mysql-typecast-1.4.x.diff

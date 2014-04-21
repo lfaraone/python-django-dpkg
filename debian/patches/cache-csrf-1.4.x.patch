@@ -1,0 +1,117 @@
+Author: Aymeric Augustin <aymeric.augustin@m4x.org>
+Origin: upstream
+Date: Sat Mar 29 14:48:15 2014 +0100
+Subject: Prevent leaking the CSRF token through caching.
+    
+Django includes both a caching framework and a system for preventing
+cross-site request forgery (CSRF) attacks. The CSRF-protection system
+is based on a random nonce sent to the client in a cookie which must
+be sent by the client on future requests, and in forms a hidden value
+which must be submitted back with the form.
+
+The caching framework includes an option to cache responses to
+anonymous (i.e., unauthenticated) clients.
+
+When the first anonymous request to a given page was by a client which
+did not have a CSRF cookie, the cache framework will also cache the
+CSRF cookie, and serve the same nonce to other anonymous clients who
+do not have a CSRF cookie. This allows an attacker to obtain a valid
+CSRF cookie value and perform attacks which bypass the check for the
+cookie.
+
+To remedy this, the caching framework will no longer cache such
+responses. The heuristic for this will be:
+
+1. If the incoming request did not submit any cookies, and
+
+2. The response did send one or more cookies, and
+
+3. The ``Vary: Cookie`` header is set on the response, then the
+   response will not be cached.
+
+diff --git a/django/middleware/cache.py b/django/middleware/cache.py
+index 34bf0ca..760ba4e 100644
+--- a/django/middleware/cache.py
++++ b/django/middleware/cache.py
+@@ -50,7 +50,8 @@ More details about how the caching works:
+ 
+ from django.conf import settings
+ from django.core.cache import get_cache, DEFAULT_CACHE_ALIAS
+-from django.utils.cache import get_cache_key, learn_cache_key, patch_response_headers, get_max_age
++from django.utils.cache import (get_cache_key, get_max_age, has_vary_header,
++    learn_cache_key, patch_response_headers)
+ 
+ 
+ class UpdateCacheMiddleware(object):
+@@ -93,8 +94,15 @@ class UpdateCacheMiddleware(object):
+         if not self._should_update_cache(request, response):
+             # We don't need to update the cache, just return.
+             return response
++
+         if not response.status_code == 200:
+             return response
++
++        # Don't cache responses that set a user-specific (and maybe security
++        # sensitive) cookie in response to a cookie-less request.
++        if not request.COOKIES and response.cookies and has_vary_header(response, 'Cookie'):
++            return response
++
+         # Try to get the timeout from the "max-age" section of the "Cache-
+         # Control" header before reverting to using the default cache_timeout
+         # length.
+diff --git a/tests/regressiontests/cache/tests.py b/tests/regressiontests/cache/tests.py
+index bd29cde..b0be259 100644
+--- a/tests/regressiontests/cache/tests.py
++++ b/tests/regressiontests/cache/tests.py
+@@ -17,10 +17,12 @@ from django.core import management
+ from django.core.cache import get_cache, DEFAULT_CACHE_ALIAS
+ from django.core.cache.backends.base import (CacheKeyWarning,
+     InvalidCacheBackendError)
++from django.core.context_processors import csrf
+ from django.db import router
+ from django.http import HttpResponse, HttpRequest, QueryDict
+ from django.middleware.cache import (FetchFromCacheMiddleware,
+     UpdateCacheMiddleware, CacheMiddleware)
++from django.middleware.csrf import CsrfViewMiddleware
+ from django.template import Template
+ from django.template.response import TemplateResponse
+ from django.test import TestCase, TransactionTestCase, RequestFactory
+@@ -1418,6 +1420,10 @@ def hello_world_view(request, value):
+     return HttpResponse('Hello World %s' % value)
+ 
+ 
++def csrf_view(request):
++    return HttpResponse(csrf(request)['csrf_token'])
++
++
+ class CacheMiddlewareTest(TestCase):
+ 
+     def setUp(self):
+@@ -1635,6 +1641,27 @@ class CacheMiddlewareTest(TestCase):
+         response = other_with_timeout_view(request, '18')
+         self.assertEqual(response.content, 'Hello World 18')
+ 
++    def test_sensitive_cookie_not_cached(self):
++        """
++        Django must prevent caching of responses that set a user-specific (and
++        maybe security sensitive) cookie in response to a cookie-less request.
++        """
++        csrf_middleware = CsrfViewMiddleware()
++        cache_middleware = CacheMiddleware()
++
++        request = self.factory.get('/view/')
++        self.assertIsNone(cache_middleware.process_request(request))
++
++        csrf_middleware.process_view(request, csrf_view, (), {})
++
++        response = csrf_view(request)
++
++        response = csrf_middleware.process_response(request, response)
++        response = cache_middleware.process_response(request, response)
++
++        # Inserting a CSRF cookie in a cookie-less request prevented caching.
++        self.assertIsNone(cache_middleware.process_request(request))
++
+ CacheMiddlewareTest = override_settings(
+         CACHE_MIDDLEWARE_ALIAS='other',
+         CACHE_MIDDLEWARE_KEY_PREFIX='middlewareprefix',

@@ -1,3 +1,15 @@
+python-django (1.4.5-1+deb7u5) stable-security; urgency=high
+
+  * New upstream security release.
+    - Unexpected code execution using ``reverse()``
+    - CVE-2014-0472
+    - Caching of anonymous pages could reveal CSRF token
+    - CVE-2014-0473
+    - MySQL typecasting could result in unexpected matches
+    - CVE-2014-0474
+
+ -- Luke Faraone <lfaraone@debian.org>  Sun, 20 Apr 2014 20:09:59 -0700
+
 python-django (1.4.5-1+deb7u4) stable-security; urgency=high
 
   * Stable security update. Fixes CVE-2013-1443. Closes: #723043.

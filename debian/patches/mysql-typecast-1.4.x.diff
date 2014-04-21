@@ -1,0 +1,277 @@
+Origin: upstream
+Last-Update: 2014-04-18
+Subject: MySQL typecasting protection
+
+The MySQL database is known to "typecast" on certain queries; for
+example, when querying a table which contains string values, but using
+a query which filters based on an integer value, MySQL will first
+silently coerce the strings to integers, and return a result based on
+that.
+
+Django's model field classes are aware of their own types, and most
+such classes perform explicit conversion of query arguments to the
+correct database-level type before querying. However, three model
+field classes did not correctly convert their arguments:
+
+* ``FilePathField``
+
+* ``GenericIPAddressField``
+
+* ``IPAddressField``
+
+These three fields have been updated to convert their arguments to the
+correct types before querying.
+
+Additionally, developers of custom model fields are now warned via
+documentation to ensure their custom field classes will perform
+appropriate type conversions, and users of the ``raw()`` and
+``extra()`` query methods -- which allow the developer to supply raw
+SQL or SQL fragments -- will be advised to ensure they perform
+appropriate manual type conversions prior to executing queries.
+
+diff --git a/django/db/models/fields/__init__.py b/django/db/models/fields/__init__.py
+index 527a3c0..690a671 100644
+--- a/django/db/models/fields/__init__.py
++++ b/django/db/models/fields/__init__.py
+@@ -911,6 +911,12 @@ class FilePathField(Field):
+         kwargs['max_length'] = kwargs.get('max_length', 100)
+         Field.__init__(self, verbose_name, name, **kwargs)
+ 
++    def get_prep_value(self, value):
++        value = super(FilePathField, self).get_prep_value(value)
++        if value is None:
++            return None
++        return smart_unicode(value)
++
+     def formfield(self, **kwargs):
+         defaults = {
+             'path': self.path,
+@@ -1010,6 +1016,12 @@ class IPAddressField(Field):
+         kwargs['max_length'] = 15
+         Field.__init__(self, *args, **kwargs)
+ 
++    def get_prep_value(self, value):
++        value = super(IPAddressField, self).get_prep_value(value)
++        if value is None:
++            return None
++        return smart_unicode(value)
++
+     def get_internal_type(self):
+         return "IPAddressField"
+ 
+@@ -1047,12 +1059,14 @@ class GenericIPAddressField(Field):
+         return value or None
+ 
+     def get_prep_value(self, value):
++        if value is None:
++            return value
+         if value and ':' in value:
+             try:
+                 return clean_ipv6_address(value, self.unpack_ipv4)
+             except exceptions.ValidationError:
+                 pass
+-        return value
++        return smart_unicode(value)
+ 
+     def formfield(self, **kwargs):
+         defaults = {'form_class': forms.GenericIPAddressField}
+diff --git a/docs/howto/custom-model-fields.txt b/docs/howto/custom-model-fields.txt
+index daaede8..fcbda03 100644
+--- a/docs/howto/custom-model-fields.txt
++++ b/docs/howto/custom-model-fields.txt
+@@ -482,6 +482,16 @@ For example::
+             return ''.join([''.join(l) for l in (value.north,
+                     value.east, value.south, value.west)])
+ 
++.. warning::
++
++    If your custom field uses the ``CHAR``, ``VARCHAR`` or ``TEXT``
++    types for MySQL, you must make sure that :meth:`.get_prep_value`
++    always returns a string type. MySQL performs flexible and unexpected
++    matching when a query is performed on these types and the provided
++    value is an integer, which can cause queries to include unexpected
++    objects in their results. This problem cannot occur if you always
++    return a string type from :meth:`.get_prep_value`.
++
+ Converting query values to database values
+ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 
+diff --git a/docs/ref/databases.txt b/docs/ref/databases.txt
+index 4c18658..2691979 100644
+--- a/docs/ref/databases.txt
++++ b/docs/ref/databases.txt
+@@ -432,6 +432,22 @@ MySQL does not support the ``NOWAIT`` option to the ``SELECT ... FOR UPDATE``
+ statement. If ``select_for_update()`` is used with ``nowait=True`` then a
+ ``DatabaseError`` will be raised.
+ 
++Automatic typecasting can cause unexpected results
++--------------------------------------------------
++
++When performing a query on a string type, but with an integer value, MySQL will
++coerce the types of all values in the table to an integer before performing the
++comparison. If your table contains the values ``'abc'``, ``'def'`` and you
++query for ``WHERE mycolumn=0``, both rows will match. Similarly, ``WHERE mycolumn=1``
++will match the value ``'abc1'``. Therefore, string type fields included in Django
++will always cast the value to a string before using it in a query.
++
++If you implement custom model fields that inherit from :class:`~django.db.models.Field`
++directly, are overriding :meth:`~django.db.models.Field.get_prep_value`, or use
++:meth:`extra() <django.db.models.query.QuerySet.extra>` or
++:meth:`raw() <django.db.models.Manager.raw>`, you should ensure that you
++perform the appropriate typecasting.
++
+ .. _sqlite-notes:
+ 
+ SQLite notes
+diff --git a/docs/ref/models/querysets.txt b/docs/ref/models/querysets.txt
+index 022a251..2decddb 100644
+--- a/docs/ref/models/querysets.txt
++++ b/docs/ref/models/querysets.txt
+@@ -1041,6 +1041,16 @@ of the arguments is required, but you should use at least one of them.
+ 
+       Entry.objects.extra(where=['headline=%s'], params=['Lennon'])
+ 
++.. warning::
++
++    If you are performing queries on MySQL, note that MySQL's silent type coercion
++    may cause unexpected results when mixing types. If you query on a string
++    type column, but with an integer value, MySQL will coerce the types of all values
++    in the table to an integer before performing the comparison. For example, if your
++    table contains the values ``'abc'``, ``'def'`` and you query for ``WHERE mycolumn=0``,
++    both rows will match. To prevent this, perform the correct typecasting
++    before using the value in a query.
++
+ defer
+ ~~~~~
+ 
+diff --git a/docs/topics/db/sql.txt b/docs/topics/db/sql.txt
+index 80038e5..d387ad5 100644
+--- a/docs/topics/db/sql.txt
++++ b/docs/topics/db/sql.txt
+@@ -69,6 +69,16 @@ options that make it very powerful.
+     database, but does nothing to enforce that. If the query does not
+     return rows, a (possibly cryptic) error will result.
+ 
++.. warning::
++
++    If you are performing queries on MySQL, note that MySQL's silent type coercion
++    may cause unexpected results when mixing types. If you query on a string
++    type column, but with an integer value, MySQL will coerce the types of all values
++    in the table to an integer before performing the comparison. For example, if your
++    table contains the values ``'abc'``, ``'def'`` and you query for ``WHERE mycolumn=0``,
++    both rows will match. To prevent this, perform the correct typecasting
++    before using the value in a query.
++
+ Mapping query fields to model fields
+ ------------------------------------
+ 
+diff --git a/tests/regressiontests/model_fields/tests.py b/tests/regressiontests/model_fields/tests.py
+index a71ea77..30f0e7d 100644
+--- a/tests/regressiontests/model_fields/tests.py
++++ b/tests/regressiontests/model_fields/tests.py
+@@ -6,8 +6,15 @@ from decimal import Decimal
+ from django import test
+ from django import forms
+ from django.core.exceptions import ValidationError
++from django.db.models.fields import (
++    AutoField, BigIntegerField, BooleanField, CharField,
++    CommaSeparatedIntegerField, DateField, DateTimeField, DecimalField,
++    EmailField, FilePathField, FloatField, IntegerField, IPAddressField,
++    GenericIPAddressField, NullBooleanField, PositiveIntegerField,
++    PositiveSmallIntegerField, SlugField, SmallIntegerField, TextField,
++    TimeField, URLField)
+ from django.db import models
+-from django.db.models.fields.files import FieldFile
++from django.db.models.fields.files import FileField, ImageField, FieldFile
+ from django.utils import unittest
+ 
+ from .models import (Foo, Bar, Whiz, BigD, BigS, Image, BigInt, Post,
+@@ -373,3 +380,88 @@ class FileFieldTests(unittest.TestCase):
+         field = d._meta.get_field('myfile')
+         field.save_form_data(d, 'else.txt')
+         self.assertEqual(d.myfile, 'else.txt')
++
++
++class PrepValueTest(test.TestCase):
++    def test_AutoField(self):
++        self.assertIsInstance(AutoField(primary_key=True).get_prep_value(1), int)
++
++    def test_BigIntegerField(self):
++        self.assertIsInstance(BigIntegerField().get_prep_value(long(9999999999999999999)), long)
++
++    def test_BooleanField(self):
++        self.assertIsInstance(BooleanField().get_prep_value(True), bool)
++
++    def test_CharField(self):
++        self.assertIsInstance(CharField().get_prep_value(''), str)
++        self.assertIsInstance(CharField().get_prep_value(0), unicode)
++
++    def test_CommaSeparatedIntegerField(self):
++        self.assertIsInstance(CommaSeparatedIntegerField().get_prep_value('1,2'), str)
++        self.assertIsInstance(CommaSeparatedIntegerField().get_prep_value(0), unicode)
++
++    def test_DateField(self):
++        self.assertIsInstance(DateField().get_prep_value(datetime.date.today()), datetime.date)
++
++    def test_DateTimeField(self):
++        self.assertIsInstance(DateTimeField().get_prep_value(datetime.datetime.now()), datetime.datetime)
++
++    def test_DecimalField(self):
++        self.assertIsInstance(DecimalField().get_prep_value(Decimal('1.2')), Decimal)
++
++    def test_EmailField(self):
++        self.assertIsInstance(EmailField().get_prep_value('mailbox@domain.com'), str)
++
++    def test_FileField(self):
++        self.assertIsInstance(FileField().get_prep_value('filename.ext'), unicode)
++        self.assertIsInstance(FileField().get_prep_value(0), unicode)
++
++    def test_FilePathField(self):
++        self.assertIsInstance(FilePathField().get_prep_value('tests.py'), unicode)
++        self.assertIsInstance(FilePathField().get_prep_value(0), unicode)
++
++    def test_FloatField(self):
++        self.assertIsInstance(FloatField().get_prep_value(1.2), float)
++
++    def test_ImageField(self):
++        self.assertIsInstance(ImageField().get_prep_value('filename.ext'), unicode)
++
++    def test_IntegerField(self):
++        self.assertIsInstance(IntegerField().get_prep_value(1), int)
++
++    def test_IPAddressField(self):
++        self.assertIsInstance(IPAddressField().get_prep_value('127.0.0.1'), unicode)
++        self.assertIsInstance(IPAddressField().get_prep_value(0), unicode)
++
++    def test_GenericIPAddressField(self):
++        self.assertIsInstance(GenericIPAddressField().get_prep_value('127.0.0.1'), unicode)
++        self.assertIsInstance(GenericIPAddressField().get_prep_value(0), unicode)
++
++    def test_NullBooleanField(self):
++        self.assertIsInstance(NullBooleanField().get_prep_value(True), bool)
++
++    def test_PositiveIntegerField(self):
++        self.assertIsInstance(PositiveIntegerField().get_prep_value(1), int)
++
++    def test_PositiveSmallIntegerField(self):
++        self.assertIsInstance(PositiveSmallIntegerField().get_prep_value(1), int)
++
++    def test_SlugField(self):
++        self.assertIsInstance(SlugField().get_prep_value('slug'), str)
++        self.assertIsInstance(SlugField().get_prep_value(0), unicode)
++
++    def test_SmallIntegerField(self):
++        self.assertIsInstance(SmallIntegerField().get_prep_value(1), int)
++
++    def test_TextField(self):
++        self.assertIsInstance(TextField().get_prep_value('Abc'), str)
++        self.assertIsInstance(TextField().get_prep_value(0), unicode)
++
++    def test_TimeField(self):
++        self.assertIsInstance(
++            TimeField().get_prep_value(datetime.datetime.now().time()),
++            datetime.time)
++
++    def test_URLField(self):
++        self.assertIsInstance(URLField().get_prep_value('http://domain.com'), str)
++
