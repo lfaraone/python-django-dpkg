@@ -1,3 +1,17 @@
+python-django (1.6.3-1) unstable; urgency=high
+
+  * New upstream security release.
+    - Unexpected code execution using ``reverse()``
+    - CVE-2014-0472
+    - Caching of anonymous pages could reveal CSRF token
+    - CVE-2014-0473
+    - MySQL typecasting could result in unexpected matches
+    - CVE-2014-0474
+  * Drop patches 07_translation_encoding_fix and ticket21869.diff; merged
+    upstream
+
+ -- Luke Faraone <lfaraone@debian.org>  Mon, 21 Apr 2014 16:47:14 -0700
+
 python-django (1.6.1-2) unstable; urgency=medium
 
   * Team upload.
