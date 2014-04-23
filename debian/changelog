@@ -1,3 +1,10 @@
+python-django (1.6.3-2) unstable; urgency=high
+
+  * Fix regression of reverse() and partial views. (LP: #1311433)
+    Thanks Preston Timmons.
+
+ -- Luke Faraone <lfaraone@debian.org>  Tue, 22 Apr 2014 20:44:18 -0700
+
 python-django (1.6.3-1) unstable; urgency=high
 
   * New upstream security release.
