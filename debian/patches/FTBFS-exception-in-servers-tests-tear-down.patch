@@ -1,0 +1,19 @@
+Description: Fix Exception in servers tests tear down
+Origin: upstream, https://github.com/django/django/commit/cf114cffea5482a32064de86c61417d511c2edca
+Bug: https://code.djangoproject.com/ticket/19903
+Bug-Debian: http://bugs.debian.org/722483
+Forwarded: not-needed
+Author: Salvatore Bonaccorso <carnil@debian.org>
+Last-Update: 2014-05-05
+
+--- a/tests/regressiontests/servers/tests.py
++++ b/tests/regressiontests/servers/tests.py
+@@ -150,6 +150,8 @@
+             raise Exception("The line above should have raised an exception")
+         except exception:
+             pass
++        finally:
++            super(LiveServerAddress, cls).tearDownClass()
+ 
+     def test_test_test(self):
+         # Intentionally empty method so that the test is picked up by the

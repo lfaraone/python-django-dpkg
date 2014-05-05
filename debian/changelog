@@ -1,3 +1,15 @@
+python-django (1.4.5-1+deb7u6) wheezy-security; urgency=high
+
+  * Non-maintainer upload by the Security Team.
+  * Add regression-reverse-execution-1.4.x.patch patch.
+    Fix regression introduced by the original fix for CVE-2014-0472.
+    Restored the ability to reverse views created using functools.partial.
+  * Add FTBFS-exception-in-servers-tests-tear-down.patch.
+    Fixes "Fixed unbalanced setUp/tearDown calls in LiveServerAddress test".
+    (Closes: #722483)
+
+ -- Salvatore Bonaccorso <carnil@debian.org>  Mon, 05 May 2014 12:48:34 +0200
+
 python-django (1.4.5-1+deb7u5) stable-security; urgency=high
 
   * New upstream security release.

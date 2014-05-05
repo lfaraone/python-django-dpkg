@@ -9,3 +9,5 @@ password-2.5-compat.diff
 reverse-execution-1.4.x.patch
 cache-csrf-1.4.x.patch
 mysql-typecast-1.4.x.diff
+regression-reverse-execution-1.4.x.patch
+FTBFS-exception-in-servers-tests-tear-down.patch
