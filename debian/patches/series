@@ -25,3 +25,7 @@
 26_is_safe_url-1.4.diff
 ssi-tag-1.2.diff
 password-dos.diff
+CVE-2014-0472.patch
+CVE-2014-0472-regression.patch
+CVE-2014-0473.patch
+CVE-2014-0474.patch

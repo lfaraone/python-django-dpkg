@@ -1,3 +1,18 @@
+python-django (1.2.3-3+squeeze9) squeeze-security; urgency=high
+
+  * Non-maintainer upload by the Security Team.
+  * Add CVE-2014-0472.patch patch.
+    CVE-2014-0472: Unexpected code execution using ``reverse()``
+  * Add CVE-2014-0472-regression.patch patch.
+    Fix regression introduced by the original fix for CVE-2014-0472.
+    Restored the ability to reverse views created using functools.partial.
+  * Add CVE-2014-0473.patch patch.
+    CVE-2014-0473: Caching of anonymous pages could reveal CSRF token.
+  * Add CVE-2014-0474.patch patch.
+    CVE-2014-0474: MySQL typecasting could result in unexpected matches.
+
+ -- Salvatore Bonaccorso <carnil@debian.org>  Mon, 12 May 2014 21:42:47 +0200
+
 python-django (1.2.3-3+squeeze8) oldstable-security; urgency=high
 
   * Stable security upload:
