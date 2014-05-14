@@ -1,3 +1,12 @@
+python-django (1.6.5-1) unstable; urgency=high
+
+  * New upstream security release.
+   - Caches may be allowed to store and serve private data (CVE-2014-1418)
+   - Malformed URLs from user input incorrectly validated
+  * Drop partial_functions_reverse.patch (merged upstream).
+
+ -- Raphaël Hertzog <hertzog@debian.org>  Wed, 14 May 2014 22:49:59 +0200
+
 python-django (1.6.3-2) unstable; urgency=high
 
   * Fix regression of reverse() and partial views. (LP: #1311433)

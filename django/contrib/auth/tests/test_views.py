@@ -444,8 +444,10 @@ class LoginTest(AuthViewsTestCase):
 
         # Those URLs should not pass the security check
         for bad_url in ('http://example.com',
+                        'http:///example.com',
                         'https://example.com',
                         'ftp://exampel.com',
+                        '///example.com',
                         '//example.com',
                         'javascript:alert("XSS")'):
 
@@ -467,8 +469,8 @@ class LoginTest(AuthViewsTestCase):
                          '/view/?param=https://example.com',
                          '/view?param=ftp://exampel.com',
                          'view/?param=//example.com',
-                         'https:///',
-                         'HTTPS:///',
+                         'https://testserver/',
+                         'HTTPS://testserver/',
                          '//testserver/',
                          '/url%20with%20spaces/'):  # see ticket #12534
             safe_url = '%(url)s?%(next)s=%(good_url)s' % {
@@ -660,8 +662,10 @@ class LogoutTest(AuthViewsTestCase):
 
         # Those URLs should not pass the security check
         for bad_url in ('http://example.com',
+                        'http:///example.com',
                         'https://example.com',
                         'ftp://exampel.com',
+                        '///example.com',
                         '//example.com',
                         'javascript:alert("XSS")'):
             nasty_url = '%(url)s?%(next)s=%(bad_url)s' % {
@@ -681,8 +685,8 @@ class LogoutTest(AuthViewsTestCase):
                          '/view/?param=https://example.com',
                          '/view?param=ftp://exampel.com',
                          'view/?param=//example.com',
-                         'https:///',
-                         'HTTPS:///',
+                         'https://testserver/',
+                         'HTTPS://testserver/',
                          '//testserver/',
                          '/url%20with%20spaces/'):  # see ticket #12534
             safe_url = '%(url)s?%(next)s=%(good_url)s' % {
@@ -778,3 +782,15 @@ class ChangelistTests(AuthViewsTestCase):
         self.assertEqual(row.change_message, 'Changed password.')
         self.logout()
         self.login(password='password1')
+
+    def test_user_change_different_user_password(self):
+        u = User.objects.get(email='staffmember@example.com')
+        response = self.client.post('/admin/auth/user/%s/password/' % u.pk, {
+            'password1': 'password1',
+            'password2': 'password1',
+        })
+        self.assertRedirects(response, '/admin/auth/user/%s/' % u.pk)
+        row = LogEntry.objects.latest('id')
+        self.assertEqual(row.user_id, self.admin.pk)
+        self.assertEqual(row.object_id, str(u.pk))
+        self.assertEqual(row.change_message, 'Changed password.')
