@@ -1,0 +1,128 @@
+Origin: upstream
+Last-Update: 2014-05-14
+Subject: Malformed URLs from user input incorrectly validated (CVE-2014-3730)
+
+The validation for redirects did not correctly validate some malformed
+URLs, which are accepted by some browsers. This allows a user to be
+redirected to an unsafe URL unexpectedly.
+
+Django relies on user input in some cases (e.g.
+:func:`django.contrib.auth.views.login`, ``django.contrib.comments``,
+and :doc:`i18n </topics/i18n/index>`) to redirect the user to an "on
+success" URL. The security checks for these redirects (namely
+``django.util.http.is_safe_url()``) did not correctly validate some
+malformed URLs, such as `http:\\\\\\djangoproject.com`, which are
+accepted by some browsers with more liberal URL parsing.
+
+To remedy this, the validation in ``is_safe_url()`` has been tightened
+to be able to handle and correctly validate these malformed URLs.
+
+diff --git a/django/contrib/auth/tests/views.py b/django/contrib/auth/tests/views.py
+index 6d7029b..2b72cd4 100644
+--- a/django/contrib/auth/tests/views.py
++++ b/django/contrib/auth/tests/views.py
+@@ -307,8 +307,10 @@ class LoginTest(AuthViewsTestCase):
+ 
+         # Those URLs should not pass the security check
+         for bad_url in ('http://example.com',
++                        'http:///example.com',
+                         'https://example.com',
+                         'ftp://exampel.com',
++                        '///example.com',
+                         '//example.com',
+                         'javascript:alert("XSS")'):
+ 
+@@ -330,8 +332,8 @@ class LoginTest(AuthViewsTestCase):
+                          '/view/?param=https://example.com',
+                          '/view?param=ftp://exampel.com',
+                          'view/?param=//example.com',
+-                         'https:///',
+-                         'HTTPS:///',
++                         'https://testserver/',
++                         'HTTPS://testserver/',
+                          '//testserver/',
+                          '/url%20with%20spaces/'):  # see ticket #12534
+             safe_url = '%(url)s?%(next)s=%(good_url)s' % {
+@@ -467,8 +469,10 @@ class LogoutTest(AuthViewsTestCase):
+ 
+         # Those URLs should not pass the security check
+         for bad_url in ('http://example.com',
++                        'http:///example.com',
+                         'https://example.com',
+                         'ftp://exampel.com',
++                        '///example.com',
+                         '//example.com',
+                         'javascript:alert("XSS")'):
+             nasty_url = '%(url)s?%(next)s=%(bad_url)s' % {
+@@ -488,8 +492,8 @@ class LogoutTest(AuthViewsTestCase):
+                          '/view/?param=https://example.com',
+                          '/view?param=ftp://exampel.com',
+                          'view/?param=//example.com',
+-                         'https:///',
+-                         'HTTPS:///',
++                         'https://testserver/',
++                         'HTTPS://testserver/',
+                          '//testserver/',
+                          '/url%20with%20spaces/'):  # see ticket #12534
+             safe_url = '%(url)s?%(next)s=%(good_url)s' % {
+diff --git a/django/utils/http.py b/django/utils/http.py
+index 21c84dc..2d40489 100644
+--- a/django/utils/http.py
++++ b/django/utils/http.py
+@@ -234,6 +234,18 @@ def is_safe_url(url, host=None):
+     """
+     if not url:
+         return False
++    # Chrome treats \ completely as /
++    url = url.replace('\\', '/')
++    # Chrome considers any URL with more than two slashes to be absolute, but
++    # urlaprse is not so flexible. Treat any url with three slashes as unsafe.
++    if url.startswith('///'):
++        return False
+     url_info = urlparse.urlparse(url)
++    # Forbid URLs like http:///example.com - with a scheme, but without a hostname.
++    # In that URL, example.com is not the hostname but, a path component. However,
++    # Chrome will still consider example.com to be the hostname, so we must not
++    # allow this syntax.
++    if not url_info[1] and url_info[0]:
++        return False
+     return (not url_info[1] or url_info[1] == host) and \
+         (not url_info[0] or url_info[0] in ['http', 'https'])
+diff --git a/tests/regressiontests/utils/http.py b/tests/regressiontests/utils/http.py
+index 16c7daa..c50524e 100644
+--- a/tests/regressiontests/utils/http.py
++++ b/tests/regressiontests/utils/http.py
+@@ -122,3 +122,33 @@ class TestUtilsHttp(unittest.TestCase):
+         for n, b36 in [(0, '0'), (1, '1'), (42, '16'), (818469960, 'django')]:
+             self.assertEqual(http.int_to_base36(n), b36)
+             self.assertEqual(http.base36_to_int(b36), n)
++
++    def test_is_safe_url(self):
++        for bad_url in ('http://example.com',
++                        'http:///example.com',
++                        'https://example.com',
++                        'ftp://exampel.com',
++                        r'\\example.com',
++                        r'\\\example.com',
++                        r'/\\/example.com',
++                        r'\\\example.com',
++                        r'\\example.com',
++                        r'\\//example.com',
++                        r'/\/example.com',
++                        r'\/example.com',
++                        r'/\example.com',
++                        'http:///example.com',
++                        'http:/\//example.com',
++                        'http:\/example.com',
++                        'http:/\example.com',
++                        'javascript:alert("XSS")'):
++            self.assertFalse(http.is_safe_url(bad_url, host='testserver'), "%s should be blocked" % bad_url)
++        for good_url in ('/view/?param=http://example.com',
++                     '/view/?param=https://example.com',
++                     '/view?param=ftp://exampel.com',
++                     'view/?param=//example.com',
++                     'https://testserver/',
++                     'HTTPS://testserver/',
++                     '//testserver/',
++                     '/url%20with%20spaces/'):
++            self.assertTrue(http.is_safe_url(good_url, host='testserver'), "%s should be allowed" % good_url)

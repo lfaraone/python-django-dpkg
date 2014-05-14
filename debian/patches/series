@@ -9,5 +9,7 @@ password-2.5-compat.diff
 reverse-execution-1.4.x.patch
 cache-csrf-1.4.x.patch
 mysql-typecast-1.4.x.diff
-regression-reverse-execution-1.4.x.patch
+2601.patch
+is_safe_url_1_4.diff
+drop_fix_ie_for_vary_1_4.diff
 FTBFS-exception-in-servers-tests-tear-down.patch

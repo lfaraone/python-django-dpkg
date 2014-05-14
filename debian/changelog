@@ -1,14 +1,20 @@
-python-django (1.4.5-1+deb7u6) wheezy-security; urgency=high
+python-django (1.4.5-1+deb7u7) stable-security; urgency=high
 
-  * Non-maintainer upload by the Security Team.
-  * Add regression-reverse-execution-1.4.x.patch patch.
-    Fix regression introduced by the original fix for CVE-2014-0472.
-    Restored the ability to reverse views created using functools.partial.
-  * Add FTBFS-exception-in-servers-tests-tear-down.patch.
-    Fixes "Fixed unbalanced setUp/tearDown calls in LiveServerAddress test".
-    (Closes: #722483)
+  * New upstream security release.
+    https://www.djangoproject.com/weblog/2014/may/14/security-releases-issued/
+    - Caches may be allowed to store and serve private data (CVE-2014-1418)
+    - Malformed URLs from user input incorrectly validated (CVE-2014-3730)
+  * Add FTBFS-exception-in-servers-tests-tear-down.patch. Closes: #722483
+    Fixes unbalanced setUp/tearDown calls in LiveServerAddress test.
 
- -- Salvatore Bonaccorso <carnil@debian.org>  Mon, 05 May 2014 12:48:34 +0200
+ -- Raphaël Hertzog <hertzog@debian.org>  Wed, 14 May 2014 23:13:58 +0200
+
+python-django (1.4.5-1+deb7u6) stable-security; urgency=high
+
+  * Fix regression of reverse() and partial views. (LP: #1311433)
+    Thanks Preston Timmons.
+
+ -- Luke Faraone <lfaraone@debian.org>  Tue, 22 Apr 2014 21:47:25 -0700
 
 python-django (1.4.5-1+deb7u5) stable-security; urgency=high
 

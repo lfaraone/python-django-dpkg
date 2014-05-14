@@ -1,21 +1,26 @@
-Description: Restored the ability to reverse views created using functools.partial
-Origin: upstream, https://github.com/django/django/commit/b91c385e324f1cb94d20e2ad146372c259d51d3b
-Bug: https://code.djangoproject.com/ticket/22486
-Bug-Ubuntu: https://bugs.launchpad.net/debian/+source/python-django/+bug/1311433 
-Forwarded: not-needed
-Last-Update: 2014-05-04
-Applied-Upstream: 1.4.12
+From: Preston Timmons <prestontimmons@gfa.org>
+Origin: https://github.com/django/django/pull/2601/
+Last-Updated: 2014-06-22
+Subject: Fixed #22486: Reverse raises AttributeError on partial functions.
+
+Create the lookup_str from the original function whenever a partial
+is provided as an argument to a url pattern.
+---
+ django/core/urlresolvers.py        |  4 ++++
+ tests/urlpatterns_reverse/urls.py  |  6 +++++-
+ tests/urlpatterns_reverse/views.py | 10 ++++++++++
+ 3 files changed, 19 insertions(+), 1 deletion(-)
 
 --- a/django/core/urlresolvers.py
 +++ b/django/core/urlresolvers.py
-@@ -7,6 +7,7 @@
-     (view_function, function_args, function_kwargs)
+@@ -8,6 +8,7 @@
  """
  
-+import functools
  import re
++import functools
  from threading import local
  
+ from django.http import Http404
 @@ -248,6 +249,9 @@
                  self._callback_strs.add(pattern._callback_str)
              elif hasattr(pattern, '_callback'):
@@ -37,17 +42,17 @@ Applied-Upstream: 1.4.12
  
  
  other_patterns = patterns('',
-@@ -56,6 +56,10 @@
-     # This is non-reversible, but we shouldn't blow up when parsing it.
-     url(r'^(?:foo|bar)(\w+)/$', empty_view, name="disjunction"),
+@@ -53,6 +53,10 @@
+             include('regressiontests.urlpatterns_reverse.included_urls')),
+     url('', include('regressiontests.urlpatterns_reverse.extra_urls')),
  
 +    # Partials should be fine.
 +    url(r'^partial/', empty_view_partial, name="partial"),
 +    url(r'^partial_wrapped/', empty_view_wrapped, name="partial_wrapped"),
 +
-     # Regression views for #9038. See tests for more details
-     url(r'arg_view/$', 'kwargs_view'),
-     url(r'arg_view/(?P<arg1>\d+)/$', 'kwargs_view'),
+     # This is non-reversible, but we shouldn't blow up when parsing it.
+     url(r'^(?:foo|bar)(\w+)/$', empty_view, name="disjunction"),
+ 
 --- a/tests/regressiontests/urlpatterns_reverse/views.py
 +++ b/tests/regressiontests/urlpatterns_reverse/views.py
 @@ -1,3 +1,5 @@
