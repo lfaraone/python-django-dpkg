@@ -1,3 +1,13 @@
+python-django (1.2.3-3+squeeze10) squeeze-security; urgency=high
+
+  * Non-maintainer upload by the Security Team.
+  * Add CVE-2014-1418.patch patch.
+    CVE-2014-1418: Caches may be allowed to store and serve private data.
+  * Add CVE-2014-3730.patch patch.
+    CVE-2014-3730: Malformed URLs from user input incorrectly validated.
+
+ -- Salvatore Bonaccorso <carnil@debian.org>  Sun, 18 May 2014 11:23:21 +0200
+
 python-django (1.2.3-3+squeeze9) squeeze-security; urgency=high
 
   * Non-maintainer upload by the Security Team.
