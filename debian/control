@@ -4,9 +4,10 @@ Priority: optional
 Maintainer: Debian Python Modules Team <python-modules-team@lists.alioth.debian.org>
 Uploaders: Luke Faraone <lfaraone@debian.org>,
  Raphaël Hertzog <hertzog@debian.org>,
- Chris Lamb <lamby@debian.org>
+ Chris Lamb <lamby@debian.org>,
+ Brian May <bam@debian.org>
 Standards-Version: 3.9.5
-Build-Depends: debhelper (>= 9), python (>= 2.6.6-3~), python-sphinx (>= 1.0.8), locales (>= 0)
+Build-Depends: debhelper (>= 9), dh-python, python-all (>= 2.6.6-3~), python3-all, python-sphinx (>= 1.0.8), locales (>= 0)
 Build-Depends-Indep: libjs-jquery
 Homepage: http://www.djangoproject.com/
 Vcs-Svn: svn://anonscm.debian.org/python-modules/packages/python-django/trunk/
@@ -14,7 +15,7 @@ Vcs-Browser: http://anonscm.debian.org/viewvc/python-modules/packages/python-dja
 
 Package: python-django
 Architecture: all
-Depends: ${misc:Depends}, ${python:Depends}
+Depends: ${misc:Depends}, ${python:Depends}, python-django-common (= ${binary:Version})
 Recommends: libjs-jquery
 Suggests: python-psycopg2, python-psycopg, python-mysqldb, python-flup, python-sqlite, python-yaml, geoip-database-contrib, gettext, python-django-doc, ipython, bpython, libgdal1
 Description: High-level Python web development framework
@@ -38,6 +39,53 @@ Description: High-level Python web development framework
   * Lightweight, standalone web server for development and testing
   * Internationalization support
   * Testing framework and client
+
+Package: python3-django
+Architecture: all
+Depends: ${misc:Depends}, ${python3:Depends}, python-django-common (= ${binary:Version})
+Recommends: libjs-jquery
+Suggests: python3-psycopg2, python3-psycopg, python3-mysqldb, python3-flup, python3-sqlite, python3-yaml, geoip-database-contrib, gettext, python-django-doc, ipython3, bpython3, libgdal1
+Description: High-level Python web development framework
+ Django is a high-level web application framework that loosely follows the
+ model-view-controller design pattern.
+ .
+ Python's equivalent to Ruby on Rails, Django lets you build complex
+ data-driven websites quickly and easily - Django focuses on automating as much
+ as possible and adhering to the "Don't Repeat Yourself" (DRY) principle.
+ .
+ Django additionally emphasizes reusability and "pluggability" of components;
+ many generic third-party "applications" are available to enhance projects or
+ to simply to reduce development time even further.
+ .
+ Notable features include:
+  * An object-relational mapper (ORM)
+  * Automatic admin interface
+  * Elegant URL dispatcher
+  * Form serialization and validation system
+  * Templating system
+  * Lightweight, standalone web server for development and testing
+  * Internationalization support
+  * Testing framework and client
+
+Package: python-django-common
+Architecture: all
+Depends: ${misc:Depends}, ${python3:Depends}
+Recommends: libjs-jquery
+Breaks: python-django (<< 1.6.5-2~)
+Replaces: python-django (<< 1.6.5-2~)
+Description: High-level Python web development framework (common)
+ Django is a high-level web application framework that loosely follows the
+ model-view-controller design pattern.
+ .
+ Python's equivalent to Ruby on Rails, Django lets you build complex
+ data-driven websites quickly and easily - Django focuses on automating as much
+ as possible and adhering to the "Don't Repeat Yourself" (DRY) principle.
+ .
+ Django additionally emphasizes reusability and "pluggability" of components;
+ many generic third-party "applications" are available to enhance projects or
+ to simply to reduce development time even further.
+ .
+ This package contains files common to both Python 2.7 and Python 3.
 
 Package: python-django-doc
 Section: doc

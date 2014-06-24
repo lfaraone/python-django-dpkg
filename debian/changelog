@@ -1,3 +1,9 @@
+python-django (1.6.5-2) unstable; urgency=low
+
+  * python3-django package. Closes: #736878.
+
+ -- Brian May <bam@debian.org>  Tue, 24 Jun 2014 10:51:47 +1000
+
 python-django (1.6.5-1) unstable; urgency=high
 
   * New upstream security release.

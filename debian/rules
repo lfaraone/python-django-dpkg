@@ -1,18 +1,13 @@
 #!/usr/bin/make -f
 
--include /usr/share/python/python.mk
-ifeq (,$(py_sitename))
-  py_sitename = site-packages
-  py_libdir = /usr/lib/python$(subst python,,$(1))/site-packages
-  py_sitename_sh = $(py_sitename)
-  py_libdir_sh = $(py_libdir)
-endif
-
+export PYBUILD_NAME=django
 
 PREFIX = debian/python-django
+PREFIX3 = debian/python3-django
+PREFIXC = debian/python-django-common
 
 %:
-	dh $@ --with sphinxdoc,python2
+	dh $@ --with sphinxdoc,python2,python3 --buildsystem=pybuild
 
 override_dh_auto_clean:
 	rm -rf docs.debian tests/__init__.py
@@ -46,33 +41,39 @@ override_dh_clean:
 override_dh_install:
 	dh_install
 	
-	# Use default shebang and m move scripts to /usr/lib/python-django
-	set -e; for ver in $(shell pyversions -vr); do \
-		[ -f /usr/bix/python$$ver ] || continue;\
-		FILE=$(PREFIX)/$(call py_libdir_sh,$$ver)/django/conf/project_template/manage.py; \
-		if [ -f $$FILE ]; then\
-			perl -pi -e 's|^#!/usr/bin/env python.*|#!/usr/bin/python|' $$FILE;\
-			chmod +x $$FILE;\
-		fi;\
-		if [ -d $(PREFIX)/usr/lib/python-django ]; then\
-			rm -rf $(PREFIX)/$(call py_libdir_sh,$$ver)/django/bin;\
-		else\
-			mkdir -p $(PREFIX)/usr/lib/python-django;\
-			mv $(PREFIX)/$(call py_libdir_sh,$$ver)/django/bin $(PREFIX)/usr/lib/python-django;\
-		fi;\
-	done
 	# Fix permissions
-	chmod 644 $(PREFIX)/etc/bash_completion.d/django_bash_completion
-	find $(PREFIX)/usr/lib/python-django/bin/ -name '*.py' -not -name '__init__.py' -print0 | xargs -0r chmod 755
+	chmod 644 $(PREFIXC)/etc/bash_completion.d/django_bash_completion
+	chmod 755 $(PREFIXC)/usr/bin/django-admin
 	
 	# Rename django-admin.py to django-admin
-	mv $(PREFIX)/usr/bin/django-admin.py $(PREFIX)/usr/bin/django-admin
+	rm $(PREFIX)/usr/bin/django-admin.py
+	rm $(PREFIX3)/usr/bin/django-admin.py
 	
 	# Remove embedded Javascript libraries
 	set -e; for FILENAME in jquery.js jquery.min.js; do \
 		find $(PREFIX) -name $$FILENAME -exec \
 			ln -sf /usr/share/javascript/jquery/$$FILENAME {} \;; \
+		find $(PREFIX3) -name $$FILENAME -exec \
+			ln -sf /usr/share/javascript/jquery/$$FILENAME {} \;; \
 	done
+
+override_dh_python3:
+	dh_python3
+	find debian/python3-django/usr/lib/python3/dist-packages/ -type f -not -name '*.py' | \
+	(while read file; do \
+		relname=$${file##debian/python3-django/usr/lib/python3/dist-packages/}; \
+		reldirname=$$(dirname $$relname); \
+		mkdir -p debian/python-django-common/usr/share/python-django-common/$$reldirname; \
+		mv $$file debian/python-django-common/usr/share/python-django-common/$$reldirname/; \
+		ln -sf /usr/share/python-django-common/$$relname $$file; \
+		if test -e debian/python-django/usr/share/pyshared/$$relname; then \
+		    rm debian/python-django/usr/share/pyshared/$$relname; \
+		    ln -sf /usr/share/python-django-common/$$relname debian/python-django/usr/share/pyshared/$$relname; \
+		else \
+		    rm debian/python-django/usr/lib/python2.7/dist-packages/$$relname; \
+		    ln -sf /usr/share/python-django-common/$$relname debian/python-django/usr/lib/python2.7/dist-packages/$$relname; \
+		fi \
+	done)
 
 override_dh_compress:
 	dh_compress -X.js -Xobjects.inv
