@@ -1,3 +1,15 @@
+python-django (1.6.5-3) unstable; urgency=low
+
+  * Replace django-admin with script that can be run as python and shell.
+
+    This means we can autodetect which python version to use when run as
+    shell, while maintaining compatability with processes that try to run it
+    with a specific python version.
+
+    e.g. See bugs #755341 and #755321.
+
+ -- Brian May <bam@debian.org>  Mon, 21 Jul 2014 10:18:39 +1000
+
 python-django (1.6.5-2) unstable; urgency=low
 
   * python3-django package. Closes: #736878.

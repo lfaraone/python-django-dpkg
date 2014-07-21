@@ -17,7 +17,7 @@ Package: python-django
 Architecture: all
 Depends: ${misc:Depends}, ${python:Depends}, python-django-common (= ${binary:Version})
 Recommends: libjs-jquery
-Suggests: python-psycopg2, python-psycopg, python-mysqldb, python-flup, python-sqlite, python-yaml, geoip-database-contrib, gettext, python-django-doc, ipython, bpython, libgdal1
+Suggests: python-psycopg2, python-mysqldb, python-flup, python-sqlite, python-yaml, geoip-database-contrib, gettext, python-django-doc, ipython, bpython, libgdal1
 Description: High-level Python web development framework
  Django is a high-level web application framework that loosely follows the
  model-view-controller design pattern.
@@ -44,7 +44,7 @@ Package: python3-django
 Architecture: all
 Depends: ${misc:Depends}, ${python3:Depends}, python-django-common (= ${binary:Version})
 Recommends: libjs-jquery
-Suggests: python3-psycopg2, python3-psycopg, python3-mysqldb, python3-flup, python3-sqlite, python3-yaml, geoip-database-contrib, gettext, python-django-doc, ipython3, bpython3, libgdal1
+Suggests: python3-psycopg2, python3-mysqldb, python3-flup, python3-sqlite, python3-yaml, geoip-database-contrib, gettext, python-django-doc, ipython3, bpython3, libgdal1
 Description: High-level Python web development framework
  Django is a high-level web application framework that loosely follows the
  model-view-controller design pattern.

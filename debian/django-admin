@@ -1,12 +1,26 @@
 #!/bin/sh
-
-if test -x /usr/bin/python3 && test -e /usr/lib/python3/dist-packages/django/bin/django-admin.py
+sh=''''
+# shell code
+if command -v python3 > /dev/null && test -e /usr/lib/python3/dist-packages/django/bin/django-admin.py
 then
-    exec python3 /usr/lib/python3/dist-packages/django/bin/django-admin.py "$@"
-elif test -x /usr/bin/python2.7 && test -e /usr/lib/python2.7/dist-packages/django/bin/django-admin.py
+    exec python3 "$0" "$@"
+elif command -v python2.7 > /dev/null && test -e /usr/lib/python2.7/dist-packages/django/bin/django-admin.py
 then
-    exec python2.7 /usr/lib/python2.7/dist-packages/django/bin/django-admin.py "$@"
+    exec python2.7 "$0" "$@"
+elif command -v python2.6 > /dev/null && test -e /usr/lib/python2.6/dist-packages/django/bin/django-admin.py
+then
+    exec python2.6 "$0" "$@"
 else
     echo "Cannot find installed version of python-django or python3-django." >&2
     exit 1
 fi
+' '''
+
+# python code
+import sys
+print("Using: Python %d.%d" % sys.version_info[:2])
+
+from django.core import management
+
+if __name__ == "__main__":
+    management.execute_from_command_line()
