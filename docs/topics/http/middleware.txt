@@ -45,7 +45,9 @@ The order in :setting:`MIDDLEWARE_CLASSES` matters because a middleware can
 depend on other middleware. For instance,
 :class:`~django.contrib.auth.middleware.AuthenticationMiddleware` stores the
 authenticated user in the session; therefore, it must run after
-:class:`~django.contrib.sessions.middleware.SessionMiddleware`.
+:class:`~django.contrib.sessions.middleware.SessionMiddleware`. See
+:ref:`middleware-ordering` for some common hints about ordering of Django
+middleware classes.
 
 Hooks and application order
 ===========================
@@ -204,11 +206,6 @@ reverse order, from the bottom up. This means classes defined at the end of
 Dealing with streaming responses
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. versionchanged:: 1.5
-
-    ``response`` may also be an :class:`~django.http.StreamingHttpResponse`
-    object.
-
 Unlike :class:`~django.http.HttpResponse`,
 :class:`~django.http.StreamingHttpResponse` does not have a ``content``
 attribute. As a result, middleware can no longer assume that all responses
@@ -226,7 +223,7 @@ must test for streaming responses and adjust their behavior accordingly::
     Response middleware may wrap it in a new generator, but must not consume
     it. Wrapping is typically implemented as follows::
 
-        def wrap_streaming_content(content)
+        def wrap_streaming_content(content):
             for chunk in content:
                 yield alter_content(chunk)
 

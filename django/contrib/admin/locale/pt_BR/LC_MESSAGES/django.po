@@ -1,41 +1,41 @@
 # This file is distributed under the same license as the Django package.
 #
 # Translators:
-# dudanogueira <dudanogueira@gmail.com>, 2012
-# Elyézer Rezende <elyezermr@gmail.com>, 2013
-# Gladson Simplício Brito <gladsonbrito@gmail.com>, 2013
-# Guilherme Gondim <semente@taurinus.org>, 2012-2013
-# Jannis Leidel <jannis@leidel.info>, 2011
+#   <dudanogueira@gmail.com>, 2012.
+# Eduardo Carvalho <eduardocereto@gmail.com>, 2011-2012.
+# Guilherme Gondim <semente@taurinus.org>, 2012-2013.
+# Guilherme Gondim <semente+transifex@taurinus.org>, 2012.
+# Jannis Leidel <jannis@leidel.info>, 2011.
 msgid ""
 msgstr ""
-"Project-Id-Version: django-core\n"
+"Project-Id-Version: Django\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2013-05-25 14:19+0200\n"
-"PO-Revision-Date: 2013-09-23 20:34+0000\n"
+"POT-Creation-Date: 2013-01-01 16:10+0100\n"
+"PO-Revision-Date: 2013-01-05 12:55+0000\n"
 "Last-Translator: Guilherme Gondim <semente@taurinus.org>\n"
-"Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/"
-"django/language/pt_BR/)\n"
+"Language-Team: Portuguese (Brazil) <django-l10n-portuguese@googlegroups."
+"com>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Language: pt_BR\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
-#: actions.py:49
+#: actions.py:48
 #, python-format
 msgid "Successfully deleted %(count)d %(items)s."
 msgstr "Removido %(count)d %(items)s com sucesso."
 
-#: actions.py:61 options.py:1418
+#: actions.py:60 options.py:1347
 #, python-format
 msgid "Cannot delete %(name)s"
 msgstr "Não é possível excluir %(name)s "
 
-#: actions.py:63 options.py:1420
+#: actions.py:62 options.py:1349
 msgid "Are you sure?"
 msgstr "Tem certeza?"
 
-#: actions.py:84
+#: actions.py:83
 #, python-format
 msgid "Delete selected %(verbose_name_plural)s"
 msgstr "Remover %(verbose_name_plural)s selecionados"
@@ -93,86 +93,86 @@ msgstr "Por favor acesse novamente, pois sua sessão expirou."
 msgid "Action:"
 msgstr "Ação:"
 
-#: models.py:25
+#: models.py:24
 msgid "action time"
 msgstr "hora da ação"
 
-#: models.py:28
+#: models.py:27
 msgid "object id"
 msgstr "id do objeto"
 
-#: models.py:29
+#: models.py:28
 msgid "object repr"
 msgstr "repr do objeto"
 
-#: models.py:30
+#: models.py:29
 msgid "action flag"
 msgstr "flag de ação"
 
-#: models.py:31
+#: models.py:30
 msgid "change message"
 msgstr "modificar mensagem"
 
-#: models.py:36
+#: models.py:35
 msgid "log entry"
 msgstr "entrada de log"
 
-#: models.py:37
+#: models.py:36
 msgid "log entries"
 msgstr "entradas de log"
 
-#: models.py:46
+#: models.py:45
 #, python-format
 msgid "Added \"%(object)s\"."
 msgstr "Adicionado \"%(object)s\"."
 
-#: models.py:48
+#: models.py:47
 #, python-format
 msgid "Changed \"%(object)s\" - %(changes)s"
 msgstr "Modificado \"%(object)s\" - %(changes)s"
 
-#: models.py:53
+#: models.py:52
 #, python-format
 msgid "Deleted \"%(object)s.\""
 msgstr "Removido \"%(object)s.\""
 
-#: models.py:55
+#: models.py:54
 msgid "LogEntry Object"
 msgstr "Objeto LogEntry"
 
-#: options.py:173 options.py:202
+#: options.py:156 options.py:172
 msgid "None"
 msgstr "Nenhum"
 
-#: options.py:763
+#: options.py:684
 #, python-format
 msgid "Changed %s."
 msgstr "Modificado %s."
 
-#: options.py:763 options.py:773 options.py:1570
+#: options.py:684 options.py:694
 msgid "and"
 msgstr "e"
 
-#: options.py:768
+#: options.py:689
 #, python-format
 msgid "Added %(name)s \"%(object)s\"."
 msgstr "Adicionado %(name)s \"%(object)s\""
 
-#: options.py:772
+#: options.py:693
 #, python-format
 msgid "Changed %(list)s for %(name)s \"%(object)s\"."
 msgstr "Modificado %(list)s para %(name)s \"%(object)s\"."
 
-#: options.py:777
+#: options.py:698
 #, python-format
 msgid "Deleted %(name)s \"%(object)s\"."
 msgstr "Deletado %(name)s \"%(object)s\"."
 
-#: options.py:781
+#: options.py:702
 msgid "No fields changed."
 msgstr "Nenhum campo modificado."
 
-#: options.py:884 options.py:927
+#: options.py:807 options.py:860
 #, python-format
 msgid ""
 "The %(name)s \"%(obj)s\" was added successfully. You may edit it again below."
@@ -180,7 +180,7 @@ msgstr ""
 "%(name)s \"%(obj)s\": adicionado com sucesso. Você pode editar novamente "
 "abaixo."
 
-#: options.py:902
+#: options.py:835
 #, python-format
 msgid ""
 "The %(name)s \"%(obj)s\" was added successfully. You may add another "
@@ -189,12 +189,12 @@ msgstr ""
 "%(name)s \"%(obj)s\" adicionado com sucesso. Você pode adicionar um outro "
 "%(name)s abaixo."
 
-#: options.py:906
+#: options.py:839
 #, python-format
 msgid "The %(name)s \"%(obj)s\" was added successfully."
 msgstr "%(name)s \"%(obj)s\": adicionado com sucesso."
 
-#: options.py:920
+#: options.py:853
 #, python-format
 msgid ""
 "The %(name)s \"%(obj)s\" was changed successfully. You may edit it again "
@@ -203,7 +203,7 @@ msgstr ""
 "%(name)s \"%(obj)s\" modificado com sucesso. Você pode editá-lo novamente "
 "abaixo."
 
-#: options.py:934
+#: options.py:867
 #, python-format
 msgid ""
 "The %(name)s \"%(obj)s\" was changed successfully. You may add another "
@@ -212,12 +212,12 @@ msgstr ""
 "%(name)s \"%(obj)s\" alterado com sucesso. Você pode adicionar um outro "
 "%(name)s abaixo."
 
-#: options.py:940
+#: options.py:873
 #, python-format
 msgid "The %(name)s \"%(obj)s\" was changed successfully."
 msgstr "%(name)s \"%(obj)s\": modificado com sucesso."
 
-#: options.py:1018 options.py:1278
+#: options.py:951 options.py:1211
 msgid ""
 "Items must be selected in order to perform actions on them. No items have "
 "been changed."
@@ -225,81 +225,65 @@ msgstr ""
 "Os itens devem ser selecionados a fim de executar ações sobre eles. Nenhum "
 "item foi modificado."
 
-#: options.py:1037
+#: options.py:970
 msgid "No action selected."
 msgstr "Nenhuma ação selecionada."
 
-#: options.py:1117
+#: options.py:1050
 #, python-format
 msgid "Add %s"
 msgstr "Adicionar %s"
 
-#: options.py:1141 options.py:1386
+#: options.py:1074 options.py:1319
 #, python-format
 msgid "%(name)s object with primary key %(key)r does not exist."
 msgstr "Objeto %(name)s com chave primária %(key)r não existe."
 
-#: options.py:1207
+#: options.py:1140
 #, python-format
 msgid "Change %s"
 msgstr "Modificar %s"
 
-#: options.py:1257
+#: options.py:1190
 msgid "Database error"
 msgstr "Erro no banco de dados"
 
-#: options.py:1320
+#: options.py:1253
 #, python-format
 msgid "%(count)s %(name)s was changed successfully."
 msgid_plural "%(count)s %(name)s were changed successfully."
 msgstr[0] "%(count)s %(name)s modificado com sucesso."
 msgstr[1] "%(count)s %(name)s modificados com sucesso."
 
-#: options.py:1347
+#: options.py:1280
 #, python-format
 msgid "%(total_count)s selected"
 msgid_plural "All %(total_count)s selected"
 msgstr[0] "%(total_count)s selecionado"
 msgstr[1] "Todos %(total_count)s selecionados"
 
-#: options.py:1352
+#: options.py:1285
 #, python-format
 msgid "0 of %(cnt)s selected"
 msgstr "0 de %(cnt)s selecionados"
 
-#: options.py:1403
+#: options.py:1335
 #, python-format
 msgid "The %(name)s \"%(obj)s\" was deleted successfully."
 msgstr "%(name)s \"%(obj)s\": excluído com sucesso."
 
-#: options.py:1459
+#: options.py:1382
 #, python-format
 msgid "Change history: %s"
 msgstr "Histórico de modificações: %s"
 
-#. Translators: Model verbose name and instance representation, suitable to be
-#. an item in a list
-#: options.py:1564
-#, python-format
-msgid "%(class_name)s %(instance)s"
-msgstr "%(class_name)s %(instance)s"
-
-#: options.py:1571
-#, python-format
-msgid ""
-"Deleting %(class_name)s %(instance)s would require deleting the following "
-"protected related objects: %(related_objects)s"
-msgstr ""
-"Excluir o %(object_name)s '%(escaped_object)s' exigiria excluir os seguintes "
-"objetos protegidos relacionados:"
-
-#: sites.py:318 tests.py:71 templates/admin/login.html:48
+#: sites.py:322 tests.py:57 templates/admin/login.html:48
 #: templates/registration/password_reset_complete.html:19
 #: views/decorators.py:24
 msgid "Log in"
 msgstr "Acessar"
 
-#: sites.py:386
+#: sites.py:388
 msgid "Site administration"
 msgstr "Administração do Site"
 
@@ -320,15 +304,15 @@ msgstr "Hora:"
 msgid "Lookup"
 msgstr "Olhar"
 
-#: widgets.py:260
+#: widgets.py:271
 msgid "Add Another"
 msgstr "Adicionar Outro(a)"
 
-#: widgets.py:302
+#: widgets.py:316
 msgid "Currently:"
 msgstr "Atualmente:"
 
-#: widgets.py:303
+#: widgets.py:317
 msgid "Change:"
 msgstr "Alterar:"
 
@@ -383,7 +367,7 @@ msgstr "Executar ação selecionada"
 
 #: templates/admin/actions.html:4
 msgid "Go"
-msgstr "Fazer"
+msgstr "Ir"
 
 #: templates/admin/actions.html:11
 msgid "Click here to select the objects across all pages"
@@ -454,14 +438,9 @@ msgstr "Ver no site"
 #: templates/admin/auth/user/change_password.html:27
 #: templates/registration/password_change_form.html:20
 msgid "Please correct the error below."
-msgstr "Por favor, corrija os erros abaixo."
-
-#: templates/admin/change_form.html:44 templates/admin/change_list.html:67
-#: templates/admin/login.html:17
-#: templates/admin/auth/user/change_password.html:27
-#: templates/registration/password_change_form.html:20
-msgid "Please correct the errors below."
-msgstr "Por favor, corrija os erros abaixo."
+msgid_plural "Please correct the errors below."
+msgstr[0] "Por favor, corrija o erro abaixo."
+msgstr[1] "Por favor, corrija os erros abaixo."
 
 #: templates/admin/change_list.html:58
 #, python-format
@@ -816,19 +795,11 @@ msgstr "Senha recuperada com sucesso"
 
 #: templates/registration/password_reset_done.html:17
 msgid ""
-"We've emailed you instructions for setting your password. You should be "
-"receiving them shortly."
+"We've emailed you instructions for setting your password to the email "
+"address you submitted. You should be receiving it shortly."
 msgstr ""
-"Nós te enviamos as instruções para definição da sua senha para o endereço de "
-"email fornecido. Você receberá a mensagem em instantes."
-
-#: templates/registration/password_reset_done.html:19
-msgid ""
-"If you don't receive an email, please make sure you've entered the address "
-"you registered with, and check your spam folder."
-msgstr ""
-"Se você não receber um e-mail, por favor verifique se você digitou o "
-"endereço que você usou para se registrar, e verificar a sua pasta de spam."
+"Nós te enviamos as instruções para definição da a sua senha para o endereço "
+"de email fornecido. Você receberá a mensagem em breve."
 
 #: templates/registration/password_reset_email.html:2
 #, python-format
@@ -872,20 +843,20 @@ msgstr "Endereço de email:"
 msgid "Reset my password"
 msgstr "Reinicializar minha senha"
 
-#: templatetags/admin_list.py:348
+#: templatetags/admin_list.py:344
 msgid "All dates"
 msgstr "Todas as datas"
 
-#: views/main.py:35
+#: views/main.py:33
 msgid "(None)"
 msgstr "(Nenhum)"
 
-#: views/main.py:84
+#: views/main.py:76
 #, python-format
 msgid "Select %s"
 msgstr "Selecione %s"
 
-#: views/main.py:86
+#: views/main.py:78
 #, python-format
 msgid "Select %s to change"
 msgstr "Selecione %s para modificar"

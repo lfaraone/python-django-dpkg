@@ -1,19 +1,18 @@
 # This file is distributed under the same license as the Django package.
 #
 # Translators:
-# Dimitris Glezos <glezos@transifex.com>, 2012
-# Jannis Leidel <jannis@leidel.info>, 2011
-# Lê Thanh <lethanhx2k@gmail.com>, 2013
-# Tran <hongdiepkien@gmail.com>, 2011
-# Tran Van <vantxm@yahoo.co.uk>, 2011-2013
-# Vuong Nguyen <autalpha@gmail.com>, 2011
+# Dimitris Glezos <glezos@indifex.com>, 2012.
+# Jannis Leidel <jannis@leidel.info>, 2011.
+# Tran  <hongdiepkien@gmail.com>, 2011.
+# Tran Van <vantxm@yahoo.co.uk>, 2011, 2012.
+# Vuong Nguyen <autalpha@gmail.com>, 2011.
 msgid ""
 msgstr ""
-"Project-Id-Version: django-core\n"
+"Project-Id-Version: Django\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2013-05-25 14:19+0200\n"
-"PO-Revision-Date: 2013-08-17 08:29+0000\n"
-"Last-Translator: Jannis Leidel <jannis@leidel.info>\n"
+"POT-Creation-Date: 2013-01-01 16:10+0100\n"
+"PO-Revision-Date: 2013-01-02 08:52+0000\n"
+"Last-Translator: Ramiro Morales <cramm0@gmail.com>\n"
 "Language-Team: Vietnamese (http://www.transifex.com/projects/p/django/"
 "language/vi/)\n"
 "MIME-Version: 1.0\n"
@@ -22,21 +21,21 @@ msgstr ""
 "Language: vi\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
 
-#: actions.py:49
+#: actions.py:48
 #, python-format
 msgid "Successfully deleted %(count)d %(items)s."
 msgstr "Đã xóa thành công %(count)d %(items)s ."
 
-#: actions.py:61 options.py:1418
+#: actions.py:60 options.py:1347
 #, python-format
 msgid "Cannot delete %(name)s"
 msgstr "Không thể xóa %(name)s"
 
-#: actions.py:63 options.py:1420
+#: actions.py:62 options.py:1349
 msgid "Are you sure?"
 msgstr "Bạn có chắc chắn không?"
 
-#: actions.py:84
+#: actions.py:83
 #, python-format
 msgid "Delete selected %(verbose_name_plural)s"
 msgstr "Xóa các %(verbose_name_plural)s đã chọn"
@@ -83,7 +82,6 @@ msgid ""
 "Please enter the correct %(username)s and password for a staff account. Note "
 "that both fields may be case-sensitive."
 msgstr ""
-"Bạn hãy nhập đúng %(username)s và mật khẩu. (Có phân biệt chữ hoa, thường)"
 
 #: forms.py:19
 msgid "Please log in again, because your session has expired."
@@ -93,86 +91,86 @@ msgstr "Hãy đăng nhập lại vì giao dịch của bạn đã hết hiệu l
 msgid "Action:"
 msgstr "Hoạt động:"
 
-#: models.py:25
+#: models.py:24
 msgid "action time"
 msgstr "Thời gian tác động"
 
-#: models.py:28
+#: models.py:27
 msgid "object id"
 msgstr "Mã đối tượng"
 
-#: models.py:29
+#: models.py:28
 msgid "object repr"
 msgstr "đối tượng repr"
 
-#: models.py:30
+#: models.py:29
 msgid "action flag"
 msgstr "hiệu hành động"
 
-#: models.py:31
+#: models.py:30
 msgid "change message"
 msgstr "thay đổi tin nhắn"
 
-#: models.py:36
+#: models.py:35
 msgid "log entry"
 msgstr "đăng nhập"
 
-#: models.py:37
+#: models.py:36
 msgid "log entries"
 msgstr "mục đăng nhập"
 
-#: models.py:46
+#: models.py:45
 #, python-format
 msgid "Added \"%(object)s\"."
-msgstr "Thêm \"%(object)s\"."
+msgstr ""
 
-#: models.py:48
+#: models.py:47
 #, python-format
 msgid "Changed \"%(object)s\" - %(changes)s"
-msgstr "Đã thay đổi \"%(object)s\" - %(changes)s"
+msgstr ""
 
-#: models.py:53
+#: models.py:52
 #, python-format
 msgid "Deleted \"%(object)s.\""
 msgstr "Đối tượng \"%(object)s.\" đã được xoá."
 
-#: models.py:55
+#: models.py:54
 msgid "LogEntry Object"
-msgstr "LogEntry Object"
+msgstr ""
 
-#: options.py:173 options.py:202
+#: options.py:156 options.py:172
 msgid "None"
 msgstr "Không"
 
-#: options.py:763
+#: options.py:684
 #, python-format
 msgid "Changed %s."
 msgstr "%s đã được thay đổi."
 
-#: options.py:763 options.py:773 options.py:1570
+#: options.py:684 options.py:694
 msgid "and"
 msgstr "và"
 
-#: options.py:768
+#: options.py:689
 #, python-format
 msgid "Added %(name)s \"%(object)s\"."
 msgstr "%(name)s \"%(object)s\" đã được thêm vào."
 
-#: options.py:772
+#: options.py:693
 #, python-format
 msgid "Changed %(list)s for %(name)s \"%(object)s\"."
 msgstr "%(list)s for %(name)s \"%(object)s\" đã được thay đổi."
 
-#: options.py:777
+#: options.py:698
 #, python-format
 msgid "Deleted %(name)s \"%(object)s\"."
 msgstr "%(name)s \"%(object)s\" đã bị xóa."
 
-#: options.py:781
+#: options.py:702
 msgid "No fields changed."
 msgstr "Không có trường nào thay đổi"
 
-#: options.py:884 options.py:927
+#: options.py:807 options.py:860
 #, python-format
 msgid ""
 "The %(name)s \"%(obj)s\" was added successfully. You may edit it again below."
@@ -180,44 +178,38 @@ msgstr ""
 "%(name)s \"%(obj)s\" đã được thêm vào thành công. Bạn có thể sửa lại dưới "
 "đây."
 
-#: options.py:902
+#: options.py:835
 #, python-format
 msgid ""
 "The %(name)s \"%(obj)s\" was added successfully. You may add another "
 "%(name)s below."
 msgstr ""
-"Bạn đã thêm %(name)s \"%(obj)s\" thành công. Bạn có thể thêm các %(name)s "
-"khác dưới đây."
 
-#: options.py:906
+#: options.py:839
 #, python-format
 msgid "The %(name)s \"%(obj)s\" was added successfully."
 msgstr "%(name)s \"%(obj)s\" được thêm vào thành công."
 
-#: options.py:920
+#: options.py:853
 #, python-format
 msgid ""
 "The %(name)s \"%(obj)s\" was changed successfully. You may edit it again "
 "below."
 msgstr ""
-"%(name)s \"%(obj)s\"  đã được thay đổi thành công. Bạn có thể sửa lại dưới "
-"đây."
 
-#: options.py:934
+#: options.py:867
 #, python-format
 msgid ""
 "The %(name)s \"%(obj)s\" was changed successfully. You may add another "
 "%(name)s below."
 msgstr ""
-"%(name)s \"%(obj)s\" đã thay đổi thành công. Bạn có thể thêm %(name)s khác "
-"dưới đây."
 
-#: options.py:940
+#: options.py:873
 #, python-format
 msgid "The %(name)s \"%(obj)s\" was changed successfully."
 msgstr "%(name)s \"%(obj)s\" đã được thay đổi thành công."
 
-#: options.py:1018 options.py:1278
+#: options.py:951 options.py:1211
 msgid ""
 "Items must be selected in order to perform actions on them. No items have "
 "been changed."
@@ -225,79 +217,63 @@ msgstr ""
 "Mục tiêu phải được chọn mới có thể thực hiện hành động trên chúng. Không có "
 "mục tiêu nào đã được thay đổi."
 
-#: options.py:1037
+#: options.py:970
 msgid "No action selected."
 msgstr "Không có hoạt động nào được lựa chọn."
 
-#: options.py:1117
+#: options.py:1050
 #, python-format
 msgid "Add %s"
 msgstr "Thêm %s"
 
-#: options.py:1141 options.py:1386
+#: options.py:1074 options.py:1319
 #, python-format
 msgid "%(name)s object with primary key %(key)r does not exist."
 msgstr " đối tượng %(name)s  với khóa chính %(key)r không tồn tại."
 
-#: options.py:1207
+#: options.py:1140
 #, python-format
 msgid "Change %s"
 msgstr "Thay đổi %s"
 
-#: options.py:1257
+#: options.py:1190
 msgid "Database error"
 msgstr "Cơ sở dữ liệu bị lỗi"
 
-#: options.py:1320
+#: options.py:1253
 #, python-format
 msgid "%(count)s %(name)s was changed successfully."
 msgid_plural "%(count)s %(name)s were changed successfully."
 msgstr[0] " %(count)s  %(name)s đã được thay đổi thành công."
 
-#: options.py:1347
+#: options.py:1280
 #, python-format
 msgid "%(total_count)s selected"
 msgid_plural "All %(total_count)s selected"
 msgstr[0] "Tất cả %(total_count)s đã được chọn"
 
-#: options.py:1352
+#: options.py:1285
 #, python-format
 msgid "0 of %(cnt)s selected"
 msgstr "0 của %(cnt)s được chọn"
 
-#: options.py:1403
+#: options.py:1335
 #, python-format
 msgid "The %(name)s \"%(obj)s\" was deleted successfully."
 msgstr "%(name)s \"%(obj)s\" đã được xóa thành công."
 
-#: options.py:1459
+#: options.py:1382
 #, python-format
 msgid "Change history: %s"
 msgstr "Lịch sử thay đổi: %s"
 
-#. Translators: Model verbose name and instance representation, suitable to be
-#. an item in a list
-#: options.py:1564
-#, python-format
-msgid "%(class_name)s %(instance)s"
-msgstr "%(class_name)s %(instance)s"
-
-#: options.py:1571
-#, python-format
-msgid ""
-"Deleting %(class_name)s %(instance)s would require deleting the following "
-"protected related objects: %(related_objects)s"
-msgstr ""
-"Xóa %(object_name)s '%(escaped_object)s', các đối tượng liên quan sau đây "
-"cũng bị xóa theo:"
-
-#: sites.py:318 tests.py:71 templates/admin/login.html:48
+#: sites.py:322 tests.py:57 templates/admin/login.html:48
 #: templates/registration/password_reset_complete.html:19
 #: views/decorators.py:24
 msgid "Log in"
 msgstr "Đăng nhập"
 
-#: sites.py:386
+#: sites.py:388
 msgid "Site administration"
 msgstr "Site quản trị hệ thống."
 
@@ -318,17 +294,17 @@ msgstr "Giờ:"
 msgid "Lookup"
 msgstr "Tìm"
 
-#: widgets.py:260
+#: widgets.py:271
 msgid "Add Another"
 msgstr "Thêm vào"
 
-#: widgets.py:302
+#: widgets.py:316
 msgid "Currently:"
-msgstr "Hiện nay:"
+msgstr ""
 
-#: widgets.py:303
+#: widgets.py:317
 msgid "Change:"
-msgstr "Thay đổi:"
+msgstr ""
 
 #: templates/admin/404.html:4 templates/admin/404.html.py:8
 msgid "Page not found"
@@ -372,8 +348,6 @@ msgid ""
 "There's been an error. It's been reported to the site administrators via "
 "email and should be fixed shortly. Thanks for your patience."
 msgstr ""
-"Có lỗi xảy ra. Lỗi sẽ được gửi đến quản trị website qua email và sẽ được "
-"khắc phục sớm. Cám ơn bạn."
 
 #: templates/admin/actions.html:4
 msgid "Run the selected action"
@@ -452,14 +426,8 @@ msgstr "Xem trên trang web"
 #: templates/admin/auth/user/change_password.html:27
 #: templates/registration/password_change_form.html:20
 msgid "Please correct the error below."
-msgstr "Hãy sửa lỗi sai dưới đây"
-
-#: templates/admin/change_form.html:44 templates/admin/change_list.html:67
-#: templates/admin/login.html:17
-#: templates/admin/auth/user/change_password.html:27
-#: templates/registration/password_change_form.html:20
-msgid "Please correct the errors below."
-msgstr ""
+msgid_plural "Please correct the errors below."
+msgstr[0] "Hãy sửa lỗi sai dưới đây"
 
 #: templates/admin/change_list.html:58
 #, python-format
@@ -472,7 +440,7 @@ msgstr "Bộ lọc"
 
 #: templates/admin/change_list_results.html:17
 msgid "Remove from sorting"
-msgstr "Bỏ khỏi sắp xếp"
+msgstr ""
 
 #: templates/admin/change_list_results.html:18
 #, python-format
@@ -481,7 +449,7 @@ msgstr "Sắp xếp theo:%(priority_number)s"
 
 #: templates/admin/change_list_results.html:19
 msgid "Toggle sorting"
-msgstr "Hoán đổi sắp xếp"
+msgstr ""
 
 #: templates/admin/delete_confirmation.html:11
 #: templates/admin/submit_line.html:4
@@ -561,7 +529,7 @@ msgstr "Bởi %(filter_title)s "
 #: templates/admin/index.html:20
 #, python-format
 msgid "Models in the %(name)s application"
-msgstr "Các mô models trong %(name)s"
+msgstr ""
 
 #: templates/admin/index.html:39
 msgid "Change"
@@ -811,19 +779,9 @@ msgstr "Lấy lại mật khẩu thành công"
 
 #: templates/registration/password_reset_done.html:17
 msgid ""
-"We've emailed you instructions for setting your password. You should be "
-"receiving them shortly."
+"We've emailed you instructions for setting your password to the email "
+"address you submitted. You should be receiving it shortly."
 msgstr ""
-"Chúng tôi vừa email cho bạn hướng dẫn thiết lập mật khẩu. Hãy mở email để "
-"kiểm tra."
-
-#: templates/registration/password_reset_done.html:19
-msgid ""
-"If you don't receive an email, please make sure you've entered the address "
-"you registered with, and check your spam folder."
-msgstr ""
-"Nếu bạn không nhận được email, hãy kiểm tra lại địa chỉ email mà bạn dùng để "
-"đăng kí hoặc kiểm tra trong thư mục spam/rác"
 
 #: templates/registration/password_reset_email.html:2
 #, python-format
@@ -831,8 +789,6 @@ msgid ""
 "You're receiving this email because you requested a password reset for your "
 "user account at %(site_name)s."
 msgstr ""
-"Bạn nhận được email này vì bạn đã yêu cầu làm mới lại mật khẩu cho tài khoản "
-"của bạn tại %(site_name)s."
 
 #: templates/registration/password_reset_email.html:4
 msgid "Please go to the following page and choose a new password:"
@@ -856,31 +812,29 @@ msgid ""
 "Forgotten your password? Enter your email address below, and we'll email "
 "instructions for setting a new one."
 msgstr ""
-"Quên mật khẩu? Nhập địa chỉ email vào ô dưới đây. Chúng tôi sẽ email cho bạn "
-"hướng dẫn cách thiết lập mật khẩu mới."
 
 #: templates/registration/password_reset_form.html:21
 msgid "Email address:"
-msgstr "Địa chỉ Email:"
+msgstr ""
 
 #: templates/registration/password_reset_form.html:21
 msgid "Reset my password"
 msgstr "Làm lại mật khẩu"
 
-#: templatetags/admin_list.py:348
+#: templatetags/admin_list.py:344
 msgid "All dates"
 msgstr "Tất cả các ngày"
 
-#: views/main.py:35
+#: views/main.py:33
 msgid "(None)"
 msgstr "(Không)"
 
-#: views/main.py:84
+#: views/main.py:76
 #, python-format
 msgid "Select %s"
 msgstr "Chọn %s"
 
-#: views/main.py:86
+#: views/main.py:78
 #, python-format
 msgid "Select %s to change"
 msgstr "Chọn %s để thay đổi"

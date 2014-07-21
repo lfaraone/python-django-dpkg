@@ -1,6 +1,8 @@
-from django.utils.unittest import TestCase
+from unittest import TestCase
+
 from django.utils.baseconv import base2, base16, base36, base56, base62, base64, BaseConverter
 from django.utils.six.moves import xrange
+
 
 class TestBaseConv(TestCase):
 

@@ -7,7 +7,18 @@ Uploaders: Luke Faraone <lfaraone@debian.org>,
  Chris Lamb <lamby@debian.org>,
  Brian May <bam@debian.org>
 Standards-Version: 3.9.5
-Build-Depends: debhelper (>= 9), dh-python, python-all (>= 2.6.6-3~), python3-all, python-sphinx (>= 1.0.8), locales (>= 0)
+Build-Depends: debhelper (>= 9), dh-python, python-all (>= 2.6.6-3~), python3-all, python-sphinx (>= 1.0.8), locales (>= 0),
+# Needed to enable supplementary tests in test suite
+ python-bcrypt, python3-bcrypt,
+ python-docutils, python3-docutils,
+ python-numpy, python3-numpy,
+ python-pil, python3-pil,
+ python-yaml, python3-yaml,
+ python-tz, python3-tz,
+ python-setuptools, python3-setuptools,
+# python-memcache, python3-memcache, memcached, # we can't rely on running daemon
+ python-sqlparse, python3-sqlparse,
+# python-selenium in theory too... but it's not properly packaged
 Build-Depends-Indep: libjs-jquery
 Homepage: http://www.djangoproject.com/
 Vcs-Svn: svn://anonscm.debian.org/python-modules/packages/python-django/trunk/
@@ -16,9 +27,9 @@ Vcs-Browser: http://anonscm.debian.org/viewvc/python-modules/packages/python-dja
 Package: python-django
 Architecture: all
 Depends: ${misc:Depends}, ${python:Depends}, python-django-common (= ${binary:Version})
-Recommends: libjs-jquery
-Suggests: python-psycopg2, python-mysqldb, python-flup, python-sqlite, python-yaml, geoip-database-contrib, gettext, python-django-doc, ipython, bpython, libgdal1
-Description: High-level Python web development framework
+Recommends: libjs-jquery, python-sqlparse, python-tz
+Suggests: python-psycopg2, python-mysqldb, python-flup, python-sqlite, python-memcache, python-pil, python-bcrypt, python-yaml, geoip-database-contrib, gettext, python-django-doc, ipython, bpython, libgdal1
+Description: High-level Python web development framework (Python 2 version)
  Django is a high-level web application framework that loosely follows the
  model-view-controller design pattern.
  .
@@ -39,13 +50,15 @@ Description: High-level Python web development framework
   * Lightweight, standalone web server for development and testing
   * Internationalization support
   * Testing framework and client
+ .
+ This package is built for Python 2.
 
 Package: python3-django
 Architecture: all
 Depends: ${misc:Depends}, ${python3:Depends}, python-django-common (= ${binary:Version})
-Recommends: libjs-jquery
-Suggests: python3-psycopg2, python3-mysqldb, python3-flup, python3-sqlite, python3-yaml, geoip-database-contrib, gettext, python-django-doc, ipython3, bpython3, libgdal1
-Description: High-level Python web development framework
+Recommends: libjs-jquery, python3-sqlparse, python3-tz
+Suggests: python3-psycopg2, python3-mysqldb, python3-flup, python3-sqlite, python3-memcache, python3-pil, python3-bcrypt, python3-yaml, geoip-database-contrib, gettext, python-django-doc, ipython3, bpython3, libgdal1
+Description: High-level Python web development framework (Python 3 version)
  Django is a high-level web application framework that loosely follows the
  model-view-controller design pattern.
  .
@@ -66,6 +79,8 @@ Description: High-level Python web development framework
   * Lightweight, standalone web server for development and testing
   * Internationalization support
   * Testing framework and client
+ .
+ This package is built for Python 3.
 
 Package: python-django-common
 Architecture: all

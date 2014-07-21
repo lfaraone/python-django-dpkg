@@ -1,3 +1,19 @@
+python-django (1.7~c1+20140722-1) experimental; urgency=medium
+
+  * New upstream release candidate. We want this version in jessie so we
+    should prepare now.
+  * Snapshot tarball generated with "python setup.py sdist" after having
+    applied fix submitted in https://code.djangoproject.com/ticket/23072
+  * Added python-sqlparse, python-tz to Recommends
+  * Added other optional dependencies (python-memcache, python-pil,
+    python-bcrypt) to Suggests
+  * Add all those dependencies in Build-Depends for the benefit of the
+    test suite.
+  * Run the test suite for python2 and python3.
+  * Differentiate descriptions of python2 and python3 packages. 
+
+ -- Raphaël Hertzog <hertzog@debian.org>  Mon, 21 Jul 2014 21:57:07 +0200
+
 python-django (1.6.5-3) unstable; urgency=low
 
   * Replace django-admin with script that can be run as python and shell.

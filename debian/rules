@@ -10,7 +10,7 @@ PREFIXC = debian/python-django-common
 	dh $@ --with sphinxdoc,python2,python3 --buildsystem=pybuild
 
 override_dh_auto_clean:
-	rm -rf docs.debian tests/__init__.py
+	rm -rf docs.debian
 	find -name "*.DS_Store" -delete
 	chmod a-x django/contrib/gis/tests/data/texas.dbf
 	dh_auto_clean
@@ -27,10 +27,10 @@ override_dh_auto_build:
 
 override_dh_auto_test:
 ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
-	touch tests/__init__.py
 	mkdir -p tmp-locales
 	localedef -i /usr/share/i18n/locales/en_US -c -f UTF-8 -A /usr/share/locale/locale.alias tmp-locales/en_US.UTF-8
-	LOCPATH=$(CURDIR)/tmp-locales LC_ALL=en_US.UTF-8 PYTHONPATH=. tests/runtests.py --settings=tests.test_sqlite --verbosity=2
+	cd tests && LOCPATH=$(CURDIR)/tmp-locales LC_ALL=en_US.UTF-8 PYTHONPATH=.. python ./runtests.py --verbosity=2
+	cd tests && LOCPATH=$(CURDIR)/tmp-locales LC_ALL=en_US.UTF-8 PYTHONPATH=.. python3 ./runtests.py --verbosity=2
 	rm -rf tmp-locales
 endif
 

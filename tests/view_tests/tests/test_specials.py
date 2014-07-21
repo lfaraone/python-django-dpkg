@@ -1,4 +1,4 @@
-# coding: utf-8
+# -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
 from django.test import TestCase
@@ -36,4 +36,3 @@ class URLHandling(TestCase):
         """
         response = self.client.get('/permanent_nonascii_redirect/')
         self.assertRedirects(response, self.redirect_target, status_code=301)
-

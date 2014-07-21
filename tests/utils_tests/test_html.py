@@ -3,11 +3,13 @@ from __future__ import unicode_literals
 
 from datetime import datetime
 import os
+from unittest import TestCase
+import warnings
 
-from django.utils import html
+from django.utils import html, safestring
 from django.utils._os import upath
+from django.utils.deprecation import RemovedInDjango18Warning
 from django.utils.encoding import force_text
-from django.utils.unittest import TestCase
 
 
 class TestUtilsHtml(TestCase):
@@ -24,7 +26,7 @@ class TestUtilsHtml(TestCase):
     def test_escape(self):
         f = html.escape
         items = (
-            ('&','&amp;'),
+            ('&', '&amp;'),
             ('<', '&lt;'),
             ('>', '&gt;'),
             ('"', '&quot;'),
@@ -49,7 +51,7 @@ class TestUtilsHtml(TestCase):
                              fourth=html.mark_safe("<i>safe again</i>")
                              ),
             "&lt; Dangerous &gt; <b>safe</b> &lt; dangerous again <i>safe again</i>"
-            )
+        )
 
     def test_linebreaks(self):
         f = html.linebreaks
@@ -138,25 +140,29 @@ class TestUtilsHtml(TestCase):
                 self.check_output(f, in_pattern % {'entity': entity}, output)
 
     def test_fix_ampersands(self):
-        f = html.fix_ampersands
-        # Strings without ampersands or with ampersands already encoded.
-        values = ("a&#1;", "b", "&a;", "&amp; &x; ", "asdf")
-        patterns = (
-            ("%s", "%s"),
-            ("&%s", "&amp;%s"),
-            ("&%s&", "&amp;%s&amp;"),
-        )
-        for value in values:
-            for in_pattern, out_pattern in patterns:
-                self.check_output(f, in_pattern % value, out_pattern % value)
-        # Strings with ampersands that need encoding.
-        items = (
-            ("&#;", "&amp;#;"),
-            ("&#875 ;", "&amp;#875 ;"),
-            ("&#4abc;", "&amp;#4abc;"),
-        )
-        for value, output in items:
-            self.check_output(f, value, output)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RemovedInDjango18Warning)
+            f = html.fix_ampersands
+            # Strings without ampersands or with ampersands already encoded.
+            values = ("a&#1;", "b", "&a;", "&amp; &x; ", "asdf")
+            patterns = (
+                ("%s", "%s"),
+                ("&%s", "&amp;%s"),
+                ("&%s&", "&amp;%s&amp;"),
+            )
+
+            for value in values:
+                for in_pattern, out_pattern in patterns:
+                    self.check_output(f, in_pattern % value, out_pattern % value)
+
+            # Strings with ampersands that need encoding.
+            items = (
+                ("&#;", "&amp;#;"),
+                ("&#875 ;", "&amp;#875 ;"),
+                ("&#4abc;", "&amp;#4abc;"),
+            )
+            for value, output in items:
+                self.check_output(f, value, output)
 
     def test_escapejs(self):
         f = html.escapejs
@@ -179,8 +185,10 @@ class TestUtilsHtml(TestCase):
             # also a regression test for #7267: this used to raise an UnicodeDecodeError
             ('<p>* foo</p><p>* bar</p>', '<ul>\n<li> foo</li><li> bar</li>\n</ul>'),
         )
-        for value, output in items:
-            self.check_output(f, value, output)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RemovedInDjango18Warning)
+            for value, output in items:
+                self.check_output(f, value, output)
 
     def test_remove_tags(self):
         f = html.remove_tags
@@ -200,3 +208,9 @@ class TestUtilsHtml(TestCase):
         self.assertEqual(quote('http://example.com/path/öäü/'), 'http://example.com/path/%C3%B6%C3%A4%C3%BC/')
         self.assertEqual(quote('http://example.com/%C3%B6/ä/'), 'http://example.com/%C3%B6/%C3%A4/')
         self.assertEqual(quote('http://example.com/?x=1&y=2'), 'http://example.com/?x=1&y=2')
+
+    def test_conditional_escape(self):
+        s = '<h1>interop</h1>'
+        self.assertEqual(html.conditional_escape(s),
+                         '&lt;h1&gt;interop&lt;/h1&gt;')
+        self.assertEqual(html.conditional_escape(safestring.mark_safe(s)), s)

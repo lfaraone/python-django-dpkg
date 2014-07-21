@@ -1,4 +1,4 @@
-from __future__ import absolute_import, unicode_literals
+from __future__ import unicode_literals
 
 from django.contrib.auth.models import User
 from django.db import models
@@ -27,6 +27,7 @@ class Plant(models.Model):
         # For testing when upper case letter in app name; regression for #4057
         db_table = "Fixtures_regress_plant"
 
+
 @python_2_unicode_compatible
 class Stuff(models.Model):
     name = models.CharField(max_length=20, null=True)
@@ -51,7 +52,7 @@ class Child(Parent):
     data = models.CharField(max_length=10)
 
 
-# Models to regression test #7572
+# Models to regression test #7572, #20820
 class Channel(models.Model):
     name = models.CharField(max_length=255)
 
@@ -66,6 +67,17 @@ class Article(models.Model):
 
 # Subclass of a model with a ManyToManyField for test_ticket_20820
 class SpecialArticle(Article):
+    pass
+
+
+# Models to regression test #22421
+class CommonFeature(Article):
+
+    class Meta:
+        abstract = True
+
+
+class Feature(CommonFeature):
     pass
 
 

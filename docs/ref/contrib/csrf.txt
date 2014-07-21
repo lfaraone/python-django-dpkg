@@ -190,9 +190,8 @@ jQuery 1.5 and newer in order to replace the ``sameOrigin`` logic above:
         return (/^(GET|HEAD|OPTIONS|TRACE)$/.test(method));
     }
     $.ajaxSetup({
-        crossDomain: false, // obviates need for sameOrigin test
         beforeSend: function(xhr, settings) {
-            if (!csrfSafeMethod(settings.type)) {
+            if (!csrfSafeMethod(settings.type) && !this.crossDomain) {
                 xhr.setRequestHeader("X-CSRFToken", csrftoken);
             }
         }
@@ -491,6 +490,7 @@ Settings
 
 A number of settings can be used to control Django's CSRF behavior:
 
+* :setting:`CSRF_COOKIE_AGE`
 * :setting:`CSRF_COOKIE_DOMAIN`
 * :setting:`CSRF_COOKIE_HTTPONLY`
 * :setting:`CSRF_COOKIE_NAME`

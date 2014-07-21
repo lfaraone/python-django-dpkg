@@ -1,12 +1,13 @@
 """
  The GeometryColumns and SpatialRefSys models for the SpatiaLite backend.
 """
-from django.db import models
+from django.db import connection, models
 from django.contrib.gis.db.backends.base import SpatialRefSysMixin
 from django.utils.encoding import python_2_unicode_compatible
 
+
 @python_2_unicode_compatible
-class GeometryColumns(models.Model):
+class SpatialiteGeometryColumns(models.Model):
     """
     The 'geometry_columns' table from SpatiaLite.
     """
@@ -18,22 +19,23 @@ class GeometryColumns(models.Model):
     spatial_index_enabled = models.IntegerField()
 
     class Meta:
+        app_label = 'gis'
         db_table = 'geometry_columns'
         managed = False
 
     @classmethod
     def table_name_col(cls):
         """
-        Returns the name of the metadata column used to store the
-        the feature table name.
+        Returns the name of the metadata column used to store the feature table
+        name.
         """
         return 'f_table_name'
 
     @classmethod
     def geom_col_name(cls):
         """
-        Returns the name of the metadata column used to store the
-        the feature geometry column.
+        Returns the name of the metadata column used to store the feature
+        geometry column.
         """
         return 'f_geometry_column'
 
@@ -42,7 +44,8 @@ class GeometryColumns(models.Model):
                (self.f_table_name, self.f_geometry_column,
                 self.coord_dimension, self.type, self.srid)
 
-class SpatialRefSys(models.Model, SpatialRefSysMixin):
+
+class SpatialiteSpatialRefSys(models.Model, SpatialRefSysMixin):
     """
     The 'spatial_ref_sys' table from SpatiaLite.
     """
@@ -51,12 +54,17 @@ class SpatialRefSys(models.Model, SpatialRefSysMixin):
     auth_srid = models.IntegerField()
     ref_sys_name = models.CharField(max_length=256)
     proj4text = models.CharField(max_length=2048)
+    if connection.ops.spatial_version[0] >= 4:
+        srtext = models.CharField(max_length=2048)
 
     @property
     def wkt(self):
+        if hasattr(self, 'srtext'):
+            return self.srtext
         from django.contrib.gis.gdal import SpatialReference
         return SpatialReference(self.proj4text).wkt
 
     class Meta:
+        app_label = 'gis'
         db_table = 'spatial_ref_sys'
         managed = False
