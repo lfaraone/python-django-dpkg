@@ -1,3 +1,16 @@
+python-django (1.7~c1+20140722-2) experimental; urgency=medium
+
+  * Move django-admin manual page in python-django-common. Bump version
+    constraint in Breaks/Replaces accordingly.
+  * Drop conflicting django-admin in python-django and python3-django that
+    were not removed as usual because upstream stopped installing them as
+    django-admin.py.
+  * Drop extra license files.
+  * Fix shebang lines in python3-django.
+  * Drop empty left-over /usr/bin directories in python-django/python3-django.
+
+ -- Raphaël Hertzog <hertzog@debian.org>  Tue, 22 Jul 2014 23:29:30 +0200
+
 python-django (1.7~c1+20140722-1) experimental; urgency=medium
 
   * New upstream release candidate. We want this version in jessie so we

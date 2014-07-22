@@ -1,5 +1,5 @@
 #!/bin/sh
-sh=''''
+shell_code=''' '
 # shell code
 if command -v python3 > /dev/null && test -e /usr/lib/python3/dist-packages/django/bin/django-admin.py
 then
@@ -14,9 +14,10 @@ else
     echo "Cannot find installed version of python-django or python3-django." >&2
     exit 1
 fi
-' '''
 
+python_code='''
 # python code
+# ONLY use DOUBLE quotes <"> after this line
 import sys
 print("Using: Python %d.%d" % sys.version_info[:2])
 
@@ -24,3 +25,5 @@ from django.core import management
 
 if __name__ == "__main__":
     management.execute_from_command_line()
+
+# End of Python code. Do not modify this line. #'

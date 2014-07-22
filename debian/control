@@ -84,10 +84,10 @@ Description: High-level Python web development framework (Python 3 version)
 
 Package: python-django-common
 Architecture: all
-Depends: ${misc:Depends}, ${python3:Depends}
+Depends: ${misc:Depends}
 Recommends: libjs-jquery
-Breaks: python-django (<< 1.6.5-2~)
-Replaces: python-django (<< 1.6.5-2~)
+Breaks: python-django (<< 1.7~)
+Replaces: python-django (<< 1.7~)
 Description: High-level Python web development framework (common)
  Django is a high-level web application framework that loosely follows the
  model-view-controller design pattern.

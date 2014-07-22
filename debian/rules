@@ -38,17 +38,25 @@ override_dh_clean:
 	# backup~ is used in tests
 	dh_clean -Xbackup~
 
-override_dh_install:
-	dh_install
-	
-	# Fix permissions
-	chmod 644 $(PREFIXC)/etc/bash_completion.d/django_bash_completion
-	chmod 755 $(PREFIXC)/usr/bin/django-admin
-	
-	# Rename django-admin.py to django-admin
-	rm $(PREFIX)/usr/bin/django-admin.py
-	rm $(PREFIX3)/usr/bin/django-admin.py
-	
+override_dh_auto_install:
+	dh_auto_install
+
+	# Drop extra license files
+	find $(PREFIX) -name LICENSE -o -name license.txt -o -name license.python.txt | \
+	    xargs --no-run-if-empty rm
+	find $(PREFIX3) -name LICENSE -o -name license.txt -o -name license.python.txt | \
+	    xargs --no-run-if-empty rm
+
+	# Drop django-admin{,.py} which is in python-django-common and
+	# clean up empty parent directories
+	rm $(PREFIX)/usr/bin/django-admin*
+	rm $(PREFIX3)/usr/bin/django-admin*
+	rmdir --ignore-fail-on-non-empty --parents $(PREFIX)/usr/bin $(PREFIX3)/usr/bin
+
+	# Fix the shebang lines to use python3 in python3-django
+	find $(PREFIX3) -name django-admin.py -or -name manage.py | \
+	    xargs --no-run-if-empty sed -i -e '1s/python$$/python3/'
+
 	# Remove embedded Javascript libraries
 	set -e; for FILENAME in jquery.js jquery.min.js; do \
 		find $(PREFIX) -name $$FILENAME -exec \
@@ -56,6 +64,13 @@ override_dh_install:
 		find $(PREFIX3) -name $$FILENAME -exec \
 			ln -sf /usr/share/javascript/jquery/$$FILENAME {} \;; \
 	done
+
+override_dh_install:
+	dh_install
+	
+	# Fix permissions
+	chmod 644 $(PREFIXC)/etc/bash_completion.d/django_bash_completion
+	chmod 755 $(PREFIXC)/usr/bin/django-admin
 
 override_dh_python3:
 	dh_python3
