@@ -1,3 +1,9 @@
+python-django (1.7~c2-1) experimental; urgency=medium
+
+  * New upstream release candidate.
+
+ -- Raphaël Hertzog <hertzog@debian.org>  Wed, 30 Jul 2014 20:47:10 +0200
+
 python-django (1.7~c1+20140722-2) experimental; urgency=medium
 
   * Move django-admin manual page in python-django-common. Bump version
