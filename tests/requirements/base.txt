@@ -1,5 +1,6 @@
+bcrypt
 docutils
-Markdown
+Pillow
 PyYAML
 pytz
 selenium
