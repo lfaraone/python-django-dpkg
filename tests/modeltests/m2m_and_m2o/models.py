@@ -1,5 +1,5 @@
 """
-28. Many-to-many and many-to-one relationships to the same table
+29. Many-to-many and many-to-one relationships to the same table
 
 Make sure to set ``related_name`` if you use relationships to the same table.
 """
@@ -21,7 +21,7 @@ class Issue(models.Model):
         ordering = ('num',)
 
 
-API_TESTS = """
+__test__ = {'API_TESTS':"""
 >>> Issue.objects.all()
 []
 >>> r = User(username='russell')
@@ -62,4 +62,4 @@ API_TESTS = """
 [<Issue: 1>, <Issue: 2>, <Issue: 3>]
 >>> Issue.objects.filter(Q(client=r.id) | Q(cc__id__exact=r.id))
 [<Issue: 1>, <Issue: 2>, <Issue: 3>]
-"""
+"""}

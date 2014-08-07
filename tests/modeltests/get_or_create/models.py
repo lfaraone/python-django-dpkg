@@ -1,5 +1,5 @@
 """
-32. get_or_create()
+33. get_or_create()
 
 get_or_create() does what it says: it tries to look up an object with the given
 parameters. If an object isn't found, it creates one with the given parameters.
@@ -15,7 +15,7 @@ class Person(models.Model):
     def __str__(self):
         return '%s %s' % (self.first_name, self.last_name)
 
-API_TESTS = """
+__test__ = {'API_TESTS':"""
 # Acting as a divine being, create an Person.
 >>> from datetime import date
 >>> p = Person(first_name='John', last_name='Lennon', birthday=date(1940, 10, 9))
@@ -49,4 +49,4 @@ True
 False
 >>> Person.objects.count()
 2
-"""
+"""}

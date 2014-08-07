@@ -1,5 +1,5 @@
 """
-31. Callable defaults
+32. Callable defaults
 
 You can pass callable objects as the ``default`` parameter to a field. When
 the object is created without an explicit value passed in, Django will call
@@ -19,7 +19,7 @@ class Article(models.Model):
     def __str__(self):
         return self.headline
 
-API_TESTS = """
+__test__ = {'API_TESTS':"""
 >>> from datetime import datetime
 
 # No articles are in the system yet.
@@ -48,4 +48,4 @@ API_TESTS = """
 >>> d = now - a.pub_date
 >>> d.seconds < 5
 True
-"""
+"""}

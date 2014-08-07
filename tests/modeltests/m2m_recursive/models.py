@@ -1,5 +1,5 @@
 """
-27. Many-to-many relationships between the same two tables
+28. Many-to-many relationships between the same two tables
 
 In this example, A Person can have many friends, who are also people. Friendship is a
 symmetrical relationship - if I am your friend, you are my friend.
@@ -22,7 +22,7 @@ class Person(models.Model):
     def __str__(self):
         return self.name
 
-API_TESTS = """
+__test__ = {'API_TESTS':"""
 >>> a = Person(name='Anne')
 >>> a.save()
 >>> b = Person(name='Bill')
@@ -189,4 +189,4 @@ API_TESTS = """
 >>> d.stalkers.all()
 [<Person: Chuck>]
 
-"""
+"""}

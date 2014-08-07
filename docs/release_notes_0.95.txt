@@ -1,9 +1,9 @@
-===================================
-Django version 0.95.1 release notes
-===================================
+=================================
+Django version 0.95 release notes
+=================================
 
 
-Welcome to the Django 0.95.1 release.
+Welcome to the Django 0.95 release.
 
 This represents a significant advance in Django development since the 0.91
 release in January 2006. The details of every change in this release would be
@@ -66,7 +66,11 @@ The new features and changes introduced in 0.95 include:
     * We've made it easier to add custom table-level functions to models,
       through a new "Manager" API.
 
-    * It's now possible to use Django without a database.
+    * It's now possible to use Django without a database. This simply means
+      that the framework no longer requires you to have a working database set
+      up just to serve dynamic pages. In other words, you can just use
+      URLconfs/views on their own. Previously, the framework required that a
+      database be configured, regardless of whether you actually used it.
 
     * It's now more explicit and natural to override save() and delete()
       methods on models, rather than needing to hook into the pre_save() and
@@ -85,32 +89,11 @@ The new features and changes introduced in 0.95 include:
 The number of changes required to port from 0.91-compatible code to the 0.95
 code base are significant in some cases. However, they are, for the most part,
 reasonably routine and only need to be done once. A list of the necessary
-changes is described in the 'Removing The Magic`_ wiki page. There is also an
+changes is described in the `Removing The Magic`_ wiki page. There is also an
 easy checklist_ for reference when undertaking the porting operation.
 
 .. _Removing The Magic: http://code.djangoproject.com/wiki/RemovingTheMagic
 .. _checklist: http://code.djangoproject.com/wiki/MagicRemovalCheatSheet1
-
-Changes since the 0.95 release
-==============================
-
-This release contains fixes for several bugs discovered after the
-initial release of Django 0.95; these include:
-
-    * A patch for a small security vulnerability in the script
-      Django's internationalization system uses to compile translation
-      files.
-
-    * A fix for a bug in Django's authentication middleware which
-      could cause apparent "caching" of a logged-in user.
-
-    * A patch which disables debugging mode in the flup FastCGI
-      package Django uses to launch its FastCGI server, which prevents
-      tracebacks from bubbling up during production use.
-
-Because these problems weren't discovered and fixed until after the
-0.95 release, it's recommended that you use this release rather than
-the original 0.95.
 
 Problem reports and getting help
 ================================
@@ -120,14 +103,14 @@ distribution is also available online_ at the `Django website`_. The FAQ_
 document is especially recommended, as it contains a number of issues that
 come up time and again.
 
-For more personalized help, the `django-users` mailing list is a very active
+For more personalized help, the `django-users`_ mailing list is a very active
 list, with more than 2,000 subscribers who can help you solve any sort of
 Django problem. We recommend you search the archives first, though, because
 many common questions appear with some regularity, and any particular problem
 may already have been answered.
 
 Finally, for those who prefer the more immediate feedback offered by IRC,
-there's a #django channel or irc.freenode.net that is regularly populated by
+there's a #django channel on irc.freenode.net that is regularly populated by
 Django users and developers from around the world. Friendly people are usually
 available at any hour of the day -- to help, or just to chat.
 
@@ -139,5 +122,5 @@ available at any hour of the day -- to help, or just to chat.
 Thanks for using Django!
 
 The Django Team
-January 2007
+July 2006
 
