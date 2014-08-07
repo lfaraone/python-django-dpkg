@@ -213,6 +213,12 @@ class NonExistingOrderingWithSingleUnderscore(models.Model):
     class Meta:
         ordering = ("does_not_exist",)
 
+class InvalidSetNull(models.Model):
+    fk = models.ForeignKey('self', on_delete=models.SET_NULL)
+
+class InvalidSetDefault(models.Model):
+    fk = models.ForeignKey('self', on_delete=models.SET_DEFAULT)
+
 class Tag(models.Model):
    name = models.CharField("name", max_length=20)
 
@@ -335,5 +341,7 @@ invalid_models.uniquem2m: ManyToManyFields cannot be unique.  Remove the unique 
 invalid_models.nonuniquefktarget1: Field 'bad' under model 'FKTarget' must have a unique=True constraint.
 invalid_models.nonuniquefktarget2: Field 'bad' under model 'FKTarget' must have a unique=True constraint.
 invalid_models.nonexistingorderingwithsingleunderscore: "ordering" refers to "does_not_exist", a field that doesn't exist.
+invalid_models.invalidsetnull: 'fk' specifies on_delete=SET_NULL, but cannot be null.
+invalid_models.invalidsetdefault: 'fk' specifies on_delete=SET_DEFAULT, but has no default value.
 invalid_models.articleattachment: Model 'UserTaggedObject' must have a GenericForeignKey in order to create a GenericRelation that points to it.
 """

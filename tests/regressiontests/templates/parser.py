@@ -1,10 +1,9 @@
 """
 Testing some internals of the template processing. These are *not* examples to be copied in user code.
 """
-from unittest import TestCase
-
 from django.template import (TokenParser, FilterExpression, Parser, Variable,
     TemplateSyntaxError)
+from django.utils.unittest import TestCase
 
 
 class ParserTests(TestCase):

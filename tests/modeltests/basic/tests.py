@@ -1,22 +1,14 @@
 from datetime import datetime
-import re
 
-from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models, DEFAULT_DB_ALIAS, connection
 from django.db.models.fields import FieldDoesNotExist
-from django.test import TestCase
+from django.test import TestCase, skipIfDBFeature, skipUnlessDBFeature
 
 from models import Article
 
 
 class ModelTest(TestCase):
-    def assertRaisesErrorWithMessage(self, error, message, callable, *args, **kwargs):
-        self.assertRaises(error, callable, *args, **kwargs)
-        try:
-            callable(*args, **kwargs)
-        except error, e:
-            self.assertEqual(message, str(e))
 
     def test_lookup(self):
         # No articles are in the system yet.
@@ -87,14 +79,14 @@ class ModelTest(TestCase):
 
         # Django raises an Article.DoesNotExist exception for get() if the
         # parameters don't match any object.
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ObjectDoesNotExist,
             "Article matching query does not exist.",
             Article.objects.get,
             id__exact=2000,
         )
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ObjectDoesNotExist,
             "Article matching query does not exist.",
             Article.objects.get,
@@ -102,7 +94,7 @@ class ModelTest(TestCase):
             pub_date__month=8,
         )
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ObjectDoesNotExist,
             "Article matching query does not exist.",
             Article.objects.get,
@@ -163,7 +155,7 @@ class ModelTest(TestCase):
         self.assertEqual(a4.headline, 'Fourth article')
 
         # Don't use invalid keyword arguments.
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             TypeError,
             "'foo' is an invalid keyword argument for this function",
             Article,
@@ -254,13 +246,13 @@ class ModelTest(TestCase):
              "datetime.datetime(2005, 7, 28, 0, 0)"])
 
         # dates() requires valid arguments.
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             TypeError,
-            "dates() takes at least 3 arguments (1 given)",
+            "dates\(\) takes at least 3 arguments \(1 given\)",
             Article.objects.dates,
         )
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             FieldDoesNotExist,
             "Article has no field named 'invalid_field'",
             Article.objects.dates,
@@ -268,7 +260,7 @@ class ModelTest(TestCase):
             "year",
         )
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             AssertionError,
             "'kind' must be one of 'year', 'month' or 'day'.",
             Article.objects.dates,
@@ -276,7 +268,7 @@ class ModelTest(TestCase):
             "bad_kind",
         )
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             AssertionError,
             "'order' must be either 'ASC' or 'DESC'.",
             Article.objects.dates,
@@ -363,14 +355,14 @@ class ModelTest(TestCase):
              "<Article: Updated article 8>"])
 
         # Also, once you have sliced you can't filter, re-order or combine
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             AssertionError,
             "Cannot filter a query once a slice has been taken.",
             Article.objects.all()[0:5].filter,
             id=a.id,
         )
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             AssertionError,
             "Cannot reorder a query once a slice has been taken.",
             Article.objects.all()[0:5].order_by,
@@ -405,7 +397,7 @@ class ModelTest(TestCase):
 
         # An Article instance doesn't have access to the "objects" attribute.
         # That's only available on the class.
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             AttributeError,
             "Manager isn't accessible via Article instances",
             getattr,
@@ -430,28 +422,28 @@ class ModelTest(TestCase):
              "<Article: Article 7>",
              "<Article: Updated article 8>"])
 
-    if settings.DATABASES[DEFAULT_DB_ALIAS]['ENGINE'].startswith('django.db.backends.postgresql'):
-        def test_microsecond_precision(self):
-            # In PostgreSQL, microsecond-level precision is available.
-            a9 = Article(
-                headline='Article 9',
-                pub_date=datetime(2005, 7, 31, 12, 30, 45, 180),
-            )
-            a9.save()
-            self.assertEqual(Article.objects.get(pk=a9.pk).pub_date,
-                datetime(2005, 7, 31, 12, 30, 45, 180))
+    @skipUnlessDBFeature('supports_microsecond_precision')
+    def test_microsecond_precision(self):
+        # In PostgreSQL, microsecond-level precision is available.
+        a9 = Article(
+            headline='Article 9',
+            pub_date=datetime(2005, 7, 31, 12, 30, 45, 180),
+        )
+        a9.save()
+        self.assertEqual(Article.objects.get(pk=a9.pk).pub_date,
+            datetime(2005, 7, 31, 12, 30, 45, 180))
 
-    if settings.DATABASES[DEFAULT_DB_ALIAS]['ENGINE'] == 'django.db.backends.mysql':
-        def test_microsecond_precision_not_supported(self):
-            # In MySQL, microsecond-level precision isn't available. You'll lose
-            # microsecond-level precision once the data is saved.
-            a9 = Article(
-                headline='Article 9',
-                pub_date=datetime(2005, 7, 31, 12, 30, 45, 180),
-            )
-            a9.save()
-            self.assertEqual(Article.objects.get(id__exact=a9.id).pub_date,
-                datetime(2005, 7, 31, 12, 30, 45))
+    @skipIfDBFeature('supports_microsecond_precision')
+    def test_microsecond_precision_not_supported(self):
+        # In MySQL, microsecond-level precision isn't available. You'll lose
+        # microsecond-level precision once the data is saved.
+        a9 = Article(
+            headline='Article 9',
+            pub_date=datetime(2005, 7, 31, 12, 30, 45, 180),
+        )
+        a9.save()
+        self.assertEqual(Article.objects.get(id__exact=a9.id).pub_date,
+            datetime(2005, 7, 31, 12, 30, 45))
 
     def test_manually_specify_primary_key(self):
         # You can manually specify the primary key when creating a new object.

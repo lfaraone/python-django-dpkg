@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-from unittest import TestCase
-from django.forms import Form, CharField, IntegerField, ValidationError
+from django.forms import Form, CharField, IntegerField, ValidationError, DateField
 from django.forms.formsets import formset_factory, BaseFormSet
+from django.utils.unittest import TestCase
 
 
 class Choice(Form):
@@ -746,7 +746,12 @@ class FormsFormsetTestCase(TestCase):
         formset = FavoriteDrinksFormSet()
         self.assertEqual(formset.management_form.prefix, 'form')
 
-        formset = FavoriteDrinksFormSet(data={})
+        data = {
+            'form-TOTAL_FORMS': '2',
+            'form-INITIAL_FORMS': '0',
+            'form-MAX_NUM_FORMS': '0',
+        }
+        formset = FavoriteDrinksFormSet(data=data)
         self.assertEqual(formset.management_form.prefix, 'form')
 
         formset = FavoriteDrinksFormSet(initial={})
@@ -767,6 +772,134 @@ class FormsFormsetTestCase(TestCase):
         self.assertFalse(formset.is_valid())
         self.assertEqual(formset.non_form_errors(), [u'You may only specify a drink once.'])
 
+    def test_formset_iteration(self):
+        # Regression tests for #16455 -- formset instances are iterable
+        ChoiceFormset = formset_factory(Choice, extra=3)
+        formset = ChoiceFormset()
+
+        # confirm iterated formset yields formset.forms
+        forms = list(formset)
+        self.assertEqual(forms, formset.forms)
+        self.assertEqual(len(formset), len(forms))
+
+        # confirm indexing of formset
+        self.assertEqual(formset[0], forms[0])
+        try:
+            formset[3]
+            self.fail('Requesting an invalid formset index should raise an exception')
+        except IndexError:
+            pass
+
+        # Formets can override the default iteration order
+        class BaseReverseFormSet(BaseFormSet):
+            def __iter__(self):
+                for form in reversed(self.forms):
+                    yield form
+
+        ReverseChoiceFormset = formset_factory(Choice, BaseReverseFormSet, extra=3)
+        reverse_formset = ReverseChoiceFormset()
+
+        # confirm that __iter__ modifies rendering order
+        # compare forms from "reverse" formset with forms from original formset
+        self.assertEqual(str(reverse_formset[0]), str(forms[-1]))
+        self.assertEqual(str(reverse_formset[1]), str(forms[-2]))
+        self.assertEqual(len(reverse_formset), len(forms))
+
+data = {
+    'choices-TOTAL_FORMS': '1', # the number of forms rendered
+    'choices-INITIAL_FORMS': '0', # the number of forms with initial data
+    'choices-MAX_NUM_FORMS': '0', # max number of forms
+    'choices-0-choice': 'Calexico',
+    'choices-0-votes': '100',
+}
+
+class Choice(Form):
+    choice = CharField()
+    votes = IntegerField()
+
+ChoiceFormSet = formset_factory(Choice)
+
+class FormsetAsFooTests(TestCase):
+    def test_as_table(self):
+        formset = ChoiceFormSet(data, auto_id=False, prefix='choices')
+        self.assertEqual(formset.as_table(),"""<input type="hidden" name="choices-TOTAL_FORMS" value="1" /><input type="hidden" name="choices-INITIAL_FORMS" value="0" /><input type="hidden" name="choices-MAX_NUM_FORMS" value="0" />
+<tr><th>Choice:</th><td><input type="text" name="choices-0-choice" value="Calexico" /></td></tr>
+<tr><th>Votes:</th><td><input type="text" name="choices-0-votes" value="100" /></td></tr>""")
+
+    def test_as_p(self):
+        formset = ChoiceFormSet(data, auto_id=False, prefix='choices')
+        self.assertEqual(formset.as_p(),"""<input type="hidden" name="choices-TOTAL_FORMS" value="1" /><input type="hidden" name="choices-INITIAL_FORMS" value="0" /><input type="hidden" name="choices-MAX_NUM_FORMS" value="0" />
+<p>Choice: <input type="text" name="choices-0-choice" value="Calexico" /></p>
+<p>Votes: <input type="text" name="choices-0-votes" value="100" /></p>""")
+
+    def test_as_ul(self):
+        formset = ChoiceFormSet(data, auto_id=False, prefix='choices')
+        self.assertEqual(formset.as_ul(),"""<input type="hidden" name="choices-TOTAL_FORMS" value="1" /><input type="hidden" name="choices-INITIAL_FORMS" value="0" /><input type="hidden" name="choices-MAX_NUM_FORMS" value="0" />
+<li>Choice: <input type="text" name="choices-0-choice" value="Calexico" /></li>
+<li>Votes: <input type="text" name="choices-0-votes" value="100" /></li>""")
+
+
+# Regression test for #11418 #################################################
+class ArticleForm(Form):
+    title = CharField()
+    pub_date = DateField()
+
+ArticleFormSet = formset_factory(ArticleForm)
+
+class TestIsBoundBehavior(TestCase):
+    def test_no_data_raises_validation_error(self):
+        self.assertRaises(ValidationError, ArticleFormSet, {})
+
+    def test_with_management_data_attrs_work_fine(self):
+        data = {
+            'form-TOTAL_FORMS': u'1',
+            'form-INITIAL_FORMS': u'0',
+        }
+        formset = ArticleFormSet(data)
+        self.assertEqual(0, formset.initial_form_count())
+        self.assertEqual(1, formset.total_form_count())
+        self.assertTrue(formset.is_bound)
+        self.assertTrue(formset.forms[0].is_bound)
+        self.assertTrue(formset.is_valid())
+        self.assertTrue(formset.forms[0].is_valid())
+        self.assertEqual([{}], formset.cleaned_data)
+
+
+    def test_form_errors_are_cought_by_formset(self):
+        data = {
+            'form-TOTAL_FORMS': u'2',
+            'form-INITIAL_FORMS': u'0',
+            'form-0-title': u'Test',
+            'form-0-pub_date': u'1904-06-16',
+            'form-1-title': u'Test',
+            'form-1-pub_date': u'', # <-- this date is missing but required
+        }
+        formset = ArticleFormSet(data)
+        self.assertFalse(formset.is_valid())
+        self.assertEqual([{}, {'pub_date': [u'This field is required.']}], formset.errors)
+
+    def test_empty_forms_are_unbound(self):
+        data = {
+            'form-TOTAL_FORMS': u'1',
+            'form-INITIAL_FORMS': u'0',
+            'form-0-title': u'Test',
+            'form-0-pub_date': u'1904-06-16',
+        }
+        unbound_formset = ArticleFormSet()
+        bound_formset = ArticleFormSet(data)
+
+        empty_forms = []
+
+        empty_forms.append(unbound_formset.empty_form)
+        empty_forms.append(bound_formset.empty_form)
+
+        # Empty forms should be unbound
+        self.assertFalse(empty_forms[0].is_bound)
+        self.assertFalse(empty_forms[1].is_bound)
+
+        # The empty forms should be equal.
+        self.assertEqual(empty_forms[0].as_p(), empty_forms[1].as_p())
+
 class TestEmptyFormSet(TestCase): 
     "Test that an empty formset still calls clean()"
     def test_empty_formset_is_valid(self): 
@@ -774,5 +907,5 @@ class TestEmptyFormSet(TestCase):
         formset = EmptyFsetWontValidateFormset(data={'form-INITIAL_FORMS':'0', 'form-TOTAL_FORMS':'0'},prefix="form") 
         formset2 = EmptyFsetWontValidateFormset(data={'form-INITIAL_FORMS':'0', 'form-TOTAL_FORMS':'1', 'form-0-name':'bah' },prefix="form") 
         self.assertFalse(formset.is_valid()) 
-        self.assertFalse(formset2.is_valid())
+        self.assertFalse(formset2.is_valid()) 
 

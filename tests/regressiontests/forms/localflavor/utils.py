@@ -1,10 +1,18 @@
-from unittest import TestCase
-
 from django.core.exceptions import ValidationError
 from django.core.validators import EMPTY_VALUES
+from django.test.utils import get_warnings_state, restore_warnings_state
+from django.utils.unittest import TestCase
 
 
 class LocalFlavorTestCase(TestCase):
+    # NOTE: These are copied from the TestCase Django uses for tests which
+    # access the database
+    def save_warnings_state(self):
+        self._warnings_state = get_warnings_state()
+
+    def restore_warnings_state(self):
+        restore_warnings_state(self._warnings_state)
+
     def assertFieldOutput(self, fieldclass, valid, invalid, field_args=[],
             field_kwargs={}, empty_value=u''):
         """
@@ -29,25 +37,15 @@ class LocalFlavorTestCase(TestCase):
             self.assertEqual(optional.clean(input), output)
         # test invalid inputs
         for input, errors in invalid.items():
-            try:
-                required.clean(input)
-            except ValidationError, e:
-                self.assertEqual(errors, e.messages)
-            else:
-                self.fail()
-            try:
-                optional.clean(input)
-            except ValidationError, e:
-                self.assertEqual(errors, e.messages)
-            else:
-                self.fail()
+            self.assertRaisesRegexp(ValidationError, unicode(errors),
+                required.clean, input
+            )
+            self.assertRaisesRegexp(ValidationError, unicode(errors),
+                optional.clean, input
+            )
         # test required inputs
-        error_required = [u'This field is required.']
-        for val in EMPTY_VALUES:
-            try:
-                required.clean(val)
-            except ValidationError, e:
-                self.assertEqual(error_required, e.messages)
-            else:
-                self.fail()
-            self.assertEqual(optional.clean(val), empty_value)
+        error_required = u'This field is required'
+        for e in EMPTY_VALUES:
+            self.assertRaisesRegexp(ValidationError, error_required,
+                required.clean, e)
+            self.assertEqual(optional.clean(e), empty_value)

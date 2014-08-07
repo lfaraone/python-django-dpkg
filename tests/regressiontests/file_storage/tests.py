@@ -4,20 +4,24 @@ import shutil
 import sys
 import tempfile
 import time
-import unittest
-from cStringIO import StringIO
+from datetime import datetime, timedelta
+try:
+    from cStringIO import StringIO
+except ImportError:
+    from StringIO import StringIO
+
+try:
+    import threading
+except ImportError:
+    import dummy_threading as threading
+
 from django.conf import settings
 from django.core.exceptions import SuspiciousOperation, ImproperlyConfigured
 from django.core.files.base import ContentFile, File
 from django.core.files.images import get_image_dimensions
 from django.core.files.storage import FileSystemStorage, get_storage_class
 from django.core.files.uploadedfile import UploadedFile
-from unittest import TestCase
-
-try:
-    import threading
-except ImportError:
-    import dummy_threading as threading
+from django.utils import unittest
 
 # Try to import PIL in either of the two ways it can end up installed.
 # Checking for the existence of Image is enough for CPython, but
@@ -29,6 +33,7 @@ except ImportError:
         import Image, _imaging
     except ImportError:
         Image = None
+
 
 class GetStorageClassTests(unittest.TestCase):
     def assertRaisesErrorWithMessage(self, error, message, callable,
@@ -72,12 +77,14 @@ class GetStorageClassTests(unittest.TestCase):
         """
         get_storage_class raises an error if the requested module don't exist.
         """
-        self.assertRaisesErrorWithMessage(
+        # Error message may or may not be the fully qualified path.
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
-            'Error importing storage module django.core.files.non_existing_'\
-                'storage: "No module named non_existing_storage"',
+            ('Error importing storage module django.core.files.non_existing_'
+                'storage: "No module named .*non_existing_storage"'),
             get_storage_class,
-            'django.core.files.non_existing_storage.NonExistingStorage')
+            'django.core.files.non_existing_storage.NonExistingStorage'
+        )
 
 class FileStorageTests(unittest.TestCase):
     storage_class = FileSystemStorage
@@ -99,7 +106,7 @@ class FileStorageTests(unittest.TestCase):
         f = self.storage.open('storage_test', 'w')
         f.write('storage contents')
         f.close()
-        self.assert_(self.storage.exists('storage_test'))
+        self.assertTrue(self.storage.exists('storage_test'))
 
         f = self.storage.open('storage_test', 'r')
         self.assertEqual(f.read(), 'storage contents')
@@ -107,6 +114,56 @@ class FileStorageTests(unittest.TestCase):
 
         self.storage.delete('storage_test')
         self.assertFalse(self.storage.exists('storage_test'))
+
+    def test_file_accessed_time(self):
+        """
+        File storage returns a Datetime object for the last accessed time of
+        a file.
+        """
+        self.assertFalse(self.storage.exists('test.file'))
+
+        f = ContentFile('custom contents')
+        f_name = self.storage.save('test.file', f)
+        atime = self.storage.accessed_time(f_name)
+
+        self.assertEqual(atime, datetime.fromtimestamp(
+            os.path.getatime(self.storage.path(f_name))))
+        self.assertTrue(datetime.now() - self.storage.accessed_time(f_name) < timedelta(seconds=2))
+        self.storage.delete(f_name)
+
+    def test_file_created_time(self):
+        """
+        File storage returns a Datetime object for the creation time of
+        a file.
+        """
+        self.assertFalse(self.storage.exists('test.file'))
+
+        f = ContentFile('custom contents')
+        f_name = self.storage.save('test.file', f)
+        ctime = self.storage.created_time(f_name)
+
+        self.assertEqual(ctime, datetime.fromtimestamp(
+            os.path.getctime(self.storage.path(f_name))))
+        self.assertTrue(datetime.now() - self.storage.created_time(f_name) < timedelta(seconds=2))
+
+        self.storage.delete(f_name)
+
+    def test_file_modified_time(self):
+        """
+        File storage returns a Datetime object for the last modified time of
+        a file.
+        """
+        self.assertFalse(self.storage.exists('test.file'))
+
+        f = ContentFile('custom contents')
+        f_name = self.storage.save('test.file', f)
+        mtime = self.storage.modified_time(f_name)
+
+        self.assertEqual(mtime, datetime.fromtimestamp(
+            os.path.getmtime(self.storage.path(f_name))))
+        self.assertTrue(datetime.now() - self.storage.modified_time(f_name) < timedelta(seconds=2))
+
+        self.storage.delete(f_name)
 
     def test_file_save_without_name(self):
         """
@@ -122,7 +179,7 @@ class FileStorageTests(unittest.TestCase):
 
         self.assertEqual(storage_f_name, f.name)
 
-        self.assert_(os.path.exists(os.path.join(self.temp_dir, f.name)))
+        self.assertTrue(os.path.exists(os.path.join(self.temp_dir, f.name)))
 
         self.storage.delete(storage_f_name)
 
@@ -172,7 +229,7 @@ class FileStorageTests(unittest.TestCase):
         f = ContentFile('custom contents')
         f_name = self.storage.save('test.file', f)
 
-        self.assert_(isinstance(
+        self.assertTrue(isinstance(
             self.storage.open('test.file', mixin=TestFileMixin),
             TestFileMixin
         ))
@@ -252,7 +309,7 @@ class SlowFile(ContentFile):
         time.sleep(1)
         return super(ContentFile, self).chunks()
 
-class FileSaveRaceConditionTest(TestCase):
+class FileSaveRaceConditionTest(unittest.TestCase):
     def setUp(self):
         self.storage_dir = tempfile.mkdtemp()
         self.storage = FileSystemStorage(self.storage_dir)
@@ -268,12 +325,12 @@ class FileSaveRaceConditionTest(TestCase):
         self.thread.start()
         name = self.save_file('conflict')
         self.thread.join()
-        self.assert_(self.storage.exists('conflict'))
-        self.assert_(self.storage.exists('conflict_1'))
+        self.assertTrue(self.storage.exists('conflict'))
+        self.assertTrue(self.storage.exists('conflict_1'))
         self.storage.delete('conflict')
         self.storage.delete('conflict_1')
 
-class FileStoragePermissions(TestCase):
+class FileStoragePermissions(unittest.TestCase):
     def setUp(self):
         self.old_perms = settings.FILE_UPLOAD_PERMISSIONS
         settings.FILE_UPLOAD_PERMISSIONS = 0666
@@ -290,7 +347,7 @@ class FileStoragePermissions(TestCase):
         self.assertEqual(actual_mode, 0666)
 
 
-class FileStoragePathParsing(TestCase):
+class FileStoragePathParsing(unittest.TestCase):
     def setUp(self):
         self.storage_dir = tempfile.mkdtemp()
         self.storage = FileSystemStorage(self.storage_dir)
@@ -309,8 +366,8 @@ class FileStoragePathParsing(TestCase):
         self.storage.save('dotted.path/test', ContentFile("2"))
 
         self.assertFalse(os.path.exists(os.path.join(self.storage_dir, 'dotted_.path')))
-        self.assert_(os.path.exists(os.path.join(self.storage_dir, 'dotted.path/test')))
-        self.assert_(os.path.exists(os.path.join(self.storage_dir, 'dotted.path/test_1')))
+        self.assertTrue(os.path.exists(os.path.join(self.storage_dir, 'dotted.path/test')))
+        self.assertTrue(os.path.exists(os.path.join(self.storage_dir, 'dotted.path/test_1')))
 
     def test_first_character_dot(self):
         """
@@ -320,72 +377,76 @@ class FileStoragePathParsing(TestCase):
         self.storage.save('dotted.path/.test', ContentFile("1"))
         self.storage.save('dotted.path/.test', ContentFile("2"))
 
-        self.assert_(os.path.exists(os.path.join(self.storage_dir, 'dotted.path/.test')))
+        self.assertTrue(os.path.exists(os.path.join(self.storage_dir, 'dotted.path/.test')))
         # Before 2.6, a leading dot was treated as an extension, and so
         # underscore gets added to beginning instead of end.
         if sys.version_info < (2, 6):
-            self.assert_(os.path.exists(os.path.join(self.storage_dir, 'dotted.path/_1.test')))
+            self.assertTrue(os.path.exists(os.path.join(self.storage_dir, 'dotted.path/_1.test')))
         else:
-            self.assert_(os.path.exists(os.path.join(self.storage_dir, 'dotted.path/.test_1')))
+            self.assertTrue(os.path.exists(os.path.join(self.storage_dir, 'dotted.path/.test_1')))
 
-if Image is not None:
-    class DimensionClosingBug(TestCase):
+class DimensionClosingBug(unittest.TestCase):
+    """
+    Test that get_image_dimensions() properly closes files (#8817)
+    """
+    @unittest.skipUnless(Image, "PIL not installed")
+    def test_not_closing_of_files(self):
         """
-        Test that get_image_dimensions() properly closes files (#8817)
+        Open files passed into get_image_dimensions() should stay opened.
         """
-        def test_not_closing_of_files(self):
-            """
-            Open files passed into get_image_dimensions() should stay opened.
-            """
-            empty_io = StringIO()
-            try:
-                get_image_dimensions(empty_io)
-            finally:
-                self.assert_(not empty_io.closed)
+        empty_io = StringIO()
+        try:
+            get_image_dimensions(empty_io)
+        finally:
+            self.assertTrue(not empty_io.closed)
 
-        def test_closing_of_filenames(self):
-            """
-            get_image_dimensions() called with a filename should closed the file.
-            """
-            # We need to inject a modified open() builtin into the images module
-            # that checks if the file was closed properly if the function is
-            # called with a filename instead of an file object.
-            # get_image_dimensions will call our catching_open instead of the
-            # regular builtin one.
-
-            class FileWrapper(object):
-                _closed = []
-                def __init__(self, f):
-                    self.f = f
-                def __getattr__(self, name):
-                    return getattr(self.f, name)
-                def close(self):
-                    self._closed.append(True)
-                    self.f.close()
-
-            def catching_open(*args):
-                return FileWrapper(open(*args))
-
-            from django.core.files import images
-            images.open = catching_open
-            try:
-                get_image_dimensions(os.path.join(os.path.dirname(__file__), "test1.png"))
-            finally:
-                del images.open
-            self.assert_(FileWrapper._closed)
-
-    class InconsistentGetImageDimensionsBug(TestCase):
+    @unittest.skipUnless(Image, "PIL not installed")
+    def test_closing_of_filenames(self):
         """
-        Test that get_image_dimensions() works properly after various calls using a file handler (#11158)
+        get_image_dimensions() called with a filename should closed the file.
         """
-        def test_multiple_calls(self):
-            """
-            Multiple calls of get_image_dimensions() should return the same size.
-            """
-            from django.core.files.images import ImageFile
-            img_path = os.path.join(os.path.dirname(__file__), "test.png")
-            image = ImageFile(open(img_path, 'rb'))
-            image_pil = Image.open(img_path)
-            size_1, size_2 = get_image_dimensions(image), get_image_dimensions(image)
-            self.assertEqual(image_pil.size, size_1)
-            self.assertEqual(size_1, size_2)
+        # We need to inject a modified open() builtin into the images module
+        # that checks if the file was closed properly if the function is
+        # called with a filename instead of an file object.
+        # get_image_dimensions will call our catching_open instead of the
+        # regular builtin one.
+
+        class FileWrapper(object):
+            _closed = []
+            def __init__(self, f):
+                self.f = f
+            def __getattr__(self, name):
+                return getattr(self.f, name)
+            def close(self):
+                self._closed.append(True)
+                self.f.close()
+
+        def catching_open(*args):
+            return FileWrapper(open(*args))
+
+        from django.core.files import images
+        images.open = catching_open
+        try:
+            get_image_dimensions(os.path.join(os.path.dirname(__file__), "test1.png"))
+        finally:
+            del images.open
+        self.assertTrue(FileWrapper._closed)
+
+class InconsistentGetImageDimensionsBug(unittest.TestCase):
+    """
+    Test that get_image_dimensions() works properly after various calls
+    using a file handler (#11158)
+    """
+    @unittest.skipUnless(Image, "PIL not installed")
+    def test_multiple_calls(self):
+        """
+        Multiple calls of get_image_dimensions() should return the same size.
+        """
+        from django.core.files.images import ImageFile
+
+        img_path = os.path.join(os.path.dirname(__file__), "test.png")
+        image = ImageFile(open(img_path, 'rb'))
+        image_pil = Image.open(img_path)
+        size_1, size_2 = get_image_dimensions(image), get_image_dimensions(image)
+        self.assertEqual(image_pil.size, size_1)
+        self.assertEqual(size_1, size_2)

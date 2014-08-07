@@ -1,4 +1,4 @@
-from django.db import models, DEFAULT_DB_ALIAS
+from django.db import models, DEFAULT_DB_ALIAS, connection
 from django.contrib.auth.models import User
 from django.conf import settings
 

@@ -13,6 +13,9 @@ class USLocalFlavorTests(LocalFlavorTestCase):
 <option value="AS">American Samoa</option>
 <option value="AZ">Arizona</option>
 <option value="AR">Arkansas</option>
+<option value="AA">Armed Forces Americas</option>
+<option value="AE">Armed Forces Europe</option>
+<option value="AP">Armed Forces Pacific</option>
 <option value="CA">California</option>
 <option value="CO">Colorado</option>
 <option value="CT">Connecticut</option>
@@ -65,7 +68,7 @@ class USLocalFlavorTests(LocalFlavorTestCase):
 <option value="WI">Wisconsin</option>
 <option value="WY">Wyoming</option>
 </select>'''
-        self.assertEquals(f.render('state', 'IL'), out)
+        self.assertEqual(f.render('state', 'IL'), out)
 
     def test_USZipCodeField(self):
         error_format = [u'Enter a zip code in the format XXXXX or XXXXX-XXXX.']

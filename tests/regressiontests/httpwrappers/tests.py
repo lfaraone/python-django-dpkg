@@ -1,9 +1,9 @@
 import copy
 import pickle
-import unittest
 
-from django.http import QueryDict, HttpResponse, CompatCookie, BadHeaderError
-
+from django.http import (QueryDict, HttpResponse, SimpleCookie, BadHeaderError,
+        parse_cookie)
+from django.utils import unittest
 
 class QueryDictTests(unittest.TestCase):
     def test_missing_key(self):
@@ -71,6 +71,16 @@ class QueryDictTests(unittest.TestCase):
         self.assertRaises(AttributeError, q.setdefault, 'foo', 'bar')
 
         self.assertEqual(q.urlencode(), 'foo=bar')
+
+    def test_urlencode(self):
+        q = QueryDict('', mutable=True)
+        q['next'] = '/a&b/'
+        self.assertEqual(q.urlencode(), 'next=%2Fa%26b%2F')
+        self.assertEqual(q.urlencode(safe='/'), 'next=/a%26b/')
+        q = QueryDict('', mutable=True)
+        q['next'] = u'/t\xebst&key/'
+        self.assertEqual(q.urlencode(), 'next=%2Ft%C3%ABst%26key%2F')
+        self.assertEqual(q.urlencode(safe='/'), 'next=/t%C3%ABst%26key/')
 
     def test_mutable_copy(self):
         """A copy of a QueryDict is mutable."""
@@ -205,6 +215,7 @@ class HttpResponseTests(unittest.TestCase):
         # If we insert a unicode value it will be converted to an ascii
         r['value'] = u'test value'
         self.assertTrue(isinstance(r['value'], str))
+
         # An error is raised ~hen a unicode object with non-ascii is assigned.
         self.assertRaises(UnicodeEncodeError, r.__setitem__, 'value', u't\xebst value')
 
@@ -240,18 +251,18 @@ class CookieTests(unittest.TestCase):
         # Python 2.4 compatibility note: Python 2.4's cookie implementation
         # always returns Set-Cookie headers terminating in semi-colons.
         # That's not the bug this test is looking for, so ignore it.
-        c = CompatCookie()
+        c = SimpleCookie()
         c['test'] = "An,awkward;value"
-        self.assert_(";" not in c.output().rstrip(';')) # IE compat
-        self.assert_("," not in c.output().rstrip(';')) # Safari compat
+        self.assertTrue(";" not in c.output().rstrip(';')) # IE compat
+        self.assertTrue("," not in c.output().rstrip(';')) # Safari compat
 
     def test_decode(self):
         """
         Test that we can still preserve semi-colons and commas
         """
-        c = CompatCookie()
+        c = SimpleCookie()
         c['test'] = "An,awkward;value"
-        c2 = CompatCookie()
+        c2 = SimpleCookie()
         c2.load(c.output())
         self.assertEqual(c['test'].value, c2['test'].value)
 
@@ -259,8 +270,14 @@ class CookieTests(unittest.TestCase):
         """
         Test that we haven't broken normal encoding
         """
-        c = CompatCookie()
+        c = SimpleCookie()
         c['test'] = "\xf0"
-        c2 = CompatCookie()
+        c2 = SimpleCookie()
         c2.load(c.output())
         self.assertEqual(c['test'].value, c2['test'].value)
+
+    def test_nonstandard_keys(self):
+        """
+        Test that a single non-standard cookie name doesn't affect all cookies. Ticket #13007.
+        """
+        self.assertTrue('good_cookie' in parse_cookie('good_cookie=yes;bad:cookie=yes').keys())

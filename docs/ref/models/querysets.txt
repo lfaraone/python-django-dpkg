@@ -2,7 +2,7 @@
 QuerySet API reference
 ======================
 
-.. currentmodule:: django.db.models.QuerySet
+.. currentmodule:: django.db.models.query
 
 This document describes the details of the ``QuerySet`` API. It builds on the
 material presented in the :doc:`model </topics/db/models>` and :doc:`database
@@ -120,12 +120,38 @@ QuerySet API
 ============
 
 Though you usually won't create one manually -- you'll go through a
-:class:`Manager` -- here's the formal declaration of a ``QuerySet``:
+:class:`~django.db.models.Manager` -- here's the formal declaration of a
+``QuerySet``:
 
-.. class:: QuerySet([model=None])
+.. class:: QuerySet([model=None, query=None, using=None])
 
-Usually when you'll interact with a ``QuerySet`` you'll use it by :ref:`chaining
-filters <chaining-filters>`. To make this work, most ``QuerySet`` methods return new querysets.
+    Usually when you'll interact with a ``QuerySet`` you'll use it by
+    :ref:`chaining filters <chaining-filters>`. To make this work, most
+    ``QuerySet`` methods return new querysets. These methods are covered in
+    detail later in this section.
+
+    The ``QuerySet`` class has two public attributes you can use for
+    introspection:
+
+    .. attribute:: ordered
+
+        ``True`` if the ``QuerySet`` is ordered -- i.e. has an order_by()
+        clause or a default ordering on the model. ``False`` otherwise.
+
+    .. attribute:: db
+    
+        The database that will be used if this query is executed now.
+
+    .. note::
+
+        The ``query`` parameter to :class:`QuerySet` exists so that specialized
+        query subclasses such as
+        :class:`~django.contrib.gis.db.models.GeoQuerySet` can reconstruct
+        internal query state. The value of the parameter is an opaque
+        representation of that query state and is not part of a public API.
+        To put it simply: if you need to ask, you don't need to use it.
+
+.. currentmodule:: django.db.models.query.QuerySet
 
 Methods that return new QuerySets
 ---------------------------------
@@ -185,8 +211,6 @@ annotate
 ~~~~~~~~
 
 .. method:: annotate(*args, **kwargs)
-
-.. versionadded:: 1.1
 
 Annotates each object in the ``QuerySet`` with the provided list of
 aggregate values (averages, sums, etc) that have been computed over
@@ -286,10 +310,8 @@ backend normally orders them.
 If you don't want any ordering to be applied to a query, not even the default
 ordering, call ``order_by()`` with no parameters.
 
-.. versionadded:: 1.1
-
 You can tell if a query is ordered or not by checking the
-:attr:`QuerySet.ordered` attribute, which will be ``True`` if the
+:attr:`.QuerySet.ordered` attribute, which will be ``True`` if the
 ``QuerySet`` has been ordered in any way.
 
 reverse
@@ -388,11 +410,8 @@ Example::
     >>> Blog.objects.values('id', 'name')
     [{'id': 1, 'name': 'Beatles Blog'}]
 
-A couple of subtleties that are worth mentioning:
+A few subtleties that are worth mentioning:
 
-    * The ``values()`` method does not return anything for
-      :class:`~django.db.models.ManyToManyField` attributes and will raise an
-      error if you try to pass in this type of field to it.
     * If you have a field called ``foo`` that is a
       :class:`~django.db.models.ForeignKey`, the default ``values()`` call
       will return a dictionary key called ``foo_id``, since this is the name
@@ -439,6 +458,28 @@ The people who made Django prefer to put all the SQL-affecting methods first,
 followed (optionally) by any output-affecting methods (such as ``values()``),
 but it doesn't really matter. This is your chance to really flaunt your
 individualism.
+
+.. versionchanged:: 1.3
+
+The ``values()`` method previously did not return anything for
+:class:`~django.db.models.ManyToManyField` attributes and would raise an error
+if you tried to pass this type of field to it.
+
+This restriction has been lifted, and you can now also refer to fields on
+related models with reverse relations through ``OneToOneField``, ``ForeignKey``
+and ``ManyToManyField`` attributes::
+
+	Blog.objects.values('name', 'entry__headline')
+	[{'name': 'My blog', 'entry__headline': 'An entry'},
+         {'name': 'My blog', 'entry__headline': 'Another entry'}, ...]
+
+.. warning::
+
+   Because :class:`~django.db.models.ManyToManyField` attributes and reverse
+   relations can have multiple related rows, including these can have a
+   multiplier effect on the size of your result set. This will be especially
+   pronounced if you include multiple such fields in your ``values()`` query,
+   in which case all possible combinations will be returned.
 
 values_list
 ~~~~~~~~~~~
@@ -814,8 +855,6 @@ defer
 
 .. method:: defer(*fields)
 
-.. versionadded:: 1.1
-
 In some complex data-modeling situations, your models might contain a lot of
 fields, some of which could contain a lot of data (for example, text fields),
 or require expensive processing to convert them to Python objects. If you are
@@ -875,8 +914,6 @@ only
 ~~~~
 
 .. method:: only(*fields)
-
-.. versionadded:: 1.1
 
 The ``only()`` method is more or less the opposite of ``defer()``. You
 call it with the fields that should *not* be deferred when retrieving a model.
@@ -988,9 +1025,9 @@ The :ref:`force_insert <ref-models-force-insert>` parameter is documented
 elsewhere, but all it means is that a new object will always be created.
 Normally you won't need to worry about this. However, if your model contains a
 manual primary key value that you set and if that value already exists in the
-database, a call to ``create()`` will fail with an :exc:`IntegrityError` since
-primary keys must be unique. So remember to be prepared to handle the exception
-if you are using manual primary keys.
+database, a call to ``create()`` will fail with an
+:exc:`~django.db.IntegrityError` since primary keys must be unique. So remember
+to be prepared to handle the exception if you are using manual primary keys.
 
 get_or_create
 ~~~~~~~~~~~~~
@@ -1152,8 +1189,6 @@ aggregate
 
 .. method:: aggregate(*args, **kwargs)
 
-.. versionadded:: 1.1
-
 Returns a dictionary of aggregate values (averages, sums, etc) calculated
 over the ``QuerySet``. Each argument to ``aggregate()`` specifies
 a value that will be included in the dictionary that is returned.
@@ -1188,10 +1223,10 @@ exists
 
 .. versionadded:: 1.2
 
-Returns ``True`` if the :class:`QuerySet` contains any results, and ``False``
+Returns ``True`` if the :class:`.QuerySet` contains any results, and ``False``
 if not. This tries to perform the query in the simplest and fastest way
 possible, but it *does* execute nearly the same query. This means that calling
-:meth:`QuerySet.exists()` is faster than ``bool(some_query_set)``, but not by
+:meth:`.QuerySet.exists` is faster than ``bool(some_query_set)``, but not by
 a large degree.  If ``some_query_set`` has not yet been evaluated, but you know
 that it will be at some point, then using ``some_query_set.exists()`` will do
 more overall work (an additional query) than simply using
@@ -1204,10 +1239,10 @@ update
 
 Performs an SQL update query for the specified fields, and returns
 the number of rows affected. The ``update()`` method is applied instantly and
-the only restriction on the :class:`QuerySet` that is updated is that it can
+the only restriction on the :class:`.QuerySet` that is updated is that it can
 only update columns in the model's main table. Filtering based on related
 fields is still possible. You cannot call ``update()`` on a
-:class:`QuerySet` that has had a slice taken or can otherwise no longer be
+:class:`.QuerySet` that has had a slice taken or can otherwise no longer be
 filtered.
 
 For example, if you wanted to update all the entries in a particular blog
@@ -1227,9 +1262,9 @@ delete
 
 .. method:: delete()
 
-Performs an SQL delete query on all rows in the :class:`QuerySet`. The
+Performs an SQL delete query on all rows in the :class:`.QuerySet`. The
 ``delete()`` is applied instantly. You cannot call ``delete()`` on a
-:class:`QuerySet` that has had a slice taken or can otherwise no longer be
+:class:`.QuerySet` that has had a slice taken or can otherwise no longer be
 filtered.
 
 For example, to delete all the entries in a particular blog::
@@ -1239,13 +1274,19 @@ For example, to delete all the entries in a particular blog::
     # Delete all the entries belonging to this Blog.
     >>> Entry.objects.filter(blog=b).delete()
 
-Django emulates the SQL constraint ``ON DELETE CASCADE`` -- in other words, any
-objects with foreign keys pointing at the objects to be deleted will be deleted
-along with them.  For example::
+By default, Django's :class:`~django.db.models.ForeignKey` emulates the SQL
+constraint ``ON DELETE CASCADE`` -- in other words, any objects with foreign
+keys pointing at the objects to be deleted will be deleted along with them.
+For example::
 
     blogs = Blog.objects.all()
     # This will delete all Blogs and all of their Entry objects.
     blogs.delete()
+
+.. versionadded:: 1.3
+    This cascade behavior is customizable via the
+    :attr:`~django.db.models.ForeignKey.on_delete` argument to the
+    :class:`~django.db.models.ForeignKey`.
 
 The ``delete()`` method does a bulk delete and does not call any ``delete()``
 methods on your models. It does, however, emit the
@@ -1387,10 +1428,6 @@ The above code fragment could also be written as follows::
 
     inner_q = Blog.objects.filter(name__contains='Cheddar').values('pk').query
     entries = Entry.objects.filter(blog__in=inner_q)
-
-
-.. versionchanged:: 1.1
-    In Django 1.0, only the latter piece of code is valid.
 
 This second form is a bit less readable and unnatural to write, since it
 accesses the internal ``query`` attribute and requires a ``ValuesQuerySet``.
@@ -1582,7 +1619,7 @@ Example::
 
 SQL equivalent::
 
-    SELECT ... WHERE EXTRACT('year' FROM pub_date) = '2005';
+    SELECT ... WHERE pub_date BETWEEN '2005-01-01' AND '2005-12-31 23:59:59.999999';
 
 (The exact SQL syntax varies for each database engine.)
 
@@ -1628,8 +1665,6 @@ such as January 3, July 3, etc.
 
 week_day
 ~~~~~~~~
-
-.. versionadded:: 1.1
 
 For date/datetime fields, a 'day of the week' match.
 
@@ -1740,7 +1775,7 @@ SQL equivalents::
 Aggregation functions
 ---------------------
 
-.. versionadded:: 1.1
+.. currentmodule:: django.db.models
 
 Django provides the following aggregation functions in the
 ``django.db.models`` module. For details on how to use these
@@ -1752,100 +1787,100 @@ Avg
 
 .. class:: Avg(field)
 
-Returns the mean value of the given field.
+    Returns the mean value of the given field.
 
-    * Default alias: ``<field>__avg``
-    * Return type: float
+        * Default alias: ``<field>__avg``
+        * Return type: float
 
 Count
 ~~~~~
 
 .. class:: Count(field, distinct=False)
 
-Returns the number of objects that are related through the provided field.
+    Returns the number of objects that are related through the provided field.
 
-    * Default alias: ``<field>__count``
-    * Return type: integer
+        * Default alias: ``<field>__count``
+        * Return type: integer
 
-Has one optional argument:
+    Has one optional argument:
 
-.. attribute:: distinct
+    .. attribute:: distinct
 
-    If distinct=True, the count will only include unique instances. This has
-    the SQL equivalent of ``COUNT(DISTINCT field)``. Default value is ``False``.
+        If distinct=True, the count will only include unique instances. This has
+        the SQL equivalent of ``COUNT(DISTINCT field)``. Default value is ``False``.
 
 Max
 ~~~
 
 .. class:: Max(field)
 
-Returns the maximum value of the given field.
+    Returns the maximum value of the given field.
 
-    * Default alias: ``<field>__max``
-    * Return type: same as input field
+        * Default alias: ``<field>__max``
+        * Return type: same as input field
 
 Min
 ~~~
 
 .. class:: Min(field)
 
-Returns the minimum value of the given field.
+    Returns the minimum value of the given field.
 
-    * Default alias: ``<field>__min``
-    * Return type: same as input field
+        * Default alias: ``<field>__min``
+        * Return type: same as input field
 
 StdDev
 ~~~~~~
 
 .. class:: StdDev(field, sample=False)
 
-Returns the standard deviation of the data in the provided field.
+    Returns the standard deviation of the data in the provided field.
 
-    * Default alias: ``<field>__stddev``
-    * Return type: float
+        * Default alias: ``<field>__stddev``
+        * Return type: float
 
-Has one optional argument:
+    Has one optional argument:
 
-.. attribute:: sample
+    .. attribute:: sample
 
-    By default, ``StdDev`` returns the population standard deviation. However,
-    if ``sample=True``, the return value will be the sample standard deviation.
+        By default, ``StdDev`` returns the population standard deviation. However,
+        if ``sample=True``, the return value will be the sample standard deviation.
 
-.. admonition:: SQLite
+    .. admonition:: SQLite
 
-    SQLite doesn't provide ``StdDev`` out of the box. An implementation is
-    available as an extension module for SQLite. Consult the SQlite
-    documentation for instructions on obtaining and installing this extension.
+        SQLite doesn't provide ``StdDev`` out of the box. An implementation is
+        available as an extension module for SQLite. Consult the SQlite
+        documentation for instructions on obtaining and installing this extension.
 
 Sum
 ~~~
 
 .. class:: Sum(field)
 
-Computes the sum of all values of the given field.
+    Computes the sum of all values of the given field.
 
-    * Default alias: ``<field>__sum``
-    * Return type: same as input field
+        * Default alias: ``<field>__sum``
+        * Return type: same as input field
 
 Variance
 ~~~~~~~~
 
 .. class:: Variance(field, sample=False)
 
-Returns the variance of the data in the provided field.
+    Returns the variance of the data in the provided field.
 
-    * Default alias: ``<field>__variance``
-    * Return type: float
+        * Default alias: ``<field>__variance``
+        * Return type: float
 
-Has one optional argument:
+    Has one optional argument:
 
-.. attribute:: sample
+    .. attribute:: sample
 
-    By default, ``Variance`` returns the population variance. However,
-    if ``sample=True``, the return value will be the sample variance.
+        By default, ``Variance`` returns the population variance. However,
+        if ``sample=True``, the return value will be the sample variance.
 
-.. admonition:: SQLite
+    .. admonition:: SQLite
 
-    SQLite doesn't provide ``Variance`` out of the box. An implementation is
-    available as an extension module for SQLite. Consult the SQlite
-    documentation for instructions on obtaining and installing this extension.
+        SQLite doesn't provide ``Variance`` out of the box. An implementation is
+        available as an extension module for SQLite. Consult the SQlite
+        documentation for instructions on obtaining and installing this extension.

@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 import datetime
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.conf import settings
-from django.db import connection
 from django.forms import Form, ModelForm, FileField, ModelChoiceField
 from django.test import TestCase
 from regressiontests.forms.models import ChoiceModel, ChoiceOptionModel, ChoiceFieldModel, FileModel, Group, BoundaryModel, Defaults
@@ -21,19 +19,13 @@ class TestTicket12510(TestCase):
     ''' It is not necessary to generate choices for ModelChoiceField (regression test for #12510). '''
     def setUp(self):
         self.groups = [Group.objects.create(name=name) for name in 'abc']
-        self.old_debug = settings.DEBUG
-        # turn debug on to get access to connection.queries
-        settings.DEBUG = True
-
-    def tearDown(self):
-        settings.DEBUG = self.old_debug
 
     def test_choices_not_fetched_when_not_rendering(self):
-        initial_queries = len(connection.queries)
-        field = ModelChoiceField(Group.objects.order_by('-name'))
-        self.assertEqual('a', field.clean(self.groups[0].pk).name)
+        def test():
+            field = ModelChoiceField(Group.objects.order_by('-name'))
+            self.assertEqual('a', field.clean(self.groups[0].pk).name)
         # only one query is required to pull the model from DB
-        self.assertEqual(initial_queries+1, len(connection.queries))
+        self.assertNumQueries(1, test)
 
 class ModelFormCallableModelDefault(TestCase):
     def test_no_empty_option(self):
@@ -41,15 +33,15 @@ class ModelFormCallableModelDefault(TestCase):
         option = ChoiceOptionModel.objects.create(name='default')
 
         choices = list(ChoiceFieldForm().fields['choice'].choices)
-        self.assertEquals(len(choices), 1)
-        self.assertEquals(choices[0], (option.pk, unicode(option)))
+        self.assertEqual(len(choices), 1)
+        self.assertEqual(choices[0], (option.pk, unicode(option)))
 
     def test_callable_initial_value(self):
         "The initial value for a callable default returning a queryset is the pk (refs #13769)"
         obj1 = ChoiceOptionModel.objects.create(id=1, name='default')
         obj2 = ChoiceOptionModel.objects.create(id=2, name='option 2')
         obj3 = ChoiceOptionModel.objects.create(id=3, name='option 3')
-        self.assertEquals(ChoiceFieldForm().as_p(), """<p><label for="id_choice">Choice:</label> <select name="choice" id="id_choice">
+        self.assertEqual(ChoiceFieldForm().as_p(), """<p><label for="id_choice">Choice:</label> <select name="choice" id="id_choice">
 <option value="1" selected="selected">ChoiceOption 1</option>
 <option value="2">ChoiceOption 2</option>
 <option value="3">ChoiceOption 3</option>
@@ -63,19 +55,19 @@ class ModelFormCallableModelDefault(TestCase):
 <option value="1" selected="selected">ChoiceOption 1</option>
 <option value="2">ChoiceOption 2</option>
 <option value="3">ChoiceOption 3</option>
-</select><input type="hidden" name="initial-multi_choice" value="1" id="initial-id_multi_choice_0" />  Hold down "Control", or "Command" on a Mac, to select more than one.</p>
+</select><input type="hidden" name="initial-multi_choice" value="1" id="initial-id_multi_choice_0" /> <span class="helptext"> Hold down "Control", or "Command" on a Mac, to select more than one.</span></p>
 <p><label for="id_multi_choice_int">Multi choice int:</label> <select multiple="multiple" name="multi_choice_int" id="id_multi_choice_int">
 <option value="1" selected="selected">ChoiceOption 1</option>
 <option value="2">ChoiceOption 2</option>
 <option value="3">ChoiceOption 3</option>
-</select><input type="hidden" name="initial-multi_choice_int" value="1" id="initial-id_multi_choice_int_0" />  Hold down "Control", or "Command" on a Mac, to select more than one.</p>""")
+</select><input type="hidden" name="initial-multi_choice_int" value="1" id="initial-id_multi_choice_int_0" /> <span class="helptext"> Hold down "Control", or "Command" on a Mac, to select more than one.</span></p>""")
 
     def test_initial_instance_value(self):
         "Initial instances for model fields may also be instances (refs #7287)"
         obj1 = ChoiceOptionModel.objects.create(id=1, name='default')
         obj2 = ChoiceOptionModel.objects.create(id=2, name='option 2')
         obj3 = ChoiceOptionModel.objects.create(id=3, name='option 3')
-        self.assertEquals(ChoiceFieldForm(initial={
+        self.assertEqual(ChoiceFieldForm(initial={
                 'choice': obj2,
                 'choice_int': obj2,
                 'multi_choice': [obj2,obj3],
@@ -95,13 +87,13 @@ class ModelFormCallableModelDefault(TestCase):
 <option value="2" selected="selected">ChoiceOption 2</option>
 <option value="3" selected="selected">ChoiceOption 3</option>
 </select><input type="hidden" name="initial-multi_choice" value="2" id="initial-id_multi_choice_0" />
-<input type="hidden" name="initial-multi_choice" value="3" id="initial-id_multi_choice_1" />  Hold down "Control", or "Command" on a Mac, to select more than one.</p>
+<input type="hidden" name="initial-multi_choice" value="3" id="initial-id_multi_choice_1" /> <span class="helptext"> Hold down "Control", or "Command" on a Mac, to select more than one.</span></p>
 <p><label for="id_multi_choice_int">Multi choice int:</label> <select multiple="multiple" name="multi_choice_int" id="id_multi_choice_int">
 <option value="1">ChoiceOption 1</option>
 <option value="2" selected="selected">ChoiceOption 2</option>
 <option value="3" selected="selected">ChoiceOption 3</option>
 </select><input type="hidden" name="initial-multi_choice_int" value="2" id="initial-id_multi_choice_int_0" />
-<input type="hidden" name="initial-multi_choice_int" value="3" id="initial-id_multi_choice_int_1" />  Hold down "Control", or "Command" on a Mac, to select more than one.</p>""")
+<input type="hidden" name="initial-multi_choice_int" value="3" id="initial-id_multi_choice_int_1" /> <span class="helptext"> Hold down "Control", or "Command" on a Mac, to select more than one.</span></p>""")
 
 
 

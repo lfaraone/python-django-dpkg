@@ -355,10 +355,6 @@ error in a hidden field is a sign of form tampering, since normal form
 interaction won't alter them. However, you could easily insert some error
 displays for those form errors, as well.
 
-.. versionadded:: 1.1
-    The ``hidden_fields`` and ``visible_fields`` methods are new in Django
-    1.1.
-
 Reusable form templates
 -----------------------
 
@@ -381,12 +377,11 @@ using the :ttag:`include` tag to reuse it in other templates::
     {% endfor %}
 
 If the form object passed to a template has a different name within the
-context, you can alias it using the :ttag:`with` tag::
+context, you can alias it using the ``with`` argument of the :ttag:`include`
+tag::
 
     <form action="/comments/add/" method="post">
-        {% with comment_form as form %}
-            {% include "form_snippet.html" %}
-        {% endwith %}
+        {% include "form_snippet.html" with form=comment_form %}
         <p><input type="submit" value="Submit comment" /></p>
     </form>
 
@@ -401,8 +396,8 @@ This covers the basics, but forms can do a whole lot more:
 .. toctree::
    :maxdepth: 2
 
-   modelforms
    formsets
+   modelforms
    media
 
 .. seealso::

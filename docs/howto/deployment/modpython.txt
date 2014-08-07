@@ -1,15 +1,14 @@
-.. _howto-deployment-modpython:
-
 ============================================
 How to use Django with Apache and mod_python
 ============================================
 
 .. warning::
 
-    Support for mod_python will be deprecated in a future release of Django. If
-    you are configuring a new deployment, you are strongly encouraged to
-    consider using :doc:`mod_wsgi </howto/deployment/modwsgi>` or any of the
-    other :doc:`supported backends </howto/deployment/index>`.
+    Support for mod_python has been deprecated, and will be removed in
+    Django 1.5. If you are configuring a new deployment, you are
+    strongly encouraged to consider using :doc:`mod_wsgi
+    </howto/deployment/modwsgi>` or any of the other :doc:`supported
+    backends </howto/deployment/index>`.
 
 .. highlight:: apache
 
@@ -232,8 +231,6 @@ A more compact approach is to use an assertion::
 
 Another alternative is to add debugging information to the template of your page.
 
-.. _serving-media-files:
-
 Serving media files
 ===================
 
@@ -284,8 +281,6 @@ the ``media`` subdirectory and any URL that ends with ``.jpg``, ``.gif`` or
 .. _TUX: http://en.wikipedia.org/wiki/TUX_web_server
 .. _Apache: http://httpd.apache.org/
 .. _Cherokee: http://www.cherokee-project.com/
-
-.. _serving-the-admin-files:
 
 Serving the admin files
 =======================

@@ -1,10 +1,8 @@
 import datetime
 from operator import attrgetter
 
-from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.db import DEFAULT_DB_ALIAS
-from django.test import TestCase
+from django.test import TestCase, skipUnlessDBFeature
 from django.utils import tzinfo
 
 from models import (Worker, Article, Party, Event, Department,
@@ -34,12 +32,12 @@ class ModelTests(TestCase):
             headline="Look at me!", pub_date=datetime.datetime.now()
         )
         # An empty choice field should return None for the display name.
-        self.assertEqual(a.get_status_display(), None)
+        self.assertIs(a.get_status_display(), None)
 
         # Empty strings should be returned as Unicode
         a = Article.objects.get(pk=a.pk)
         self.assertEqual(a.misc_data, u'')
-        self.assertEqual(type(a.misc_data), unicode)
+        self.assertIs(type(a.misc_data), unicode)
 
     def test_long_textfield(self):
         # TextFields can hold more than 4000 characters (this was broken in
@@ -147,26 +145,23 @@ class ModelTests(TestCase):
         b = BrokenUnicodeMethod.objects.create(name="Jerry")
         self.assertEqual(repr(b), "<BrokenUnicodeMethod: [Bad Unicode data]>")
 
-    if settings.DATABASES[DEFAULT_DB_ALIAS]["ENGINE"] not in [
-        "django.db.backends.mysql",
-        "django.db.backends.oracle"
-    ]:
-        def test_timezones(self):
-            # Saving an updating with timezone-aware datetime Python objects.
-            # Regression test for #10443.
-            # The idea is that all these creations and saving should work
-            # without crashing. It's not rocket science.
-            dt1 = datetime.datetime(2008, 8, 31, 16, 20, tzinfo=tzinfo.FixedOffset(600))
-            dt2 = datetime.datetime(2008, 8, 31, 17, 20, tzinfo=tzinfo.FixedOffset(600))
-            obj = Article.objects.create(
-                headline="A headline", pub_date=dt1, article_text="foo"
-            )
-            obj.pub_date = dt2
-            obj.save()
-            self.assertEqual(
-                Article.objects.filter(headline="A headline").update(pub_date=dt1),
-                1
-            )
+    @skipUnlessDBFeature("supports_timezones")
+    def test_timezones(self):
+        # Saving an updating with timezone-aware datetime Python objects.
+        # Regression test for #10443.
+        # The idea is that all these creations and saving should work without
+        # crashing. It's not rocket science.
+        dt1 = datetime.datetime(2008, 8, 31, 16, 20, tzinfo=tzinfo.FixedOffset(600))
+        dt2 = datetime.datetime(2008, 8, 31, 17, 20, tzinfo=tzinfo.FixedOffset(600))
+        obj = Article.objects.create(
+            headline="A headline", pub_date=dt1, article_text="foo"
+        )
+        obj.pub_date = dt2
+        obj.save()
+        self.assertEqual(
+            Article.objects.filter(headline="A headline").update(pub_date=dt1),
+            1
+        )
 
 class ModelValidationTest(TestCase):
     def test_pk_validation(self):

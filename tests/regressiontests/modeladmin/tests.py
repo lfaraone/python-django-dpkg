@@ -1,5 +1,4 @@
 from datetime import date
-import unittest
 
 from django import forms
 from django.conf import settings
@@ -12,6 +11,7 @@ from django.core.exceptions import ImproperlyConfigured
 from django.forms.models import BaseModelFormSet
 from django.forms.widgets import Select
 from django.test import TestCase
+from django.utils import unittest
 
 from models import Band, Concert, ValidationTestModel, \
     ValidationTestInlineModel
@@ -37,7 +37,7 @@ class ModelAdminTests(TestCase):
     def test_default_fields(self):
         ma = ModelAdmin(Band, self.site)
 
-        self.assertEquals(ma.get_form(request).base_fields.keys(),
+        self.assertEqual(ma.get_form(request).base_fields.keys(),
             ['name', 'bio', 'sign_date'])
 
     def test_default_fieldsets(self):
@@ -154,9 +154,9 @@ class ModelAdminTests(TestCase):
         self.assertEqual(str(form["main_band"]),
             '<select name="main_band" id="id_main_band">\n'
             '<option value="" selected="selected">---------</option>\n'
-            '<option value="%d">The Doors</option>\n'
             '<option value="%d">The Beatles</option>\n'
-            '</select>' % (self.band.id, band2.id))
+            '<option value="%d">The Doors</option>\n'
+            '</select>' % (band2.id, self.band.id))
 
         class AdminConcertForm(forms.ModelForm):
             class Meta:
@@ -303,13 +303,6 @@ class ModelAdminTests(TestCase):
 
 
 class ValidationTests(unittest.TestCase):
-    def assertRaisesErrorWithMessage(self, error, message, callable, *args, **kwargs):
-        self.assertRaises(error, callable, *args, **kwargs)
-        try:
-            callable(*args, **kwargs)
-        except error, e:
-            self.assertEqual(message, str(e))
-
     def test_validation_only_runs_in_debug(self):
         # Ensure validation only runs when DEBUG = True
         try:
@@ -320,7 +313,7 @@ class ValidationTests(unittest.TestCase):
 
             site = AdminSite()
 
-            self.assertRaisesErrorWithMessage(
+            self.assertRaisesRegexp(
                 ImproperlyConfigured,
                 "'ValidationTestModelAdmin.raw_id_fields' must be a list or tuple.",
                 site.register,
@@ -338,7 +331,7 @@ class ValidationTests(unittest.TestCase):
         class ValidationTestModelAdmin(ModelAdmin):
             raw_id_fields = 10
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
             "'ValidationTestModelAdmin.raw_id_fields' must be a list or tuple.",
             validate,
@@ -349,7 +342,7 @@ class ValidationTests(unittest.TestCase):
         class ValidationTestModelAdmin(ModelAdmin):
             raw_id_fields = ('non_existent_field',)
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
             "'ValidationTestModelAdmin.raw_id_fields' refers to field 'non_existent_field' that is missing from model 'ValidationTestModel'.",
             validate,
@@ -360,9 +353,9 @@ class ValidationTests(unittest.TestCase):
         class ValidationTestModelAdmin(ModelAdmin):
             raw_id_fields = ('name',)
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
-            "'ValidationTestModelAdmin.raw_id_fields[0]', 'name' must be either a ForeignKey or ManyToManyField.",
+            "'ValidationTestModelAdmin.raw_id_fields\[0\]', 'name' must be either a ForeignKey or ManyToManyField.",
             validate,
             ValidationTestModelAdmin,
             ValidationTestModel,
@@ -378,7 +371,7 @@ class ValidationTests(unittest.TestCase):
         class ValidationTestModelAdmin(ModelAdmin):
             fieldsets = 10
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
             "'ValidationTestModelAdmin.fieldsets' must be a list or tuple.",
             validate,
@@ -389,9 +382,9 @@ class ValidationTests(unittest.TestCase):
         class ValidationTestModelAdmin(ModelAdmin):
             fieldsets = ({},)
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
-            "'ValidationTestModelAdmin.fieldsets[0]' must be a list or tuple.",
+            "'ValidationTestModelAdmin.fieldsets\[0\]' must be a list or tuple.",
             validate,
             ValidationTestModelAdmin,
             ValidationTestModel,
@@ -400,9 +393,9 @@ class ValidationTests(unittest.TestCase):
         class ValidationTestModelAdmin(ModelAdmin):
             fieldsets = ((),)
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
-            "'ValidationTestModelAdmin.fieldsets[0]' does not have exactly two elements.",
+            "'ValidationTestModelAdmin.fieldsets\[0\]' does not have exactly two elements.",
             validate,
             ValidationTestModelAdmin,
             ValidationTestModel,
@@ -411,9 +404,9 @@ class ValidationTests(unittest.TestCase):
         class ValidationTestModelAdmin(ModelAdmin):
             fieldsets = (("General", ()),)
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
-            "'ValidationTestModelAdmin.fieldsets[0][1]' must be a dictionary.",
+            "'ValidationTestModelAdmin.fieldsets\[0\]\[1\]' must be a dictionary.",
             validate,
             ValidationTestModelAdmin,
             ValidationTestModel,
@@ -422,9 +415,9 @@ class ValidationTests(unittest.TestCase):
         class ValidationTestModelAdmin(ModelAdmin):
             fieldsets = (("General", {}),)
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
-            "'fields' key is required in ValidationTestModelAdmin.fieldsets[0][1] field options dict.",
+            "'fields' key is required in ValidationTestModelAdmin.fieldsets\[0\]\[1\] field options dict.",
             validate,
             ValidationTestModelAdmin,
             ValidationTestModel,
@@ -433,9 +426,9 @@ class ValidationTests(unittest.TestCase):
         class ValidationTestModelAdmin(ModelAdmin):
             fieldsets = (("General", {"fields": ("non_existent_field",)}),)
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
-            "'ValidationTestModelAdmin.fieldsets[0][1]['fields']' refers to field 'non_existent_field' that is missing from the form.",
+            "'ValidationTestModelAdmin.fieldsets\[0\]\[1\]\['fields'\]' refers to field 'non_existent_field' that is missing from the form.",
             validate,
             ValidationTestModelAdmin,
             ValidationTestModel,
@@ -450,7 +443,7 @@ class ValidationTests(unittest.TestCase):
             fieldsets = (("General", {"fields": ("name",)}),)
             fields = ["name",]
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
             "Both fieldsets and fields are specified in ValidationTestModelAdmin.",
             validate,
@@ -461,9 +454,9 @@ class ValidationTests(unittest.TestCase):
         class ValidationTestModelAdmin(ModelAdmin):
             fieldsets = [(None, {'fields': ['name', 'name']})]
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
-            "There are duplicate field(s) in ValidationTestModelAdmin.fieldsets",
+            "There are duplicate field\(s\) in ValidationTestModelAdmin.fieldsets",
             validate,
             ValidationTestModelAdmin,
             ValidationTestModel,
@@ -472,9 +465,9 @@ class ValidationTests(unittest.TestCase):
         class ValidationTestModelAdmin(ModelAdmin):
             fields = ["name", "name"]
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
-            "There are duplicate field(s) in ValidationTestModelAdmin.fields",
+            "There are duplicate field\(s\) in ValidationTestModelAdmin.fields",
             validate,
             ValidationTestModelAdmin,
             ValidationTestModel,
@@ -488,7 +481,7 @@ class ValidationTests(unittest.TestCase):
         class ValidationTestModelAdmin(ModelAdmin):
             form = FakeForm
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
             "ValidationTestModelAdmin.form does not inherit from BaseModelForm.",
             validate,
@@ -506,9 +499,9 @@ class ValidationTests(unittest.TestCase):
                 }),
             )
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
-            "'BandAdmin.fieldsets[0][1]['fields']' refers to field 'non_existent_field' that is missing from the form.",
+            "'BandAdmin.fieldsets\[0\]\[1\]\['fields'\]' refers to field 'non_existent_field' that is missing from the form.",
             validate,
             BandAdmin,
             Band,
@@ -536,9 +529,9 @@ class ValidationTests(unittest.TestCase):
                 }),
             )
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
-            "'BandAdmin.fieldsets[0][1]['fields']' refers to field 'non_existent_field' that is missing from the form.",
+            "'BandAdmin.fieldsets\[0]\[1\]\['fields'\]' refers to field 'non_existent_field' that is missing from the form.",
             validate,
             BandAdmin,
             Band,
@@ -566,7 +559,7 @@ class ValidationTests(unittest.TestCase):
         class ValidationTestModelAdmin(ModelAdmin):
             filter_vertical = 10
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
             "'ValidationTestModelAdmin.filter_vertical' must be a list or tuple.",
             validate,
@@ -577,7 +570,7 @@ class ValidationTests(unittest.TestCase):
         class ValidationTestModelAdmin(ModelAdmin):
             filter_vertical = ("non_existent_field",)
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
             "'ValidationTestModelAdmin.filter_vertical' refers to field 'non_existent_field' that is missing from model 'ValidationTestModel'.",
             validate,
@@ -588,9 +581,9 @@ class ValidationTests(unittest.TestCase):
         class ValidationTestModelAdmin(ModelAdmin):
             filter_vertical = ("name",)
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
-            "'ValidationTestModelAdmin.filter_vertical[0]' must be a ManyToManyField.",
+            "'ValidationTestModelAdmin.filter_vertical\[0\]' must be a ManyToManyField.",
             validate,
             ValidationTestModelAdmin,
             ValidationTestModel,
@@ -606,7 +599,7 @@ class ValidationTests(unittest.TestCase):
         class ValidationTestModelAdmin(ModelAdmin):
             filter_horizontal = 10
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
             "'ValidationTestModelAdmin.filter_horizontal' must be a list or tuple.",
             validate,
@@ -617,7 +610,7 @@ class ValidationTests(unittest.TestCase):
         class ValidationTestModelAdmin(ModelAdmin):
             filter_horizontal = ("non_existent_field",)
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
             "'ValidationTestModelAdmin.filter_horizontal' refers to field 'non_existent_field' that is missing from model 'ValidationTestModel'.",
             validate,
@@ -628,9 +621,9 @@ class ValidationTests(unittest.TestCase):
         class ValidationTestModelAdmin(ModelAdmin):
             filter_horizontal = ("name",)
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
-            "'ValidationTestModelAdmin.filter_horizontal[0]' must be a ManyToManyField.",
+            "'ValidationTestModelAdmin.filter_horizontal\[0\]' must be a ManyToManyField.",
             validate,
             ValidationTestModelAdmin,
             ValidationTestModel,
@@ -646,7 +639,7 @@ class ValidationTests(unittest.TestCase):
         class ValidationTestModelAdmin(ModelAdmin):
             radio_fields = ()
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
             "'ValidationTestModelAdmin.radio_fields' must be a dictionary.",
             validate,
@@ -657,7 +650,7 @@ class ValidationTests(unittest.TestCase):
         class ValidationTestModelAdmin(ModelAdmin):
             radio_fields = {"non_existent_field": None}
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
             "'ValidationTestModelAdmin.radio_fields' refers to field 'non_existent_field' that is missing from model 'ValidationTestModel'.",
             validate,
@@ -668,9 +661,9 @@ class ValidationTests(unittest.TestCase):
         class ValidationTestModelAdmin(ModelAdmin):
             radio_fields = {"name": None}
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
-            "'ValidationTestModelAdmin.radio_fields['name']' is neither an instance of ForeignKey nor does have choices set.",
+            "'ValidationTestModelAdmin.radio_fields\['name'\]' is neither an instance of ForeignKey nor does have choices set.",
             validate,
             ValidationTestModelAdmin,
             ValidationTestModel,
@@ -679,9 +672,9 @@ class ValidationTests(unittest.TestCase):
         class ValidationTestModelAdmin(ModelAdmin):
             radio_fields = {"state": None}
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
-            "'ValidationTestModelAdmin.radio_fields['state']' is neither admin.HORIZONTAL nor admin.VERTICAL.",
+            "'ValidationTestModelAdmin.radio_fields\['state'\]' is neither admin.HORIZONTAL nor admin.VERTICAL.",
             validate,
             ValidationTestModelAdmin,
             ValidationTestModel,
@@ -697,7 +690,7 @@ class ValidationTests(unittest.TestCase):
         class ValidationTestModelAdmin(ModelAdmin):
             prepopulated_fields = ()
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
             "'ValidationTestModelAdmin.prepopulated_fields' must be a dictionary.",
             validate,
@@ -708,7 +701,7 @@ class ValidationTests(unittest.TestCase):
         class ValidationTestModelAdmin(ModelAdmin):
             prepopulated_fields = {"non_existent_field": None}
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
             "'ValidationTestModelAdmin.prepopulated_fields' refers to field 'non_existent_field' that is missing from model 'ValidationTestModel'.",
             validate,
@@ -719,9 +712,9 @@ class ValidationTests(unittest.TestCase):
         class ValidationTestModelAdmin(ModelAdmin):
             prepopulated_fields = {"slug": ("non_existent_field",)}
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
-            "'ValidationTestModelAdmin.prepopulated_fields['slug'][0]' refers to field 'non_existent_field' that is missing from model 'ValidationTestModel'.",
+            "'ValidationTestModelAdmin.prepopulated_fields\['slug'\]\[0\]' refers to field 'non_existent_field' that is missing from model 'ValidationTestModel'.",
             validate,
             ValidationTestModelAdmin,
             ValidationTestModel,
@@ -730,9 +723,9 @@ class ValidationTests(unittest.TestCase):
         class ValidationTestModelAdmin(ModelAdmin):
             prepopulated_fields = {"users": ("name",)}
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
-            "'ValidationTestModelAdmin.prepopulated_fields['users']' is either a DateTimeField, ForeignKey or ManyToManyField. This isn't allowed.",
+            "'ValidationTestModelAdmin.prepopulated_fields\['users'\]' is either a DateTimeField, ForeignKey or ManyToManyField. This isn't allowed.",
             validate,
             ValidationTestModelAdmin,
             ValidationTestModel,
@@ -748,7 +741,7 @@ class ValidationTests(unittest.TestCase):
         class ValidationTestModelAdmin(ModelAdmin):
             list_display = 10
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
             "'ValidationTestModelAdmin.list_display' must be a list or tuple.",
             validate,
@@ -759,9 +752,9 @@ class ValidationTests(unittest.TestCase):
         class ValidationTestModelAdmin(ModelAdmin):
             list_display = ('non_existent_field',)
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
-            "ValidationTestModelAdmin.list_display[0], 'non_existent_field' is not a callable or an attribute of 'ValidationTestModelAdmin' or found in the model 'ValidationTestModel'.",
+            "ValidationTestModelAdmin.list_display\[0\], 'non_existent_field' is not a callable or an attribute of 'ValidationTestModelAdmin' or found in the model 'ValidationTestModel'.",
             validate,
             ValidationTestModelAdmin,
             ValidationTestModel,
@@ -770,16 +763,21 @@ class ValidationTests(unittest.TestCase):
         class ValidationTestModelAdmin(ModelAdmin):
             list_display = ('users',)
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
-            "'ValidationTestModelAdmin.list_display[0]', 'users' is a ManyToManyField which is not supported.",
+            "'ValidationTestModelAdmin.list_display\[0\]', 'users' is a ManyToManyField which is not supported.",
             validate,
             ValidationTestModelAdmin,
             ValidationTestModel,
         )
 
+        def a_callable(obj):
+            pass
+
         class ValidationTestModelAdmin(ModelAdmin):
-            list_display = ('name',)
+            def a_method(self, obj):
+                pass
+            list_display = ('name', 'decade_published_in', 'a_method', a_callable)
 
         validate(ValidationTestModelAdmin, ValidationTestModel)
 
@@ -788,7 +786,7 @@ class ValidationTests(unittest.TestCase):
         class ValidationTestModelAdmin(ModelAdmin):
             list_display_links = 10
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
             "'ValidationTestModelAdmin.list_display_links' must be a list or tuple.",
             validate,
@@ -799,9 +797,9 @@ class ValidationTests(unittest.TestCase):
         class ValidationTestModelAdmin(ModelAdmin):
             list_display_links = ('non_existent_field',)
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
-            "'ValidationTestModelAdmin.list_display_links[0]' refers to 'non_existent_field' that is neither a field, method or property of model 'ValidationTestModel'.",
+            "'ValidationTestModelAdmin.list_display_links\[0\]' refers to 'non_existent_field' which is not defined in 'list_display'.",
             validate,
             ValidationTestModelAdmin,
             ValidationTestModel,
@@ -810,17 +808,22 @@ class ValidationTests(unittest.TestCase):
         class ValidationTestModelAdmin(ModelAdmin):
             list_display_links = ('name',)
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
-            "'ValidationTestModelAdmin.list_display_links[0]'refers to 'name' which is not defined in 'list_display'.",
+            "'ValidationTestModelAdmin.list_display_links\[0\]' refers to 'name' which is not defined in 'list_display'.",
             validate,
             ValidationTestModelAdmin,
             ValidationTestModel,
         )
 
+        def a_callable(obj):
+            pass
+
         class ValidationTestModelAdmin(ModelAdmin):
-            list_display = ('name',)
-            list_display_links = ('name',)
+            def a_method(self, obj):
+                pass
+            list_display = ('name', 'decade_published_in', 'a_method', a_callable)
+            list_display_links = ('name', 'decade_published_in', 'a_method', a_callable)
 
         validate(ValidationTestModelAdmin, ValidationTestModel)
 
@@ -829,7 +832,7 @@ class ValidationTests(unittest.TestCase):
         class ValidationTestModelAdmin(ModelAdmin):
             list_filter = 10
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
             "'ValidationTestModelAdmin.list_filter' must be a list or tuple.",
             validate,
@@ -840,9 +843,9 @@ class ValidationTests(unittest.TestCase):
         class ValidationTestModelAdmin(ModelAdmin):
             list_filter = ('non_existent_field',)
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
-            "'ValidationTestModelAdmin.list_filter[0]' refers to field 'non_existent_field' that is missing from model 'ValidationTestModel'.",
+            "'ValidationTestModelAdmin.list_filter\[0\]' refers to 'non_existent_field' which does not refer to a Field.",
             validate,
             ValidationTestModelAdmin,
             ValidationTestModel,
@@ -858,7 +861,7 @@ class ValidationTests(unittest.TestCase):
         class ValidationTestModelAdmin(ModelAdmin):
             list_per_page = 'hello'
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
             "'ValidationTestModelAdmin.list_per_page' should be a integer.",
             validate,
@@ -876,7 +879,7 @@ class ValidationTests(unittest.TestCase):
         class ValidationTestModelAdmin(ModelAdmin):
             search_fields = 10
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
             "'ValidationTestModelAdmin.search_fields' must be a list or tuple.",
             validate,
@@ -889,7 +892,7 @@ class ValidationTests(unittest.TestCase):
         class ValidationTestModelAdmin(ModelAdmin):
             date_hierarchy = 'non_existent_field'
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
             "'ValidationTestModelAdmin.date_hierarchy' refers to field 'non_existent_field' that is missing from model 'ValidationTestModel'.",
             validate,
@@ -900,7 +903,7 @@ class ValidationTests(unittest.TestCase):
         class ValidationTestModelAdmin(ModelAdmin):
             date_hierarchy = 'name'
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
             "'ValidationTestModelAdmin.date_hierarchy is neither an instance of DateField nor DateTimeField.",
             validate,
@@ -918,7 +921,7 @@ class ValidationTests(unittest.TestCase):
         class ValidationTestModelAdmin(ModelAdmin):
             ordering = 10
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
             "'ValidationTestModelAdmin.ordering' must be a list or tuple.",
             validate,
@@ -929,9 +932,9 @@ class ValidationTests(unittest.TestCase):
         class ValidationTestModelAdmin(ModelAdmin):
             ordering = ('non_existent_field',)
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
-            "'ValidationTestModelAdmin.ordering[0]' refers to field 'non_existent_field' that is missing from model 'ValidationTestModel'.",
+            "'ValidationTestModelAdmin.ordering\[0\]' refers to field 'non_existent_field' that is missing from model 'ValidationTestModel'.",
             validate,
             ValidationTestModelAdmin,
             ValidationTestModel,
@@ -940,9 +943,9 @@ class ValidationTests(unittest.TestCase):
         class ValidationTestModelAdmin(ModelAdmin):
             ordering = ('?', 'name')
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
-            "'ValidationTestModelAdmin.ordering' has the random ordering marker '?', but contains other fields as well. Please either remove '?' or the other fields.",
+            "'ValidationTestModelAdmin.ordering' has the random ordering marker '\?', but contains other fields as well. Please either remove '\?' or the other fields.",
             validate,
             ValidationTestModelAdmin,
             ValidationTestModel,
@@ -968,7 +971,7 @@ class ValidationTests(unittest.TestCase):
         class ValidationTestModelAdmin(ModelAdmin):
             list_select_related = 1
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
             "'ValidationTestModelAdmin.list_select_related' should be a boolean.",
             validate,
@@ -986,7 +989,7 @@ class ValidationTests(unittest.TestCase):
         class ValidationTestModelAdmin(ModelAdmin):
             save_as = 1
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
             "'ValidationTestModelAdmin.save_as' should be a boolean.",
             validate,
@@ -1004,7 +1007,7 @@ class ValidationTests(unittest.TestCase):
         class ValidationTestModelAdmin(ModelAdmin):
             save_on_top = 1
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
             "'ValidationTestModelAdmin.save_on_top' should be a boolean.",
             validate,
@@ -1022,7 +1025,7 @@ class ValidationTests(unittest.TestCase):
         class ValidationTestModelAdmin(ModelAdmin):
             inlines = 10
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
             "'ValidationTestModelAdmin.inlines' must be a list or tuple.",
             validate,
@@ -1036,9 +1039,9 @@ class ValidationTests(unittest.TestCase):
         class ValidationTestModelAdmin(ModelAdmin):
             inlines = [ValidationTestInline]
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
-            "'ValidationTestModelAdmin.inlines[0]' does not inherit from BaseModelAdmin.",
+            "'ValidationTestModelAdmin.inlines\[0\]' does not inherit from BaseModelAdmin.",
             validate,
             ValidationTestModelAdmin,
             ValidationTestModel,
@@ -1050,9 +1053,9 @@ class ValidationTests(unittest.TestCase):
         class ValidationTestModelAdmin(ModelAdmin):
             inlines = [ValidationTestInline]
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
-            "'model' is a required attribute of 'ValidationTestModelAdmin.inlines[0]'.",
+            "'model' is a required attribute of 'ValidationTestModelAdmin.inlines\[0\]'.",
             validate,
             ValidationTestModelAdmin,
             ValidationTestModel,
@@ -1067,9 +1070,9 @@ class ValidationTests(unittest.TestCase):
         class ValidationTestModelAdmin(ModelAdmin):
             inlines = [ValidationTestInline]
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
-            "'ValidationTestModelAdmin.inlines[0].model' does not inherit from models.Model.",
+            "'ValidationTestModelAdmin.inlines\[0\].model' does not inherit from models.Model.",
             validate,
             ValidationTestModelAdmin,
             ValidationTestModel,
@@ -1092,7 +1095,7 @@ class ValidationTests(unittest.TestCase):
         class ValidationTestModelAdmin(ModelAdmin):
             inlines = [ValidationTestInline]
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
             "'ValidationTestInline.fields' must be a list or tuple.",
             validate,
@@ -1107,7 +1110,7 @@ class ValidationTests(unittest.TestCase):
         class ValidationTestModelAdmin(ModelAdmin):
             inlines = [ValidationTestInline]
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
             "'ValidationTestInline.fields' refers to field 'non_existent_field' that is missing from the form.",
             validate,
@@ -1124,7 +1127,7 @@ class ValidationTests(unittest.TestCase):
         class ValidationTestModelAdmin(ModelAdmin):
             inlines = [ValidationTestInline]
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
             "'ValidationTestInline.fk_name' refers to field 'non_existent_field' that is missing from model 'ValidationTestInlineModel'.",
             validate,
@@ -1150,7 +1153,7 @@ class ValidationTests(unittest.TestCase):
         class ValidationTestModelAdmin(ModelAdmin):
             inlines = [ValidationTestInline]
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
             "'ValidationTestInline.extra' should be a integer.",
             validate,
@@ -1176,9 +1179,9 @@ class ValidationTests(unittest.TestCase):
         class ValidationTestModelAdmin(ModelAdmin):
             inlines = [ValidationTestInline]
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
-            "'ValidationTestInline.max_num' should be an integer or None (default).",
+            "'ValidationTestInline.max_num' should be an integer or None \(default\).",
             validate,
             ValidationTestModelAdmin,
             ValidationTestModel,
@@ -1205,7 +1208,7 @@ class ValidationTests(unittest.TestCase):
         class ValidationTestModelAdmin(ModelAdmin):
             inlines = [ValidationTestInline]
 
-        self.assertRaisesErrorWithMessage(
+        self.assertRaisesRegexp(
             ImproperlyConfigured,
             "'ValidationTestInline.formset' does not inherit from BaseModelFormSet.",
             validate,

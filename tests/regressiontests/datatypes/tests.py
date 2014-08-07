@@ -1,10 +1,11 @@
 import datetime
+
+from django.conf import settings
 from django.db import DEFAULT_DB_ALIAS
-from django.test import TestCase
+from django.test import TestCase, skipIfDBFeature
 from django.utils import tzinfo
 
 from models import Donut, RumBaba
-from django.conf import settings
 
 class DataTypesTestCase(TestCase):
 
@@ -71,23 +72,23 @@ class DataTypesTestCase(TestCase):
         database should be unicode."""
         d = Donut.objects.create(name=u'Jelly Donut', review=u'Outstanding')
         newd = Donut.objects.get(id=d.id)
-        self.assert_(isinstance(newd.review, unicode))
+        self.assertTrue(isinstance(newd.review, unicode))
 
-    def test_tz_awareness_mysql(self):
-        """Regression test for #8354: the MySQL backend should raise an error
-        if given a timezone-aware datetime object."""
-        if settings.DATABASES[DEFAULT_DB_ALIAS]['ENGINE'] == 'django.db.backends.mysql':
-            dt = datetime.datetime(2008, 8, 31, 16, 20, tzinfo=tzinfo.FixedOffset(0))
-            d = Donut(name='Bear claw', consumed_at=dt)
-            self.assertRaises(ValueError, d.save)
-            # ValueError: MySQL backend does not support timezone-aware datetimes.
+    @skipIfDBFeature('supports_timezones')
+    def test_error_on_timezone(self):
+        """Regression test for #8354: the MySQL and Oracle backends should raise
+        an error if given a timezone-aware datetime object."""
+        dt = datetime.datetime(2008, 8, 31, 16, 20, tzinfo=tzinfo.FixedOffset(0))
+        d = Donut(name='Bear claw', consumed_at=dt)
+        self.assertRaises(ValueError, d.save)
+        # ValueError: MySQL backend does not support timezone-aware datetimes.
 
     def test_datefield_auto_now_add(self):
         """Regression test for #10970, auto_now_add for DateField should store
         a Python datetime.date, not a datetime.datetime"""
         b = RumBaba.objects.create()
         # Verify we didn't break DateTimeField behavior
-        self.assert_(isinstance(b.baked_timestamp, datetime.datetime))
+        self.assertTrue(isinstance(b.baked_timestamp, datetime.datetime))
         # We need to test this this way because datetime.datetime inherits
         # from datetime.date:
-        self.assert_(isinstance(b.baked_date, datetime.date) and not isinstance(b.baked_date, datetime.datetime))
+        self.assertTrue(isinstance(b.baked_date, datetime.date) and not isinstance(b.baked_date, datetime.datetime))

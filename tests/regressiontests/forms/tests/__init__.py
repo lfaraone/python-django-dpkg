@@ -13,13 +13,14 @@ from widgets import *
 
 from regressiontests.forms.localflavortests import (
     ARLocalFlavorTests, ATLocalFlavorTests, AULocalFlavorTests,
-    BRLocalFlavorTests, CALocalFlavorTests, CHLocalFlavorTests,
-    CLLocalFlavorTests, CZLocalFlavorTests, DELocalFlavorTests,
-    ESLocalFlavorTests, FILocalFlavorTests, FRLocalFlavorTests,
-    GenericLocalFlavorTests, IDLocalFlavorTests, IELocalFlavorTests,
-    ISLocalFlavorTests, ITLocalFlavorTests, JPLocalFlavorTests,
-    KWLocalFlavorTests, NLLocalFlavorTests, PLLocalFlavorTests,
-    PTLocalFlavorTests, ROLocalFlavorTests, SELocalFlavorTests,
-    SKLocalFlavorTests, UKLocalFlavorTests, USLocalFlavorTests,
+    BELocalFlavorTests, BRLocalFlavorTests, CALocalFlavorTests,
+    CHLocalFlavorTests, CLLocalFlavorTests, CZLocalFlavorTests,
+    DELocalFlavorTests, ESLocalFlavorTests, FILocalFlavorTests,
+    FRLocalFlavorTests, GenericLocalFlavorTests, IDLocalFlavorTests,
+    IELocalFlavorTests, ILLocalFlavorTests, ISLocalFlavorTests,
+    ITLocalFlavorTests, JPLocalFlavorTests, KWLocalFlavorTests,
+    NLLocalFlavorTests, PLLocalFlavorTests, PTLocalFlavorTests,
+    ROLocalFlavorTests, SELocalFlavorTests, SKLocalFlavorTests,
+    TRLocalFlavorTests, UKLocalFlavorTests, USLocalFlavorTests,
     UYLocalFlavorTests, ZALocalFlavorTests
 )

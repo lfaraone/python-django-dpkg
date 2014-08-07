@@ -58,8 +58,6 @@ Ignore everything between ``{% comment %}`` and ``{% endcomment %}``
 csrf_token
 ~~~~~~~~~~
 
-.. versionadded:: 1.1.2
-
 In the Django 1.1.X series, this is a no-op tag that returns an empty string for
 future compatibility purposes.  In Django 1.2 and later, it is used for CSRF
 protection, as described in the documentation for :doc:`Cross Site Request
@@ -104,11 +102,31 @@ outside of a loop. To do this, just give the ``{% cycle %}`` tag a name, using
 
     {% cycle 'row1' 'row2' as rowcolors %}
 
-From then on, you can insert the current value of the cycle wherever you'd like
-in your template::
+From then on, you can insert the current value of the cycle wherever
+you'd like in your template by referencing the cycle name as a context
+variable. If you want to move the cycle onto the next value, you use
+the cycle tag again, using the name of the variable. So, the following
+template::
 
-    <tr class="{% cycle rowcolors %}">...</tr>
-    <tr class="{% cycle rowcolors %}">...</tr>
+    <tr>
+        <td class="{% cycle 'row1' 'row2' as rowcolors %}">...</td>
+        <td class="{{ rowcolors }}">...</td>
+    </tr>
+    <tr>
+        <td class="{% cycle rowcolors %}">...</td>
+        <td class="{{ rowcolors }}">...</td>
+    </tr>
+
+would output::
+
+    <tr>
+        <td class="row1">...</td>
+        <td class="row1">...</td>
+    </tr>
+    <tr>
+        <td class="row2">...</td>
+        <td class="row2">...</td>
+    </tr>
 
 You can use any number of values in a ``{% cycle %}`` tag, separated by spaces.
 Values enclosed in single (``'``) or double quotes (``"``) are treated as
@@ -136,6 +154,35 @@ looks like::
 In this syntax, each value gets interpreted as a literal string, and there's no
 way to specify variable values. Or literal commas. Or spaces. Did we mention
 you shouldn't use this syntax in any new projects?
+
+.. versionadded:: 1.3
+
+By default, when you use the ``as`` keyword with the cycle tag, the
+usage of ``{% cycle %}`` that declares the cycle will itself output
+the first value in the cycle. This could be a problem if you want to
+use the value in a nested loop or an included template. If you want to
+just declare the cycle, but not output the first value, you can add a
+``silent`` keyword as the last keyword in the tag. For example::
+
+    {% for obj in some_list %}
+        {% cycle 'row1' 'row2' as rowcolors silent %}
+        <tr class="{{ rowcolors }}">{% include "subtemplate.html " %}</tr>
+    {% endfor %}
+
+This will output a list of ``<tr>`` elements with ``class``
+alternating between ``row1`` and ``row2``; the subtemplate will have
+access to ``rowcolors`` in it's context that matches the class of the
+``<tr>`` that encloses it. If the ``silent`` keyword were to be
+omitted, ``row1`` would be emitted as normal text, outside the
+``<tr>`` element.
+
+When the silent keyword is used on a cycle definition, the silence
+automatically applies to all subsequent uses of the cycle tag. In,
+the following template would output *nothing*, even though the second
+call to ``{% cycle %}`` doesn't specify silent::
+
+    {% cycle 'row1' 'row2' as rowcolors silent %}
+    {% cycle rowcolors %}
 
 .. templatetag:: debug
 
@@ -272,8 +319,6 @@ The for loop sets a number of variables available within the loop:
 
 for ... empty
 ^^^^^^^^^^^^^
-
-.. versionadded:: 1.1
 
 The ``for`` tag can take an optional ``{% empty %}`` clause that will be
 displayed if the given array is empty or could not be found::
@@ -614,9 +659,19 @@ including it. This example produces the output ``"Hello, John"``:
 
     * The ``name_snippet.html`` template::
 
-        Hello, {{ person }}
+        {{ greeting }}, {{ person|default:"friend" }}!
 
-See also: ``{% ssi %}``.
+.. versionchanged:: 1.3
+   Additional context and exclusive context.
+
+You can pass additional context to the template using keyword arguments::
+
+    {% include "name_snippet.html" with person="Jane" greeting="Hello" "%}
+
+If you want to only render the context with the variables provided (or even
+no variables at all), use the ``only`` option::
+
+    {% include "name_snippet.html" with greeting="Hi" only %}
 
 .. note::
     The :ttag:`include` tag should be considered as an implementation of
@@ -625,6 +680,8 @@ See also: ``{% ssi %}``.
     This means that there is no shared state between included templates --
     each include is a completely independent rendering process.
 
+See also: ``{% ssi %}``.
+
 .. templatetag:: load
 
 load
@@ -632,19 +689,30 @@ load
 
 Load a custom template tag set.
 
-See :doc:`Custom tag and filter libraries </howto/custom-template-tags>` for more information.
+For example, the following template would load all the tags and filters
+registered in ``somelibrary`` and ``otherlibrary``::
+
+    {% load somelibrary otherlibrary %}
+
+.. versionchanged:: 1.3
+
+You can also selectively load individual filters or tags from a library, using
+the ``from`` argument. In this example, the template tags/filters named ``foo``
+and ``bar`` will be loaded from ``somelibrary``::
+
+    {% load foo bar from somelibrary %}
+
+See :doc:`Custom tag and filter libraries </howto/custom-template-tags>` for
+more information.
 
 .. templatetag:: now
 
 now
 ~~~
 
-Display the current date and/or time, according to the given string.
-
-Given format can be one of the predefined ones ``DATE_FORMAT``,
-``DATETIME_FORMAT``, ``SHORT_DATE_FORMAT`` or ``SHORT_DATETIME_FORMAT``,
-or a custom format, same as the :tfilter:`date` filter. Note that predefined
-formats may vary depending on the current locale.
+Display the current date and/or time, using a format according to the given
+string. Such string can contain format specifiers characters as described
+in the :tfilter:`date` filter section.
 
 Example::
 
@@ -834,6 +902,30 @@ Note that if you use ``{% ssi %}``, you'll need to define
 
 See also: ``{% include %}``.
 
+.. admonition:: Forwards compatibility
+
+    .. versionchanged:: 1.3
+
+    In Django 1.5, the behavior of the :ttag:`ssi` template tag will
+    change, with the first argument being made into a context
+    variable, rather than being a special case unquoted constant. This
+    will allow the :ttag:`ssi` tag to use a context variable as the
+    value of the page to be included.
+
+    In order to provide a forwards compatibility path, Django 1.3
+    provides a future compatibility library -- ``future`` -- that
+    implements the new behavior. To use this library, add a
+    :ttag:`load` call at the top of any template using the :ttag:`ssi`
+    tag, and wrap the first argument to the :ttag:`ssi` tag in quotes.
+    For example::
+
+        {% load ssi from future %}
+        {% ssi '/home/html/ljworld.com/includes/right_generic.html' %}
+
+    In Django 1.5, the unquoted constant behavior will be replaced
+    with the behavior provided by the ``future`` tag library.
+    Existing templates should be migrated to use the new syntax.
+
 .. templatetag:: templatetag
 
 templatetag
@@ -908,8 +1000,8 @@ refer to the name of the pattern in the ``url`` tag instead of using the
 path to the view.
 
 Note that if the URL you're reversing doesn't exist, you'll get an
-:exc:`NoReverseMatch` exception raised, which will cause your site to display an
-error page.
+:exc:`~django.core.urlresolvers.NoReverseMatch` exception raised, which will
+cause your site to display an error page.
 
 If you'd like to retrieve a URL without displaying it, you can use a slightly
 different call::
@@ -926,8 +1018,6 @@ missing. In practice you'll use this to link to views that are optional::
     {% if the_url %}
       <a href="{{ the_url }}">Link to optional stuff</a>
     {% endif %}
-
-.. versionadded:: 1.1
 
 If you'd like to retrieve a namespaced URL, specify the fully qualified name::
 
@@ -947,9 +1037,36 @@ here's what it looks like::
     {% url path.to.view arg,arg2 %}
     {% url path.to.view arg, arg2 %}
 
-This syntax doesn't support the use of literal commas, or or equals
+This syntax doesn't support the use of literal commas, or equals
 signs. Did we mention you shouldn't use this syntax in any new
 projects?
+
+.. admonition:: Forwards compatibility
+
+    .. versionchanged:: 1.3
+
+    In Django 1.5, the behavior of the :ttag:`url` template tag will
+    change, with the first argument being made into a context
+    variable, rather than being a special case unquoted constant. This
+    will allow the :ttag:`url` tag to use a context variable as the
+    value of the URL name to be reversed.
+
+    In order to provide a forwards compatibility path, Django 1.3
+    provides a future compatibility library -- ``future`` -- that
+    implements the new behavior. To use this library, add a
+    :ttag:`load` call at the top of any template using the :ttag:`url`
+    tag, and wrap the first argument to the :ttag:`url` tag in quotes.
+    For example::
+
+        {% load url from future %}
+        {% url 'myapp:view-name' %}
+
+    The new library also drops support for the comma syntax for
+    separating arguments to the :ttag:`url` template tag.
+
+    In Django 1.5, the old behavior will be replaced with the behavior
+    provided by the ``future`` tag library. Existing templates be
+    migrated to use the new syntax.
 
 .. templatetag:: widthratio
 
@@ -972,17 +1089,29 @@ which is rounded up to 88).
 with
 ~~~~
 
+.. versionchanged:: 1.3
+   New keyword argument format and multiple variable assignments.
+
 Caches a complex variable under a simpler name. This is useful when accessing
 an "expensive" method (e.g., one that hits the database) multiple times.
 
 For example::
 
-    {% with business.employees.count as total %}
+    {% with total=business.employees.count %}
         {{ total }} employee{{ total|pluralize }}
     {% endwith %}
 
 The populated variable (in the example above, ``total``) is only available
 between the ``{% with %}`` and ``{% endwith %}`` tags.
+
+You can assign more than one context variable::
+
+    {% with alpha=1 beta=2 %}
+        ...
+    {% endwith %}
+
+.. note:: The previous more verbose format is still supported:
+   ``{% with business.employees.count as total %}``
 
 .. _ref-templates-builtins-filters:
 
@@ -1100,6 +1229,9 @@ Available format strings:
     d                 Day of the month, 2 digits with           ``'01'`` to ``'31'``
                       leading zeros.
     D                 Day of the week, textual, 3 letters.      ``'Fri'``
+    E                 Month, locale specific alternative
+                      representation usually used for long
+                      date representation.                      ``'listopada'`` (for Polish locale, as opposed to ``'Listopad'``)
     f                 Time, in 12-hour hours and minutes,       ``'1'``, ``'1:30'``
                       with minutes left off if they're zero.
                       Proprietary extension.
@@ -1972,6 +2104,19 @@ For example::
 If ``value`` is ``"http://www.example.org/foo?a=b&c=d"``, the output will be
 ``"http%3A//www.example.org/foo%3Fa%3Db%26c%3Dd"``.
 
+.. versionadded:: 1.3
+
+An optional argument containing the characters which should not be escaped can
+be provided.
+
+If not provided, the '/' character is assumed safe. An empty string can be
+provided when *all* characters should be escaped. For example::
+
+    {{ value|urlencode:"" }}
+
+If ``value`` is ``"http://www.example.org/"``, the output will be
+``"http%3A%2F%2Fwww.example.org%2F"``.
+
 .. templatefilter:: urlize
 
 urlize
@@ -2118,3 +2263,12 @@ Django templates. It is slightly different from the libraries described
 above because you don't need to add any application to the ``INSTALLED_APPS``
 setting but rather set :setting:`USE_I18N` to True, then loading it with
 ``{% load i18n %}``. See :ref:`specifying-translation-strings-in-template-code`.
+
+l10n
+~~~~
+
+Provides a couple of templatetags that allow control over the localization of
+values in Django templates. It is slightly different from the libraries described
+above because you don't need to add any application to the ``INSTALLED_APPS``;
+you only need to load the library using ``{% load l10n %}``. See
+:ref:`topic-l10n-templates`.

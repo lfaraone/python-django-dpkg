@@ -59,13 +59,13 @@ class DeletionTests(TestCase):
         """
         PoemFormSet = inlineformset_factory(Poet, Poem, can_delete=True)
         poet = Poet.objects.create(name='test')
-        poet.poem_set.create(name='test poem')
+        poem = poet.poem_set.create(name='test poem')
         data = {
             'poem_set-TOTAL_FORMS': u'1',
             'poem_set-INITIAL_FORMS': u'1',
             'poem_set-MAX_NUM_FORMS': u'0',
-            'poem_set-0-id': u'1',
-            'poem_set-0-poem': u'1',
+            'poem_set-0-id': unicode(poem.id),
+            'poem_set-0-poem': unicode(poem.id),
             'poem_set-0-name': u'x' * 1000,
         }
         formset = PoemFormSet(data, instance=poet)
@@ -108,13 +108,6 @@ class DeletionTests(TestCase):
 
 
 class InlineFormsetFactoryTest(TestCase):
-    def assertRaisesErrorWithMessage(self, error, message, callable, *args, **kwargs):
-        self.assertRaises(error, callable, *args, **kwargs)
-        try:
-            callable(*args, **kwargs)
-        except error, e:
-            self.assertEqual(message, str(e))
-
     def test_inline_formset_factory(self):
         """
         These should both work without a problem.
@@ -127,7 +120,7 @@ class InlineFormsetFactoryTest(TestCase):
         Child has two ForeignKeys to Parent, so if we don't specify which one
         to use for the inline formset, we should get an exception.
         """
-        self.assertRaisesErrorWithMessage(Exception,
+        self.assertRaisesRegexp(Exception,
             "<class 'regressiontests.inline_formsets.models.Child'> has more than 1 ForeignKey to <class 'regressiontests.inline_formsets.models.Parent'>",
             inlineformset_factory, Parent, Child
         )
@@ -137,7 +130,7 @@ class InlineFormsetFactoryTest(TestCase):
         If we specify fk_name, but it isn't a ForeignKey from the child model
         to the parent model, we should get an exception.
         """
-        self.assertRaisesErrorWithMessage(Exception,
+        self.assertRaises(Exception,
             "fk_name 'school' is not a ForeignKey to <class 'regressiontests.inline_formsets.models.Parent'>",
             inlineformset_factory, Parent, Child, fk_name='school'
         )
@@ -147,7 +140,7 @@ class InlineFormsetFactoryTest(TestCase):
         If the field specified in fk_name is not a ForeignKey, we should get an
         exception.
         """
-        self.assertRaisesErrorWithMessage(Exception,
+        self.assertRaisesRegexp(Exception,
             "<class 'regressiontests.inline_formsets.models.Child'> has no field named 'test'",
             inlineformset_factory, Parent, Child, fk_name='test'
         )

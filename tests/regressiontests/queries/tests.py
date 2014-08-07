@@ -1,20 +1,21 @@
 import datetime
 import pickle
 import sys
-import unittest
 
 from django.conf import settings
 from django.core.exceptions import FieldError
 from django.db import DatabaseError, connection, connections, DEFAULT_DB_ALIAS
 from django.db.models import Count
 from django.db.models.query import Q, ITER_CHUNK_SIZE, EmptyQuerySet
-from django.test import TestCase
+from django.test import TestCase, skipUnlessDBFeature
+from django.utils import unittest
 from django.utils.datastructures import SortedDict
 
 from models import (Annotation, Article, Author, Celebrity, Child, Cover, Detail,
     DumbCategory, ExtraInfo, Fan, Item, LeafA, LoopX, LoopZ, ManagedModel,
     Member, NamedCategory, Note, Number, Plaything, PointerA, Ranking, Related,
-    Report, ReservedName, Tag, TvChef, Valid, X, Food, Eaten, Node)
+    Report, ReservedName, Tag, TvChef, Valid, X, Food, Eaten, Node, ObjectA, ObjectB,
+    ObjectC)
 
 
 class BaseQuerysetTest(TestCase):
@@ -32,7 +33,7 @@ class BaseQuerysetTest(TestCase):
                 excName = exc.__name__
             else:
                 excName = str(exc)
-            raise AssertionError, "%s not raised" % excName
+            raise AssertionError("%s not raised" % excName)
 
 
 class Queries1Tests(BaseQuerysetTest):
@@ -235,13 +236,6 @@ class Queries1Tests(BaseQuerysetTest):
         )
         self.assertQuerysetEqual((q1 & q2).order_by('name'), ['<Item: one>'])
 
-        # FIXME: This is difficult to fix and very much an edge case, so punt for now.
-        # This is related to the order_by() tests, below, but the old bug exhibited
-        # itself here (q2 was pulling too many tables into the combined query with the
-        # new ordering, but only because we have evaluated q2 already).
-        #
-        #self.assertEqual(len((q1 & q2).order_by('name').query.tables), 1)
-
         q1 = Item.objects.filter(tags=self.t1)
         q2 = Item.objects.filter(note=self.n3, tags=self.t2)
         q3 = Item.objects.filter(creator=self.a4)
@@ -249,6 +243,18 @@ class Queries1Tests(BaseQuerysetTest):
             ((q1 & q2) | q3).order_by('name'),
             ['<Item: four>', '<Item: one>']
         )
+
+    # FIXME: This is difficult to fix and very much an edge case, so punt for
+    # now.  This is related to the order_by() tests for ticket #2253, but the
+    # old bug exhibited itself here (q2 was pulling too many tables into the
+    # combined query with the new ordering, but only because we have evaluated
+    # q2 already).
+    @unittest.expectedFailure
+    def test_order_by_tables(self):
+        q1 = Item.objects.order_by('name')
+        q2 = Item.objects.filter(id=self.i1.id)
+        list(q2)
+        self.assertEqual(len((q1 & q2).order_by('name').query.tables), 1)
 
     def test_tickets_4088_4306(self):
         self.assertQuerysetEqual(
@@ -1210,29 +1216,29 @@ class Queries6Tests(TestCase):
         ann1.notes.add(n1)
         ann2 = Annotation.objects.create(name='a2', tag=t4)
 
-    # FIXME!! This next test causes really weird PostgreSQL behaviour, but it's
-    # only apparent much later when the full test suite runs. I don't understand
-    # what's going on here yet.
-    ##def test_slicing_and_cache_interaction(self):
-    ##    # We can do slicing beyond what is currently in the result cache,
-    ##    # too.
-    ##
-    ##    # We need to mess with the implementation internals a bit here to decrease the
-    ##    # cache fill size so that we don't read all the results at once.
-    ##    from django.db.models import query
-    ##    query.ITER_CHUNK_SIZE = 2
-    ##    qs = Tag.objects.all()
-    ##
-    ##    # Fill the cache with the first chunk.
-    ##    self.assertTrue(bool(qs))
-    ##    self.assertEqual(len(qs._result_cache), 2)
-    ##
-    ##    # Query beyond the end of the cache and check that it is filled out as required.
-    ##    self.assertEqual(repr(qs[4]), '<Tag: t5>')
-    ##    self.assertEqual(len(qs._result_cache), 5)
-    ##
-    ##    # But querying beyond the end of the result set will fail.
-    ##    self.assertRaises(IndexError, lambda: qs[100])
+    # This next test used to cause really weird PostgreSQL behaviour, but it was
+    # only apparent much later when the full test suite ran.
+    #@unittest.expectedFailure
+    def test_slicing_and_cache_interaction(self):
+        # We can do slicing beyond what is currently in the result cache,
+        # too.
+
+        # We need to mess with the implementation internals a bit here to decrease the
+        # cache fill size so that we don't read all the results at once.
+        from django.db.models import query
+        query.ITER_CHUNK_SIZE = 2
+        qs = Tag.objects.all()
+
+        # Fill the cache with the first chunk.
+        self.assertTrue(bool(qs))
+        self.assertEqual(len(qs._result_cache), 2)
+
+        # Query beyond the end of the cache and check that it is filled out as required.
+        self.assertEqual(repr(qs[4]), '<Tag: t5>')
+        self.assertEqual(len(qs._result_cache), 5)
+
+        # But querying beyond the end of the result set will fail.
+        self.assertRaises(IndexError, lambda: qs[100])
 
     def test_parallel_iterators(self):
         # Test that parallel iterators work.
@@ -1308,7 +1314,7 @@ class Queries6Tests(TestCase):
     def test_ticket3739(self):
         # The all() method on querysets returns a copy of the queryset.
         q1 = Tag.objects.order_by('name')
-        self.assertTrue(q1 is not q1.all())
+        self.assertIsNot(q1, q1.all())
 
 
 class GeneratorExpressionTests(TestCase):
@@ -1396,13 +1402,13 @@ class SubqueryTests(TestCase):
         "Subselects honor any manual ordering"
         try:
             query = DumbCategory.objects.filter(id__in=DumbCategory.objects.order_by('-id')[0:2])
-            self.assertEquals(set(query.values_list('id', flat=True)), set([2,3]))
+            self.assertEqual(set(query.values_list('id', flat=True)), set([2,3]))
 
             query = DumbCategory.objects.filter(id__in=DumbCategory.objects.order_by('-id')[:2])
-            self.assertEquals(set(query.values_list('id', flat=True)), set([2,3]))
+            self.assertEqual(set(query.values_list('id', flat=True)), set([2,3]))
 
             query = DumbCategory.objects.filter(id__in=DumbCategory.objects.order_by('-id')[2:])
-            self.assertEquals(set(query.values_list('id', flat=True)), set([1]))
+            self.assertEqual(set(query.values_list('id', flat=True)), set([1]))
         except DatabaseError:
             # Oracle and MySQL both have problems with sliced subselects.
             # This prevents us from even evaluating this test case at all.
@@ -1413,7 +1419,7 @@ class SubqueryTests(TestCase):
         "Delete queries can safely contain sliced subqueries"
         try:
             DumbCategory.objects.filter(id__in=DumbCategory.objects.order_by('-id')[0:1]).delete()
-            self.assertEquals(set(DumbCategory.objects.values_list('id', flat=True)), set([1,2]))
+            self.assertEqual(set(DumbCategory.objects.values_list('id', flat=True)), set([1,2]))
         except DatabaseError:
             # Oracle and MySQL both have problems with sliced subselects.
             # This prevents us from even evaluating this test case at all.
@@ -1435,7 +1441,7 @@ class CloneTests(TestCase):
         # Use the note queryset in a query, and evalute
         # that query in a way that involves cloning.
         try:
-            self.assertEquals(ExtraInfo.objects.filter(note__in=n_list)[0].info, 'good')
+            self.assertEqual(ExtraInfo.objects.filter(note__in=n_list)[0].info, 'good')
         except:
             self.fail('Query should be clonable')
 
@@ -1489,6 +1495,10 @@ class WeirdQuerysetSlicingTests(BaseQuerysetTest):
             'Cannot change a query once a slice has been taken.',
             Article.objects.all()[:0].latest, 'created'
         )
+
+    def test_empty_resultset_sql(self):
+        # ticket #12192
+        self.assertNumQueries(0, lambda: list(Number.objects.all()[1:1]))
 
 
 class EscapingTests(TestCase):
@@ -1567,86 +1577,144 @@ class ToFieldTests(TestCase):
         )
 
 
-# In Python 2.6 beta releases, exceptions raised in __len__ are swallowed
-# (Python issue 1242657), so these cases return an empty list, rather than
-# raising an exception. Not a lot we can do about that, unfortunately, due to
-# the way Python handles list() calls internally. Thus, we skip the tests for
-# Python 2.6.
-if sys.version_info[:2] != (2, 6):
-    class OrderingLoopTests(BaseQuerysetTest):
-        def setUp(self):
-            generic = NamedCategory.objects.create(name="Generic")
-            t1 = Tag.objects.create(name='t1', category=generic)
-            t2 = Tag.objects.create(name='t2', parent=t1, category=generic)
-            t3 = Tag.objects.create(name='t3', parent=t1)
-            t4 = Tag.objects.create(name='t4', parent=t3)
-            t5 = Tag.objects.create(name='t5', parent=t3)
+class ConditionalTests(BaseQuerysetTest):
+    """Tests whose execution depend on dfferent environment conditions like
+    Python version or DB backend features"""
 
-        def test_infinite_loop(self):
-            # If you're not careful, it's possible to introduce infinite loops via
-            # default ordering on foreign keys in a cycle. We detect that.
-            self.assertRaisesMessage(
-                FieldError,
-                'Infinite loop caused by ordering.',
-                lambda: list(LoopX.objects.all()) # Force queryset evaluation with list()
-            )
-            self.assertRaisesMessage(
-                FieldError,
-                'Infinite loop caused by ordering.',
-                lambda: list(LoopZ.objects.all()) # Force queryset evaluation with list()
-            )
+    def setUp(self):
+        generic = NamedCategory.objects.create(name="Generic")
+        t1 = Tag.objects.create(name='t1', category=generic)
+        t2 = Tag.objects.create(name='t2', parent=t1, category=generic)
+        t3 = Tag.objects.create(name='t3', parent=t1)
+        t4 = Tag.objects.create(name='t4', parent=t3)
+        t5 = Tag.objects.create(name='t5', parent=t3)
 
-            # Note that this doesn't cause an infinite loop, since the default
-            # ordering on the Tag model is empty (and thus defaults to using "id"
-            # for the related field).
-            self.assertEqual(len(Tag.objects.order_by('parent')), 5)
+    # In Python 2.6 beta releases, exceptions raised in __len__ are swallowed
+    # (Python issue 1242657), so these cases return an empty list, rather than
+    # raising an exception. Not a lot we can do about that, unfortunately, due to
+    # the way Python handles list() calls internally. Thus, we skip the tests for
+    # Python 2.6.
+    @unittest.skipIf(sys.version_info[:2] == (2, 6), "Python version is 2.6")
+    def test_infinite_loop(self):
+        # If you're not careful, it's possible to introduce infinite loops via
+        # default ordering on foreign keys in a cycle. We detect that.
+        self.assertRaisesMessage(
+            FieldError,
+            'Infinite loop caused by ordering.',
+            lambda: list(LoopX.objects.all()) # Force queryset evaluation with list()
+        )
+        self.assertRaisesMessage(
+            FieldError,
+            'Infinite loop caused by ordering.',
+            lambda: list(LoopZ.objects.all()) # Force queryset evaluation with list()
+        )
 
-            # ... but you can still order in a non-recursive fashion amongst linked
-            # fields (the previous test failed because the default ordering was
-            # recursive).
-            self.assertQuerysetEqual(
-                LoopX.objects.all().order_by('y__x__y__x__id'),
-                []
-            )
+        # Note that this doesn't cause an infinite loop, since the default
+        # ordering on the Tag model is empty (and thus defaults to using "id"
+        # for the related field).
+        self.assertEqual(len(Tag.objects.order_by('parent')), 5)
 
+        # ... but you can still order in a non-recursive fashion amongst linked
+        # fields (the previous test failed because the default ordering was
+        # recursive).
+        self.assertQuerysetEqual(
+            LoopX.objects.all().order_by('y__x__y__x__id'),
+            []
+        )
 
-# When grouping without specifying ordering, we add an explicit "ORDER BY NULL"
-# portion in MySQL to prevent unnecessary sorting.
-if settings.DATABASES[DEFAULT_DB_ALIAS]['ENGINE'] == "django.db.backends.mysql":
-    class GroupingTests(TestCase):
-        def test_null_ordering_added(self):
-            query = Tag.objects.values_list('parent_id', flat=True).order_by().query
-            query.group_by = ['parent_id']
-            sql = query.get_compiler(DEFAULT_DB_ALIAS).as_sql()[0]
-            fragment = "ORDER BY "
-            pos = sql.find(fragment)
-            self.assertEqual(sql.find(fragment, pos + 1), -1)
-            self.assertEqual(sql.find("NULL", pos + len(fragment)), pos + len(fragment))
+    # When grouping without specifying ordering, we add an explicit "ORDER BY NULL"
+    # portion in MySQL to prevent unnecessary sorting.
+    @skipUnlessDBFeature('requires_explicit_null_ordering_when_grouping')
+    def test_null_ordering_added(self):
+        query = Tag.objects.values_list('parent_id', flat=True).order_by().query
+        query.group_by = ['parent_id']
+        sql = query.get_compiler(DEFAULT_DB_ALIAS).as_sql()[0]
+        fragment = "ORDER BY "
+        pos = sql.find(fragment)
+        self.assertEqual(sql.find(fragment, pos + 1), -1)
+        self.assertEqual(sql.find("NULL", pos + len(fragment)), pos + len(fragment))
 
+    # Sqlite 3 does not support passing in more than 1000 parameters except by
+    # changing a parameter at compilation time.
+    @skipUnlessDBFeature('supports_1000_query_parameters')
+    def test_ticket14244(self):
+        # Test that the "in" lookup works with lists of 1000 items or more.
+        Number.objects.all().delete()
+        numbers = range(2500)
+        for num in numbers:
+            _ = Number.objects.create(num=num)
+        self.assertEqual(
+            Number.objects.filter(num__in=numbers[:1000]).count(),
+            1000
+        )
+        self.assertEqual(
+            Number.objects.filter(num__in=numbers[:1001]).count(),
+            1001
+        )
+        self.assertEqual(
+            Number.objects.filter(num__in=numbers[:2000]).count(),
+            2000
+        )
+        self.assertEqual(
+            Number.objects.filter(num__in=numbers).count(),
+            2500
+        )
 
-# Sqlite 3 does not support passing in more than 1000 parameters except by
-# changing a parameter at compilation time.
-if settings.DATABASES[DEFAULT_DB_ALIAS]['ENGINE'] != "django.db.backends.sqlite3":
-    class InLookupTests(TestCase):
-        def test_ticket14244(self):
-            # Test that the "in" lookup works with lists of 1000 items or more.
-            Number.objects.all().delete()
-            numbers = range(2500)
-            for num in numbers:
-                _ = Number.objects.create(num=num)
-            self.assertEqual(
-                Number.objects.filter(num__in=numbers[:1000]).count(),
-                1000
-            )
-            self.assertEqual(
-                Number.objects.filter(num__in=numbers[:1001]).count(),
-                1001
-            )
-            self.assertEqual(
-                Number.objects.filter(num__in=numbers[:2000]).count(),
-                2000
-            )
-            self.assertEqual(
-                Number.objects.filter(num__in=numbers).count(),
-                2500
-            )
+class UnionTests(unittest.TestCase):
+    """
+    Tests for the union of two querysets. Bug #12252.
+    """
+    def setUp(self):
+        objectas = []
+        objectbs = []
+        objectcs = []
+        a_info = ['one', 'two', 'three']
+        for name in a_info:
+            o = ObjectA(name=name)
+            o.save()
+            objectas.append(o)
+        b_info = [('un', 1, objectas[0]), ('deux', 2, objectas[0]), ('trois', 3, objectas[2])]
+        for name, number, objecta in b_info:
+            o = ObjectB(name=name, num=number, objecta=objecta)
+            o.save()
+            objectbs.append(o)
+        c_info = [('ein', objectas[2], objectbs[2]), ('zwei', objectas[1], objectbs[1])]
+        for name, objecta, objectb in c_info:
+            o = ObjectC(name=name, objecta=objecta, objectb=objectb)
+            o.save()
+            objectcs.append(o)
+
+    def check_union(self, model, Q1, Q2):
+        filter = model.objects.filter
+        self.assertEqual(set(filter(Q1) | filter(Q2)), set(filter(Q1 | Q2)))
+        self.assertEqual(set(filter(Q2) | filter(Q1)), set(filter(Q1 | Q2)))
+
+    def test_A_AB(self):
+        Q1 = Q(name='two')
+        Q2 = Q(objectb__name='deux')
+        self.check_union(ObjectA, Q1, Q2)
+
+    def test_A_AB2(self):
+        Q1 = Q(name='two')
+        Q2 = Q(objectb__name='deux', objectb__num=2)
+        self.check_union(ObjectA, Q1, Q2)
+
+    def test_AB_ACB(self):
+        Q1 = Q(objectb__name='deux')
+        Q2 = Q(objectc__objectb__name='deux')
+        self.check_union(ObjectA, Q1, Q2)
+
+    def test_BAB_BAC(self):
+        Q1 = Q(objecta__objectb__name='deux')
+        Q2 = Q(objecta__objectc__name='ein')
+        self.check_union(ObjectB, Q1, Q2)
+
+    def test_BAB_BACB(self):
+        Q1 = Q(objecta__objectb__name='deux')
+        Q2 = Q(objecta__objectc__objectb__name='trois')
+        self.check_union(ObjectB, Q1, Q2)
+
+    def test_BA_BCA__BAB_BAC_BCA(self):
+        Q1 = Q(objecta__name='one', objectc__objecta__name='two')
+        Q2 = Q(objecta__objectc__name='ein', objectc__objecta__name='three', objecta__objectb__name='trois')
+        self.check_union(ObjectB, Q1, Q2)

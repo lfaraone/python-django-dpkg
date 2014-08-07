@@ -1,8 +1,6 @@
 from operator import attrgetter
 
-from django.conf import settings
 from django.core.exceptions import FieldError
-from django.db import connection
 from django.test import TestCase
 
 from models import (Chef, CommonInfo, ItalianRestaurant, ParkingLot, Place,
@@ -163,7 +161,7 @@ class ModelInheritanceTests(TestCase):
 
         # Filters against the parent model return objects of the parent's type.
         p = Place.objects.get(name="Demon Dogs")
-        self.assertTrue(type(p) is Place)
+        self.assertIs(type(p), Place)
 
         # Since the parent and child are linked by an automatically created
         # OneToOneField, you can get from the parent to the child by using the
@@ -265,18 +263,12 @@ class ModelInheritanceTests(TestCase):
 
         # select_related works with fields from the parent object as if they
         # were a normal part of the model.
-        old_DEBUG = settings.DEBUG
-        try:
-            settings.DEBUG = True
-            starting_queries = len(connection.queries)
-            ItalianRestaurant.objects.all()[0].chef
-            self.assertEqual(len(connection.queries) - starting_queries, 2)
-
-            starting_queries = len(connection.queries)
-            ItalianRestaurant.objects.select_related("chef")[0].chef
-            self.assertEqual(len(connection.queries) - starting_queries, 1)
-        finally:
-            settings.DEBUG = old_DEBUG
+        self.assertNumQueries(2,
+            lambda: ItalianRestaurant.objects.all()[0].chef
+        )
+        self.assertNumQueries(1,
+            lambda: ItalianRestaurant.objects.select_related("chef")[0].chef
+        )
 
     def test_mixin_init(self):
         m = MixinModel()

@@ -12,7 +12,7 @@ This document contains all the gory details about all the `field options`_ and
 
 .. seealso::
 
-    If the built-in fields don't do the trick, you can try 
+    If the built-in fields don't do the trick, you can try
     :mod:`django.contrib.localflavor`, which contains assorted pieces of code
     that are useful for particular countries or cultures. Also, you can easily
     :doc:`write your own custom model fields </howto/custom-model-fields>`.
@@ -462,7 +462,7 @@ The admin represents this as an ``<input type="text">`` (a single-line input).
 
     For more information about the differences between the
     :class:`FloatField` and :class:`DecimalField` classes, please
-    see :ref:`FloatField vs. DecimalField <floatfield_vs_decimalfield>`. 
+    see :ref:`FloatField vs. DecimalField <floatfield_vs_decimalfield>`.
 
 ``EmailField``
 --------------
@@ -557,7 +557,7 @@ day. If you upload a file on Jan. 15, 2007, it will be saved in the directory
 
 If you wanted to retrieve the uploaded file's on-disk filename, or the file's
 size, you could use the :attr:`~django.core.files.File.name` and
-:attr:`~django.core.files.File.size` attributes respectively; for more 
+:attr:`~django.core.files.File.size` attributes respectively; for more
 information on the available attributes and methods, see the
 :class:`~django.core.files.File` class reference and the :doc:`/topics/files`
 topic guide.
@@ -836,17 +836,18 @@ Like all :class:`CharField` subclasses, :class:`URLField` takes the optional
 ``XMLField``
 ------------
 
+.. deprecated:: 1.3
+   ``XMLField`` is deprecated. Use TextField instead.
+
 .. class:: XMLField(schema_path=None, [**options])
 
-A :class:`TextField` that checks that the value is valid XML that matches a
-given schema. Takes one required argument:
+A :class:`TextField` that stores XML data and a path to a schema. Takes one
+optional argument:
 
 .. attribute:: schema_path
 
-    The filesystem path to a RelaxNG_ schema against which to validate the
-    field.
+    The filesystem path to a schema for the field.
 
-.. _RelaxNG: http://www.relaxng.org/
 
 Relationship fields
 ===================
@@ -941,19 +942,62 @@ define the details of how the relation works.
     <abstract-base-classes>`; and when you do so
     :ref:`some special syntax <abstract-related-name>` is available.
 
-    If you wish to suppress the provision of a backwards relation, you may
-    simply provide a ``related_name`` which ends with a ``'+'`` character.
-    For example::
-   
-        user = models.ForeignKey(User, related_name='+')
+    If you'd prefer Django didn't create a backwards relation, set ``related_name``
+    to ``'+'``. For example, this will ensure that the ``User`` model won't get a
+    backwards relation to this model::
 
-    will ensure that no backwards relation to this model is provided on the 
-    ``User`` model.
+        user = models.ForeignKey(User, related_name='+')
 
 .. attribute:: ForeignKey.to_field
 
     The field on the related object that the relation is to. By default, Django
     uses the primary key of the related object.
+
+.. versionadded:: 1.3
+
+.. attribute:: ForeignKey.on_delete
+
+    When an object referenced by a :class:`ForeignKey` is deleted, Django by
+    default emulates the behavior of the SQL constraint ``ON DELETE CASCADE``
+    and also deletes the object containing the ``ForeignKey``. This behavior
+    can be overridden by specifying the :attr:`on_delete` argument. For
+    example, if you have a nullable :class:`ForeignKey` and you want it to be
+    set null when the referenced object is deleted::
+
+        user = models.ForeignKey(User, blank=True, null=True, on_delete=models.SET_NULL)
+
+    The possible values for :attr:`on_delete` are found in
+    :mod:`django.db.models`:
+
+    * :attr:`~django.db.models.CASCADE`: Cascade deletes; the default.
+
+    * :attr:`~django.db.models.PROTECT`: Prevent deletion of the referenced
+      object by raising :exc:`django.db.models.ProtectedError`, a subclass of
+      :exc:`django.db.IntegrityError`.
+
+    * :attr:`~django.db.models.SET_NULL`: Set the :class:`ForeignKey` null;
+      this is only possible if :attr:`null` is ``True``.
+
+    * :attr:`~django.db.models.SET_DEFAULT`: Set the :class:`ForeignKey` to its
+      default value; a default for the :class:`ForeignKey` must be set.
+
+    * :func:`~django.db.models.SET()`: Set the :class:`ForeignKey` to the value
+      passed to :func:`~django.db.models.SET()`, or if a callable is passed in,
+      the result of calling it. In most cases, passing a callable will be
+      necessary to avoid executing queries at the time your models.py is
+      imported::
+
+        def get_sentinel_user():
+            return User.objects.get_or_create(username='deleted')[0]
+
+        class MyModel(models.Model):
+            user = models.ForeignKey(User, on_delete=models.SET(get_sentinel_user))
+
+    * :attr:`~django.db.models.DO_NOTHING`: Take no action. If your database
+      backend enforces referential integrity, this will cause an
+      :exc:`~django.db.IntegrityError` unless you manually add a SQL ``ON
+      DELETE`` constraint to the database field (perhaps using
+      :ref:`initial sql<initial-sql>`).
 
 .. _ref-manytomany:
 
