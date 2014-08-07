@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Django\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2008-11-10 21:13+1100\n"
+"POT-Creation-Date: 2008-11-10 21:10+1100\n"
 "PO-Revision-Date: 2008-11-07 20:53+0700\n"
 "Last-Translator: Kowit Charoenratchatabhan <kowito@felspar.com>\n"
 "Language-Team: Kowit Charoenratchatabhan,Kadsarin Sanjek, Felspar <kowito@felspar.com>\n"
@@ -246,15 +246,15 @@ msgstr "เดือนนี้"
 msgid "This year"
 msgstr "ปีนี้"
 
-#: contrib/admin/filterspecs.py:146 forms/widgets.py:391
+#: contrib/admin/filterspecs.py:146 forms/widgets.py:390
 msgid "Yes"
 msgstr "ใช่"
 
-#: contrib/admin/filterspecs.py:146 forms/widgets.py:391
+#: contrib/admin/filterspecs.py:146 forms/widgets.py:390
 msgid "No"
 msgstr "ไม่ใช่"
 
-#: contrib/admin/filterspecs.py:153 forms/widgets.py:391
+#: contrib/admin/filterspecs.py:153 forms/widgets.py:390
 msgid "Unknown"
 msgstr "ไม่รู้"
 
@@ -465,7 +465,7 @@ msgstr "เสียใจด้วย ไม่พบหน้าที่ต�
 
 #: contrib/admin/templates/admin/500.html:4
 #: contrib/admin/templates/admin/app_index.html:8
-#: contrib/admin/templates/admin/base.html:30
+#: contrib/admin/templates/admin/base.html:31
 #: contrib/admin/templates/admin/change_form.html:17
 #: contrib/admin/templates/admin/change_list.html:8
 #: contrib/admin/templates/admin/delete_confirmation.html:6
@@ -509,18 +509,18 @@ msgstr ""
 msgid "%(name)s"
 msgstr "%(name)s"
 
-#: contrib/admin/templates/admin/base.html:25
+#: contrib/admin/templates/admin/base.html:26
 msgid "Welcome,"
 msgstr "ยินดีต้อนรับ,"
 
-#: contrib/admin/templates/admin/base.html:25
+#: contrib/admin/templates/admin/base.html:26
 #: contrib/admin/templates/registration/password_change_done.html:3
 #: contrib/admin/templates/registration/password_change_form.html:3
 #: contrib/admindocs/templates/admin_doc/bookmarklets.html:3
 msgid "Documentation"
 msgstr "เอกสารประกอบ"
 
-#: contrib/admin/templates/admin/base.html:25
+#: contrib/admin/templates/admin/base.html:26
 #: contrib/admin/templates/admin/auth/user/change_password.html:13
 #: contrib/admin/templates/admin/auth/user/change_password.html:46
 #: contrib/admin/templates/registration/password_change_done.html:3
@@ -528,7 +528,7 @@ msgstr "เอกสารประกอบ"
 msgid "Change password"
 msgstr "เปลี่ยนรหัสผ่าน"
 
-#: contrib/admin/templates/admin/base.html:25
+#: contrib/admin/templates/admin/base.html:26
 #: contrib/admin/templates/registration/password_change_done.html:3
 #: contrib/admin/templates/registration/password_change_form.html:3
 msgid "Log out"
@@ -1151,7 +1151,7 @@ msgid "Change password: %s"
 msgstr "เปลี่ยนรหัสผ่าน: %s "
 
 #: contrib/auth/forms.py:15 contrib/auth/forms.py:48
-#: contrib/auth/models.py:136
+#: contrib/auth/models.py:127
 msgid ""
 "Required. 30 characters or fewer. Alphanumeric characters only (letters, "
 "digits and underscores)."
@@ -1217,51 +1217,51 @@ msgstr "รหัสผ่านเก่า"
 msgid "Your old password was entered incorrectly. Please enter it again."
 msgstr "ใส่รหัสผ่านเก่าผิด กรุณาใส่รหัสผ่านอีกครั้ง"
 
-#: contrib/auth/models.py:72 contrib/auth/models.py:95
+#: contrib/auth/models.py:63 contrib/auth/models.py:86
 msgid "name"
 msgstr "ชื่อ"
 
-#: contrib/auth/models.py:74
+#: contrib/auth/models.py:65
 msgid "codename"
 msgstr "รหัสชื่อ"
 
-#: contrib/auth/models.py:77
+#: contrib/auth/models.py:68
 msgid "permission"
 msgstr "สิทธิ์"
 
-#: contrib/auth/models.py:78 contrib/auth/models.py:96
+#: contrib/auth/models.py:69 contrib/auth/models.py:87
 msgid "permissions"
 msgstr "สิทธิ์"
 
-#: contrib/auth/models.py:99
+#: contrib/auth/models.py:90
 msgid "group"
 msgstr "กลุ่ม"
 
-#: contrib/auth/models.py:100 contrib/auth/models.py:146
+#: contrib/auth/models.py:91 contrib/auth/models.py:137
 msgid "groups"
 msgstr "กลุ่ม"
 
-#: contrib/auth/models.py:136
+#: contrib/auth/models.py:127
 msgid "username"
 msgstr "ชื่อผู้ใช้"
 
-#: contrib/auth/models.py:137
+#: contrib/auth/models.py:128
 msgid "first name"
 msgstr "ชื่อ"
 
-#: contrib/auth/models.py:138
+#: contrib/auth/models.py:129
 msgid "last name"
 msgstr "นามสกุล"
 
-#: contrib/auth/models.py:139
+#: contrib/auth/models.py:130
 msgid "e-mail address"
 msgstr "ที่อยู่อีเมล"
 
-#: contrib/auth/models.py:140
+#: contrib/auth/models.py:131
 msgid "password"
 msgstr "รหัสผ่าน"
 
-#: contrib/auth/models.py:140
+#: contrib/auth/models.py:131
 msgid ""
 "Use '[algo]$[salt]$[hexdigest]' or use the <a href=\"password/\">change "
 "password form</a>."
@@ -1269,62 +1269,62 @@ msgstr ""
 "ใช้ '[algo]$[salt]$[hexdigest]'หรือใช้ <a href=\"password/\">แบบฟอร์มเปลี่ยนรหัสผ่าน "
 "</a>."
 
-#: contrib/auth/models.py:141
+#: contrib/auth/models.py:132
 msgid "staff status"
 msgstr "สถานะ"
 
-#: contrib/auth/models.py:141
+#: contrib/auth/models.py:132
 msgid "Designates whether the user can log into this admin site."
 msgstr "กำหนดผู้ที่จะเข้ามาใช้งานในส่วนของผู้ดูแลระบบ"
 
-#: contrib/auth/models.py:142
+#: contrib/auth/models.py:133
 msgid "active"
 msgstr "ใช้งานได้"
 
-#: contrib/auth/models.py:142
+#: contrib/auth/models.py:133
 msgid ""
 "Designates whether this user should be treated as active. Unselect this "
 "instead of deleting accounts."
 msgstr ""
 "ผู้ที่ถูกเลือกนั้นต้องมีสถานะที่สามารถเข้ามาใช้งานได้ตลอดเวลา เลือกออกแทนที่จะลบชื่อผู้ใช้ทิ้งไป "
 
-#: contrib/auth/models.py:143
+#: contrib/auth/models.py:134
 msgid "superuser status"
 msgstr "สถานะผู้ใช้พิเศษ"
 
-#: contrib/auth/models.py:143
+#: contrib/auth/models.py:134
 msgid ""
 "Designates that this user has all permissions without explicitly assigning "
 "them."
 msgstr "ชื่อผู้ใช้งานที่ถูกเลือกนั้นได้รับอนุญาตในทุกกรณีโดยไม่ต้องการมอบหมายอย่างเป็นทางการ"
 
-#: contrib/auth/models.py:144
+#: contrib/auth/models.py:135
 msgid "last login"
 msgstr "เข้าสู่ระบบครั้งสุดท้าย"
 
-#: contrib/auth/models.py:145
+#: contrib/auth/models.py:136
 msgid "date joined"
 msgstr "วันที่เข้าร่วม"
 
-#: contrib/auth/models.py:147
+#: contrib/auth/models.py:138
 msgid ""
 "In addition to the permissions manually assigned, this user will also get "
 "all permissions granted to each group he/she is in."
 msgstr "ดังนั้นการอนุญาตที่ได้รับมอบหมาย ผู้ใช้งานนี้ยังได้รับสิทธิให้ใช้อำนาจได้กับกลุ่มของตนเองอีกด้วย"
 
-#: contrib/auth/models.py:148
+#: contrib/auth/models.py:139
 msgid "user permissions"
 msgstr "สิทธิ์ผู้ใช้งาน"
 
-#: contrib/auth/models.py:152
+#: contrib/auth/models.py:143
 msgid "user"
 msgstr "ผู้ใช้งาน"
 
-#: contrib/auth/models.py:153
+#: contrib/auth/models.py:144
 msgid "users"
 msgstr "ผู้ใช้งาน"
 
-#: contrib/auth/models.py:308
+#: contrib/auth/models.py:300
 msgid "message"
 msgstr "ข้อความ"
 
