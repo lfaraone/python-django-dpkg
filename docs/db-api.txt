@@ -213,8 +213,26 @@ follows this algorithm:
 
 The one gotcha here is that you should be careful not to specify a primary-key
 value explicitly when saving new objects, if you cannot guarantee the
-primary-key value is unused. For more on this nuance, see
-"Explicitly specifying auto-primary-key values" above.
+primary-key value is unused. For more on this nuance, see `Explicitly
+specifying auto-primary-key values`_ above and `Forcing an INSERT or UPDATE`_
+below.
+
+Forcing an INSERT or UPDATE
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**New in Django development version**
+
+In some rare circumstances, it's necesary to be able to force the ``save()``
+method to perform an SQL ``INSERT`` and not fall back to doing an ``UPDATE``.
+Or vice-versa: update, if possible, but not insert a new row. In these cases
+you can pass the ``force_insert=True`` or ``force_update=True`` parameters to
+the ``save()`` method. Passing both parameters is an error, since you cannot
+both insert *and* update at the same time.
+
+It should be very rare that you'll need to use these parameters. Django will
+almost always do the right thing and trying to override that will lead to
+errors that are difficult to track down. This feature is for advanced use
+only.
 
 Retrieving objects
 ==================
@@ -382,7 +400,7 @@ Pickling QuerySets
 
 If you pickle_ a ``QuerySet``, this will also force all the results to be
 loaded into memory prior to pickling. This is because pickling is usually used
-as a precursor to caching and when the cached queryset is reloaded, you want
+as a precursor to caching and when the cached ``QuerySet`` is reloaded, you want
 the results to already be present. This means that when you unpickle a
 ``QuerySet``, it contains the results at the moment it was pickled, rather
 than the results that are currently in the database.
@@ -442,6 +460,31 @@ This is roughly equivalent to::
 
 Note, however, that the first of these will raise ``IndexError`` while the
 second will raise ``DoesNotExist`` if no objects match the given criteria.
+
+Combining QuerySets
+-------------------
+
+If you have two ``QuerySet`` instances that act on the same model, you can
+combine them using ``&`` and ``|`` to get the items that are in both result
+sets or in either results set, respectively. For example::
+
+    Entry.objects.filter(pubdate__gte=date1) & \
+            Entry.objects.filter(headline__startswith="What")
+
+will combine the two queries into a single SQL query. Of course, in this case
+you could have achieved the same result using multiple filters on the same
+``QuerySet``, but sometimes the ability to combine individual ``QuerySet``
+instance is useful.
+
+Be careful, if you are using ``extra()`` to add custom handling to your
+``QuerySet`` however. All the ``extra()`` components are merged and the result
+may or may not make sense. If you are using custom SQL fragments in your
+``extra()`` calls, Django will not inspect these fragments to see if they need
+to be rewritten because of changes in the merged query. So test the effects
+carefully. Also realize that if you are combining two ``QuerySets`` with
+``|``, you cannot use ``extra(select=...)`` or ``extra(where=...)`` on *both*
+``QuerySets``. You can only use those calls on one or the other (Django will
+raise a ``ValueError`` if you try to use this incorrectly).
 
 QuerySet methods that return new QuerySets
 ------------------------------------------
@@ -1061,7 +1104,12 @@ they query the database each time they're called.
 Returns the object matching the given lookup parameters, which should be in
 the format described in `Field lookups`_.
 
-``get()`` raises ``AssertionError`` if more than one object was found.
+``get()`` raises ``MultipleObjectsReturned`` if more than one object was found.
+The ``MultipleObjectsReturned`` exception is an attribute of the model class.
+For example, the following will raise ``MultipleObjectsReturned`` if there
+are more than one authors with the name of 'John'::
+
+	Author.objects.get(name='John') # raises Author.MultipleObjectsReturned
 
 ``get()`` raises a ``DoesNotExist`` exception if an object wasn't found for the
 given parameters. The ``DoesNotExist`` exception is an attribute of the model
@@ -1279,6 +1327,19 @@ changed in the development version. Previously, it was (intentionally)
 converted to ``WHERE id = NULL`` at the SQL level, which would never match
 anything. It has now been changed to behave the same as ``id__isnull=True``.
 
+.. admonition:: MySQL comparisons
+
+    In MySQL, whether or not ``exact`` comparisons are case-sensitive depends
+    upon the collation setting of the table involved. The default is usually
+    ``latin1_swedish_ci`` or ``utf8_swedish_ci``, which results in
+    case-insensitive comparisons. Change the collation to
+    ``latin1_swedish_cs`` or ``utf8_bin`` for case sensitive comparisons.
+
+    For more details, refer to the MySQL manual section about `character sets
+    and collations`_.
+
+.. _character sets and collations: http://dev.mysql.com/doc/refman/5.0/en/charset.html
+
 iexact
 ~~~~~~
 
@@ -1367,6 +1428,17 @@ Example::
 SQL equivalent::
 
     SELECT ... WHERE id IN (1, 3, 4);
+
+You can also use a queryset to dynamically evaluate the list of values
+instead of providing a list of literal values. The queryset must be
+reduced to a list of individual values using the ``values()`` method,
+and then converted into a query using the ``query`` attribute::
+
+    Entry.objects.filter(blog__in=Blog.objects.filter(name__contains='Cheddar').values('pk').query)
+
+This queryset will be evaluated as subselect statement::
+
+    SELECT ... WHERE blog.id IN (SELECT id FROM ... WHERE NAME LIKE '%Cheddar%')
 
 startswith
 ~~~~~~~~~~
@@ -1635,6 +1707,28 @@ whose ``headline`` contains ``'Lennon'``::
 
     Blog.objects.filter(entry__headline__contains='Lennon')
 
+If you are filtering across multiple relationships and one of the intermediate
+models doesn't have a value that meets the filter condition, Django will treat
+it as if there is an empty (all values are ``NULL``), but valid, object there.
+All this means is that no error will be raised. For example, in this filter::
+
+    Blog.objects.filter(entry__author__name='Lennon')
+
+(if there was a related ``Author`` model), if there was no ``author``
+associated with an entry, it would be treated as if there was also no ``name``
+attached, rather than raising an error because of the missing ``author``.
+Usually this is exactly what you want to have happen. The only case where it
+might be confusing is if you are using ``isnull``. Thus::
+
+    Blog.objects.filter(entry__author__name__isnull=True)
+
+will return ``Blog`` objects that have an empty ``name`` on the ``author`` and
+also those which have an empty ``author`` on the ``entry``. If you don't want
+those latter objects, you could write::
+
+    Blog.objetcs.filter(entry__author__isnull=False,
+            entry__author__name__isnull=True)
+
 Spanning multi-valued relationships
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -1645,8 +1739,8 @@ When you are filtering an object based on a ``ManyToManyField`` or a reverse
 interested in. Consider the ``Blog``/``Entry`` relationship (``Blog`` to
 ``Entry`` is a one-to-many relation). We might be interested in finding blogs
 that have an entry which has both *"Lennon"* in the headline and was published
-today. Or we might want to find blogs that have an entry with *"Lennon"* in
-the headline as well as an entry that was published today. Since there are
+in 2008. Or we might want to find blogs that have an entry with *"Lennon"* in
+the headline as well as an entry that was published in 2008. Since there are
 multiple entries associated with a single ``Blog``, both of these queries are
 possible and make sense in some situations.
 
@@ -1665,16 +1759,16 @@ earlier ``filter()`` call.
 
 That may sound a bit confusing, so hopefully an example will clarify. To
 select all blogs that contains entries with *"Lennon"* in the headline and
-were published today, we would write::
+were published in 2008, we would write::
 
     Blog.objects.filter(entry__headline__contains='Lennon',
-            entry__pub_date=datetime.date.today())
+            entry__pub_date__year=2008)
 
 To select all blogs that contain an entry with *"Lennon"* in the headline
-**as well as** an entry that was published today, we would write::
+**as well as** an entry that was published in 2008, we would write::
 
     Blog.objects.filter(entry__headline__contains='Lennon').filter(
-            entry__pub_date=datetime.date.today())
+            entry__pub_date__year=2008)
 
 In this second example, the first filter restricted the queryset to all those
 blogs linked to that particular type of entry. The second filter restricted
@@ -2021,6 +2115,37 @@ Each "reverse" operation described in this section has an immediate effect on
 the database. Every addition, creation and deletion is immediately and
 automatically saved to the database.
 
+One-to-one relationships
+------------------------
+
+One-to-one relationships are very similar to many-to-one relationships.
+If you define a OneToOneField on your model, instances of that model will have
+access to the related object via a simple attribute of the model.
+
+For example::
+
+    class EntryDetail(models.Model):
+        entry = models.OneToOneField(Entry)
+        details = models.TextField()
+
+    ed = EntryDetail.objects.get(id=2)
+    ed.entry # Returns the related Entry object.
+
+The difference comes in "reverse" queries. The related model in a one-to-one
+relationship also has access to a ``Manager`` object, but that ``Manager``
+represents a single object, rather than a collection of objects::
+
+    e = Entry.objects.get(id=2)
+    e.entrydetail # returns the related EntryDetail object
+
+If no object has been assigned to this relationship, Django will raise
+a ``DoesNotExist`` exception.
+
+Instances can be assigned to the reverse relationship in the same way as
+you would assign the forward relationship::
+
+    e.entrydetail = ed
+
 Many-to-many relationships
 --------------------------
 
@@ -2047,12 +2172,6 @@ Like ``ForeignKey``, ``ManyToManyField`` can specify ``related_name``. In the
 above example, if the ``ManyToManyField`` in ``Entry`` had specified
 ``related_name='entries'``, then each ``Author`` instance would have an
 ``entries`` attribute instead of ``entry_set``.
-
-One-to-one relationships
-------------------------
-
-The semantics of one-to-one relationships will be changing soon, so we don't
-recommend you use them.
 
 How are the backward relationships possible?
 --------------------------------------------
@@ -2146,6 +2265,18 @@ updated is that it can only access one database table, the model's main
 table. So don't try to filter based on related fields or anything like that;
 it won't work.
 
+Be aware that the ``update()`` method is converted directly to an SQL
+statement. It is a bulk operation for direct updates. It doesn't run any
+``save()`` methods on your models, or emit the ``pre_save`` or ``post_save``
+signals (which are a consequence of calling ``save()``). If you want to save
+every item in a ``QuerySet`` and make sure that the ``save()`` method is
+called on each instance, you don't need any special function to handle that.
+Just loop over them and call ``save()``::
+
+    for item in my_queryset:
+        item.save()
+
+
 Extra instance methods
 ======================
 
@@ -2195,46 +2326,6 @@ For a full example, see the `lookup API sample model`_.
 
 .. _lookup API sample model: ../models/lookup/
 
-get_FOO_filename()
-------------------
-
-For every ``FileField``, the object will have a ``get_FOO_filename()`` method,
-where ``FOO`` is the name of the field. This returns the full filesystem path
-to the file, according to your ``MEDIA_ROOT`` setting.
-
-Note that ``ImageField`` is technically a subclass of ``FileField``, so every
-model with an ``ImageField`` will also get this method.
-
-get_FOO_url()
--------------
-
-For every ``FileField``, the object will have a ``get_FOO_url()`` method,
-where ``FOO`` is the name of the field. This returns the full URL to the file,
-according to your ``MEDIA_URL`` setting. If the value is blank, this method
-returns an empty string.
-
-get_FOO_size()
---------------
-
-For every ``FileField``, the object will have a ``get_FOO_size()`` method,
-where ``FOO`` is the name of the field. This returns the size of the file, in
-bytes. (Behind the scenes, it uses ``os.path.getsize``.)
-
-save_FOO_file(filename, raw_contents)
--------------------------------------
-
-For every ``FileField``, the object will have a ``save_FOO_file()`` method,
-where ``FOO`` is the name of the field. This saves the given file to the
-filesystem, using the given filename. If a file with the given filename already
-exists, Django adds an underscore to the end of the filename (but before the
-extension) until the filename is available.
-
-get_FOO_height() and get_FOO_width()
-------------------------------------
-
-For every ``ImageField``, the object will have ``get_FOO_height()`` and
-``get_FOO_width()`` methods, where ``FOO`` is the name of the field. This
-returns the height (or width) of the image, as an integer, in pixels.
 
 Shortcuts
 =========

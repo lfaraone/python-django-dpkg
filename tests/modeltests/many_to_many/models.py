@@ -1,10 +1,10 @@
 """
 5. Many-to-many relationships
 
-To define a many-to-many relationship, use ManyToManyField().
+To define a many-to-many relationship, use ``ManyToManyField()``.
 
-In this example, an article can be published in multiple publications,
-and a publication has multiple articles.
+In this example, an ``Article`` can be published in multiple ``Publication``
+objects, and a ``Publication`` has multiple ``Article`` objects.
 """
 
 from django.db import models
@@ -39,6 +39,14 @@ __test__ = {'API_TESTS':"""
 
 # Create an Article.
 >>> a1 = Article(id=None, headline='Django lets you build Web apps easily')
+
+# You can't associate it with a Publication until it's been saved.
+>>> a1.publications.add(p1)
+Traceback (most recent call last):
+...
+ValueError: 'Article' instance needs to have a primary key value before a many-to-many relationship can be used.
+
+# Save it!
 >>> a1.save()
 
 # Associate the Article with a Publication.

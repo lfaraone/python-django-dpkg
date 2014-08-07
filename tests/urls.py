@@ -5,6 +5,9 @@ urlpatterns = patterns('',
     (r'^test_client/', include('modeltests.test_client.urls')),
     (r'^test_client_regress/', include('regressiontests.test_client_regress.urls')),
 
+    # File upload test views
+    (r'^file_uploads/', include('regressiontests.file_uploads.urls')),
+
     # Always provide the auth system login and logout views
     (r'^accounts/login/$', 'django.contrib.auth.views.login', {'template_name': 'login.html'}),
     (r'^accounts/logout/$', 'django.contrib.auth.views.logout'),
@@ -17,6 +20,9 @@ urlpatterns = patterns('',
 
     # test urlconf for middleware tests
     (r'^middleware/', include('regressiontests.middleware.urls')),
+    
+    # admin view tests
+    (r'^test_admin/', include('regressiontests.admin_views.urls')),
 
     (r'^utils/', include('regressiontests.utils.urls')),
 

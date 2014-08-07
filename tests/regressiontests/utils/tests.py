@@ -8,12 +8,21 @@ from django.utils import html, checksums
 
 import timesince
 import datastructures
+import itercompat
 from decorators import DecoratorFromMiddlewareTests
+
+# We need this because "datastructures" uses sorted() and the tests are run in
+# the scope of this module.
+try:
+    sorted
+except NameError:
+    from django.utils.itercompat import sorted  # For Python 2.3
 
 # Extra tests
 __test__ = {
     'timesince': timesince,
     'datastructures': datastructures,
+    'itercompat': itercompat,
 }
 
 class TestUtilsHtml(TestCase):

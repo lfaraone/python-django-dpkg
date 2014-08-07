@@ -25,13 +25,6 @@ The best part is, it's really easy.
 This document is split into two primary sections. First, we explain how to
 write tests with Django. Then, we explain how to run them.
 
-.. admonition:: Note
-
-    This testing framework is currently under development. It may change
-    slightly before the next official Django release.
-
-    (That's *no* excuse not to write tests, though!)
-
 Writing tests
 =============
 
@@ -58,7 +51,7 @@ frameworks are:
 
           import unittest
 
-          class MyFuncTestCase(unittest.TestCase)
+          class MyFuncTestCase(unittest.TestCase):
               def testBasic(self):
                   a = ['larry', 'curly', 'moe']
                   self.assertEquals(my_func(a, 0), 'larry')
@@ -89,7 +82,7 @@ read Python's official documentation for the details.
     For example, this function has a docstring that describes what it does::
 
         def add_two(num):
-            "Adds 2 to the given number and returns the result."
+            "Return the result of adding two to the provided number."
             return num + 2
 
     Because tests often make great documentation, putting tests directly in
@@ -600,8 +593,6 @@ Specifically, a ``Response`` object has the following attributes:
                      ``context`` will be a list of ``Context``
                      objects, in the order in which they were rendered.
 
-    ``headers``      The HTTP headers of the response. This is a dictionary.
-
     ``request``      The request data that stimulated the response.
 
     ``status_code``  The HTTP status of the response, as an integer. See
@@ -618,6 +609,10 @@ Specifically, a ``Response`` object has the following attributes:
                      be a list of ``Template`` instances, in the order in
                      which they were rendered.
     ===============  ==========================================================
+
+You can also use dictionary syntax on the response object to query the value
+of any settings in the HTTP headers. For example, you could determine the
+content type of a response using ``response['Content-Type']``.
 
 .. _RFC2616: http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html
 .. _template inheritance: ../templates/#template-inheritance
@@ -797,6 +792,37 @@ another test, or by the order of test execution.
 .. _dumpdata documentation: ../django-admin/#dumpdata-appname-appname
 .. _loaddata documentation: ../django-admin/#loaddata-fixture-fixture
 
+URLconf configuration
+~~~~~~~~~~~~~~~~~~~~~
+
+**New in Django development version**
+
+If your application provides views, you may want to include tests that
+use the test client to exercise those views. However, an end user is free
+to deploy the views in your application at any URL of their choosing.
+This means that your tests can't rely upon the fact that your views will
+be available at a particular URL.
+
+In order to provide a reliable URL space for your test,
+``django.test.TestCase`` provides the ability to customize the URLconf
+configuration for the duration of the execution of a test suite.
+If your ``TestCase`` instance defines an ``urls`` attribute, the
+``TestCase`` will use the value of that attribute as the ``ROOT_URLCONF``
+for the duration of that test.
+
+For example::
+
+    from django.test import TestCase
+
+    class TestMyViews(TestCase):
+        urls = 'myapp.test_urls'
+
+        def testIndexPageView(self):
+            # Here you'd test your view using ``Client``.
+
+This test case will use the contents of ``myapp.test_urls`` as the
+URLconf for the duration of the test case.
+
 Emptying the test outbox
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -822,12 +848,16 @@ useful for testing Web applications:
     that ``text`` appears in the content of the response. If ``count`` is
     provided, ``text`` must occur exactly ``count`` times in the response.
 
+``assertNotContains(response, text, status_code=200)``
+    Asserts that a ``Response`` instance produced the given ``status_code`` and
+    that ``text`` does not appears in the content of the response.
+
 ``assertFormError(response, form, field, errors)``
     Asserts that a field on a form raises the provided list of errors when
     rendered on the form.
 
     ``form`` is the name the ``Form`` instance was given in the template
-    context. Note that this works only for ``newforms.Form`` instances, not
+    context. Note that this works only for ``forms.Form`` instances, not
     ``oldforms.Form`` instances.
 
     ``field`` is the name of the field on the form to check. If ``field``
@@ -837,6 +867,12 @@ useful for testing Web applications:
     ``errors`` is an error string, or a list of error strings, that are
     expected as a result of form validation.
 
+``assertTemplateUsed(response, template_name)``
+    Asserts that the template with the given name was used in rendering the
+    response.
+
+    The name is a string such as ``'admin/index.html'``.
+
 ``assertTemplateNotUsed(response, template_name)``
     Asserts that the template with the given name was *not* used in rendering
     the response.
@@ -845,12 +881,6 @@ useful for testing Web applications:
     Asserts that the response return a ``status_code`` redirect status,
     it redirected to ``expected_url`` (including any GET data), and the subsequent
     page was received with ``target_status_code``.
-
-``assertTemplateUsed(response, template_name)``
-    Asserts that the template with the given name was used in rendering the
-    response.
-
-    The name is a string such as ``'admin/index.html'``.
 
 E-mail services
 ---------------
@@ -996,6 +1026,9 @@ a number of utility methods in the ``django.test.utils`` module.
     black magic hooks into the template system and restoring normal e-mail
     services.
 
+The creation module of the database backend (``connection.creation``) also
+provides some utilities that can be useful during testing.
+
 ``create_test_db(verbosity=1, autoclobber=False)``
     Creates a new test database and runs ``syncdb`` against it.
 
@@ -1014,7 +1047,7 @@ a number of utility methods in the ``django.test.utils`` module.
     ``create_test_db()`` has the side effect of modifying
     ``settings.DATABASE_NAME`` to match the name of the test database.
 
-    New in the Django development version, this function returns the name of
+    **New in Django development version:** This function returns the name of
     the test database that it created.
 
 ``destroy_test_db(old_database_name, verbosity=1)``

@@ -2,10 +2,9 @@
 Query subclasses which provide extra functionality beyond simple data retrieval.
 """
 
-from django.contrib.contenttypes import generic
 from django.core.exceptions import FieldError
 from django.db.models.sql.constants import *
-from django.db.models.sql.datastructures import RawValue, Date
+from django.db.models.sql.datastructures import Date
 from django.db.models.sql.query import Query
 from django.db.models.sql.where import AND
 
@@ -43,6 +42,7 @@ class DeleteQuery(Query):
         More than one physical query may be executed if there are a
         lot of values in pk_list.
         """
+        from django.contrib.contenttypes import generic
         cls = self.model
         for related in cls._meta.get_all_related_many_to_many_objects():
             if not isinstance(related.field, generic.GenericRelation):
@@ -109,9 +109,17 @@ class UpdateQuery(Query):
                 related_updates=self.related_updates.copy, **kwargs)
 
     def execute_sql(self, result_type=None):
-        super(UpdateQuery, self).execute_sql(result_type)
+        """
+        Execute the specified update. Returns the number of rows affected by
+        the primary update query (there could be other updates on related
+        tables, but their rowcounts are not returned).
+        """
+        cursor = super(UpdateQuery, self).execute_sql(result_type)
+        rows = cursor.rowcount
+        del cursor
         for query in self.get_related_updates():
             query.execute_sql(result_type)
+        return rows
 
     def as_sql(self):
         """
@@ -357,12 +365,14 @@ class DateQuery(Query):
                     date = typecast_timestamp(str(date))
                 yield date
 
-    def add_date_select(self, column, lookup_type, order='ASC'):
+    def add_date_select(self, field, lookup_type, order='ASC'):
         """
         Converts the query into a date extraction query.
         """
-        alias = self.join((None, self.model._meta.db_table, None, None))
-        select = Date((alias, column), lookup_type,
+        result = self.setup_joins([field.name], self.get_meta(),
+                self.get_initial_alias(), False)
+        alias = result[3][-1]
+        select = Date((alias, field.column), lookup_type,
                 self.connection.ops.date_trunc_sql)
         self.select = [select]
         self.select_fields = [None]
@@ -382,4 +392,3 @@ class CountQuery(Query):
 
     def get_ordering(self):
         return ()
-

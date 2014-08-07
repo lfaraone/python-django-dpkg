@@ -4,7 +4,14 @@ MySQL database backend for Django.
 Requires MySQLdb: http://sourceforge.net/projects/mysql-python
 """
 
-from django.db.backends import BaseDatabaseWrapper, BaseDatabaseFeatures, BaseDatabaseOperations, util
+import re
+
+from django.db.backends import *
+from django.db.backends.mysql.client import DatabaseClient
+from django.db.backends.mysql.creation import DatabaseCreation
+from django.db.backends.mysql.introspection import DatabaseIntrospection
+from django.db.backends.mysql.validation import DatabaseValidation
+
 try:
     import MySQLdb as Database
 except ImportError, e:
@@ -21,8 +28,7 @@ if (version < (1,2,1) or (version[:3] == (1, 2, 1) and
     raise ImproperlyConfigured("MySQLdb-1.2.1p2 or newer is required; you have %s" % Database.__version__)
 
 from MySQLdb.converters import conversions
-from MySQLdb.constants import FIELD_TYPE
-import re
+from MySQLdb.constants import FIELD_TYPE, FLAG
 
 # Raise exceptions for database warnings if DEBUG is on
 from django.conf import settings
@@ -45,6 +51,18 @@ django_conversions.update({
     FIELD_TYPE.DECIMAL: util.typecast_decimal,
     FIELD_TYPE.NEWDECIMAL: util.typecast_decimal,
 })
+if hasattr(FIELD_TYPE, "VARCHAR"):
+    # By default, MySQLdb will return VARCHAR BINARY fields as type str.
+    # This is a bad idea, as BINARY doesn't indicate that it's arbitrary
+    # binary data, but that collation uses the binary representation.
+    # Replacing the list makes it return unicode. MySQLdb later adds
+    # another list entry for non-binary fields.
+    #
+    # MySQLdb 1.2.1p2 doesn't have the VARCHAR attribute, but it also returns
+    # unicode for VARCHAR BINARY columns automatically, so we don't need it
+    # there.
+    django_conversions[FIELD_TYPE.VARCHAR] = [(FLAG.BINARY,
+            lambda s: s.decode('utf-8'))]
 
 # This should match the numerical portion of the version numbers (we can treat
 # versions like 5.0.24 and 5.0.24a as the same). Based on the list of version
@@ -60,8 +78,6 @@ server_version_re = re.compile(r'(\d{1,2})\.(\d{1,2})\.(\d{1,2})')
 # TRADITIONAL will automatically cause most warnings to be treated as errors.
 
 class DatabaseFeatures(BaseDatabaseFeatures):
-    autoindexes_primary_keys = False
-    inline_fk_references = False
     empty_fetchmany_value = ()
     update_can_self_select = False
 
@@ -88,13 +104,6 @@ class DatabaseOperations(BaseDatabaseOperations):
 
     def fulltext_search_sql(self, field_name):
         return 'MATCH (%s) AGAINST (%%s IN BOOLEAN MODE)' % field_name
-
-    def limit_offset_sql(self, limit, offset=None):
-        # 'LIMIT 20,40'
-        sql = "LIMIT "
-        if offset and offset != 0:
-            sql += "%s," % offset
-        return sql + str(limit)
 
     def no_limit_value(self):
         # 2**64 - 1, as recommended by the MySQL documentation
@@ -131,9 +140,26 @@ class DatabaseOperations(BaseDatabaseOperations):
         else:
             return []
 
+    def value_to_db_datetime(self, value):
+        # MySQL doesn't support microseconds
+        if value is None:
+            return None
+        return unicode(value.replace(microsecond=0))
+
+    def value_to_db_time(self, value):
+        # MySQL doesn't support microseconds
+        if value is None:
+            return None
+        return unicode(value.replace(microsecond=0))
+
+    def year_lookup_bounds(self, value):
+        # Again, no microseconds
+        first = '%s-01-01 00:00:00'
+        second = '%s-12-31 23:59:59.99'
+        return [first % value, second % value]
+
 class DatabaseWrapper(BaseDatabaseWrapper):
-    features = DatabaseFeatures()
-    ops = DatabaseOperations()
+
     operators = {
         'exact': '= %s',
         'iexact': 'LIKE %s',
@@ -154,6 +180,13 @@ class DatabaseWrapper(BaseDatabaseWrapper):
     def __init__(self, **kwargs):
         super(DatabaseWrapper, self).__init__(**kwargs)
         self.server_version = None
+
+        self.features = DatabaseFeatures()
+        self.ops = DatabaseOperations()
+        self.client = DatabaseClient()
+        self.creation = DatabaseCreation(self)
+        self.introspection = DatabaseIntrospection(self)
+        self.validation = DatabaseValidation()
 
     def _valid_connection(self):
         if self.connection is not None:

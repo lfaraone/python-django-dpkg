@@ -5,7 +5,7 @@ Fixtures are a way of loading data into the database in bulk. Fixure data
 can be stored in any serializable format (including JSON and XML). Fixtures
 are identified by name, and are stored in either a directory named 'fixtures'
 in the application directory, on in one of the directories named in the
-FIXTURE_DIRS setting.
+``FIXTURE_DIRS`` setting.
 """
 
 from django.db import models
@@ -58,7 +58,7 @@ __test__ = {'API_TESTS': """
 
 # Database flushing does not work on MySQL with the default storage engine
 # because it requires transaction support.
-if settings.DATABASE_ENGINE not in ('mysql', 'mysql_old'):
+if settings.DATABASE_ENGINE != 'mysql':
     __test__['API_TESTS'] += \
 """
 # Reset the database representation of this app. This will delete all data.

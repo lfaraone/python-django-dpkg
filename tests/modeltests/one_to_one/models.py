@@ -6,7 +6,7 @@ To define a one-to-one relationship, use ``OneToOneField()``.
 In this example, a ``Place`` optionally can be a ``Restaurant``.
 """
 
-from django.db import models, connection
+from django.db import models, transaction
 
 class Place(models.Model):
     name = models.CharField(max_length=50)
@@ -80,11 +80,8 @@ DoesNotExist: Restaurant matching query does not exist.
 >>> r.place
 <Place: Ace Hardware the place>
 
-# Set the place back again, using assignment in the reverse direction. Need to
-# reload restaurant object first, because the reverse set can't update the
-# existing restaurant instance
+# Set the place back again, using assignment in the reverse direction.
 >>> p1.restaurant = r
->>> r.save()
 >>> p1.restaurant
 <Restaurant: Demon Dogs the restaurant>
 
@@ -181,13 +178,11 @@ DoesNotExist: Restaurant matching query does not exist.
 
 # This will fail because each one-to-one field must be unique (and link2=o1 was
 # used for x1, above).
+>>> sid = transaction.savepoint()
 >>> MultiModel(link1=p2, link2=o1, name="x1").save()
 Traceback (most recent call last):
     ...
 IntegrityError: ...
+>>> transaction.savepoint_rollback(sid)
 
-# Because the unittests all use a single connection, we need to force a
-# reconnect here to ensure the connection is clean (after the previous
-# IntegrityError).
->>> connection.close()
 """}

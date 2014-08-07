@@ -39,6 +39,29 @@ class Student(CommonInfo):
         pass
 
 #
+# Abstract base classes with related models
+#
+
+class Post(models.Model):
+    title = models.CharField(max_length=50)
+
+class Attachment(models.Model):
+    post = models.ForeignKey(Post, related_name='attached_%(class)s_set')
+    content = models.TextField()
+
+    class Meta:
+        abstract = True
+
+    def __unicode__(self):
+        return self.content
+
+class Comment(Attachment):
+    is_spam = models.BooleanField()
+
+class Link(Attachment):
+    url = models.URLField()
+
+#
 # Multi-table inheritance
 #
 
@@ -128,9 +151,25 @@ Traceback (most recent call last):
     ...
 AttributeError: type object 'CommonInfo' has no attribute 'objects'
 
-# The Place/Restaurant/ItalianRestaurant models, on the other hand, all exist
-# as independent models. However, the subclasses also have transparent access
-# to the fields of their ancestors.
+# Create a Post
+>>> post = Post(title='Lorem Ipsum')
+>>> post.save()
+
+# The Post model has distinct accessors for the Comment and Link models.
+>>> post.attached_comment_set.create(content='Save $ on V1agr@', is_spam=True)
+<Comment: Save $ on V1agr@>
+>>> post.attached_link_set.create(content='The Web framework for perfectionists with deadlines.', url='http://www.djangoproject.com/')
+<Link: The Web framework for perfectionists with deadlines.>
+
+# The Post model doesn't have an attribute called 'attached_%(class)s_set'.
+>>> getattr(post, 'attached_%(class)s_set')
+Traceback (most recent call last):
+    ...
+AttributeError: 'Post' object has no attribute 'attached_%(class)s_set'
+
+# The Place/Restaurant/ItalianRestaurant models all exist as independent
+# models. However, the subclasses also have transparent access to the fields of
+# their ancestors.
 
 # Create a couple of Places.
 >>> p1 = Place(name='Master Shakes', address='666 W. Jersey')
@@ -147,8 +186,13 @@ Test constructor for Restaurant.
 >>> c.save()
 >>> ir = ItalianRestaurant(name='Ristorante Miron', address='1234 W. Ash', serves_hot_dogs=False, serves_pizza=False, serves_gnocchi=True, rating=4, chef=c)
 >>> ir.save()
+>>> ItalianRestaurant.objects.filter(address='1234 W. Ash')
+[<ItalianRestaurant: Ristorante Miron the italian restaurant>]
+
 >>> ir.address = '1234 W. Elm'
 >>> ir.save()
+>>> ItalianRestaurant.objects.filter(address='1234 W. Elm')
+[<ItalianRestaurant: Ristorante Miron the italian restaurant>]
 
 # Make sure Restaurant and ItalianRestaurant have the right fields in the right
 # order.
@@ -238,6 +282,7 @@ DoesNotExist: Restaurant matching query does not exist.
 # The update() command can update fields in parent and child classes at once
 # (although it executed multiple SQL queries to do so).
 >>> Restaurant.objects.filter(serves_hot_dogs=True, name__contains='D').update(name='Demon Puppies', serves_hot_dogs=False)
+1
 >>> r1 = Restaurant.objects.get(pk=r.pk)
 >>> r1.serves_hot_dogs == False
 True

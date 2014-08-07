@@ -252,7 +252,7 @@ The site-specific user profile model used by this site. See the
 CACHE_BACKEND
 -------------
 
-Default: ``'simple://'``
+Default: ``'locmem://'``
 
 The cache backend to use. See the `cache docs`_.
 
@@ -278,8 +278,8 @@ DATABASE_ENGINE
 Default: ``''`` (Empty string)
 
 The database backend to use. The build-in database backends are
-``'postgresql_psycopg2'``, ``'postgresql'``, ``'mysql'``, ``'mysql_old'``,
-``'sqlite3'`` and ``'oracle'``.
+``'postgresql_psycopg2'``, ``'postgresql'``, ``'mysql'``, ``'sqlite3'``, and
+``'oracle'``.
 
 In the Django development version, you can use a database backend that doesn't
 ship with Django by setting ``DATABASE_ENGINE`` to a fully-qualified path (i.e.
@@ -388,8 +388,25 @@ be able to give backtraces without seeing sensitive (or offensive) settings.
 
 Still, note that there are always going to be sections of your debug output that
 are inappropriate for public consumption. File paths, configuration options, and
-the like all give attackers extra information about your server. Never deploy a
-site with ``DEBUG`` turned on.
+the like all give attackers extra information about your server. 
+
+It is also important to remember that when running with ``DEBUG`` turned on, Django
+will remember every SQL query it executes. This is useful when you are debugging,
+but on a production server, it will rapidly consume memory.
+
+Never deploy a site into production with ``DEBUG`` turned on.
+
+DEBUG_PROPAGATE_EXCEPTIONS
+--------------------------
+
+**New in Django development version**
+
+Default: ``False``
+
+If set to True, Django's normal exception handling of view functions
+will be suppressed, and exceptions will propagate upwards.  This can
+be useful for some test setups, and should never be used on a live
+site.
 
 DEFAULT_CHARSET
 ---------------
@@ -408,6 +425,16 @@ Default: ``'text/html'``
 Default content type to use for all ``HttpResponse`` objects, if a MIME type
 isn't manually specified. Used with ``DEFAULT_CHARSET`` to construct the
 ``Content-Type`` header.
+
+DEFAULT_FILE_STORAGE
+--------------------
+
+Default: ``'django.core.filestorage.filesystem.FileSystemStorage'``
+
+Default file storage class to be used for any file-related operations that don't
+specify a particular storage system. See the `file documentation`_ for details.
+
+.. _file documentation: ../files/
 
 DEFAULT_FROM_EMAIL
 ------------------
@@ -513,6 +540,43 @@ Default: ``'utf-8'``
 The character encoding used to decode any files read from disk. This includes
 template files and initial SQL data files.
 
+FILE_UPLOAD_HANDLERS
+--------------------
+
+**New in Django development version**
+
+Default::
+
+    ("django.core.files.uploadhandler.MemoryFileUploadHandler",
+     "django.core.files.uploadhandler.TemporaryFileUploadHandler",)
+
+A tuple of handlers to use for uploading. See `file uploads`_ for details.
+
+.. _file uploads: ../upload_handling/
+
+FILE_UPLOAD_MAX_MEMORY_SIZE
+---------------------------
+
+**New in Django development version**
+
+Default: ``2621440`` (i.e. 2.5 MB).
+
+The maximum size (in bytes) that an upload will be before it gets streamed to
+the file system. See `file uploads`_ for details.
+
+FILE_UPLOAD_TEMP_DIR
+--------------------
+
+**New in Django development version**
+
+Default: ``None``
+
+The directory to store data temporarily while uploading files. If ``None``,
+Django will use the standard temporary directory for the operating system. For
+example, this will default to '/tmp' on \*nix-style operating systems.
+
+See `file uploads`_ for details.
+
 FIXTURE_DIRS
 -------------
 
@@ -523,6 +587,16 @@ these paths should use Unix-style forward slashes, even on Windows. See
 `Testing Django Applications`_.
 
 .. _Testing Django Applications: ../testing/
+
+FORCE_SCRIPT_NAME
+------------------
+
+Default: ``None``
+
+If not ``None``, this will be used as the value of the ``SCRIPT_NAME``
+environment variable in any HTTP request. This setting can be used to override
+the server-provided value of ``SCRIPT_NAME``, which may be a rewritten version
+of the preferred value or not supplied at all.
 
 IGNORABLE_404_ENDS
 ------------------
@@ -628,10 +702,10 @@ settings file::
         ('en', gettext('English')),
     )
 
-With this arrangement, ``make-messages.py`` will still find and mark these
-strings for translation, but the translation won't happen at runtime -- so
-you'll have to remember to wrap the languages in the *real* ``gettext()`` in
-any code that uses ``LANGUAGES`` at runtime.
+With this arrangement, ``django-admin.py makemessages`` will still find and
+mark these strings for translation, but the translation won't happen at
+runtime -- so you'll have to remember to wrap the languages in the *real*
+``gettext()`` in any code that uses ``LANGUAGES`` at runtime.
 
 LOCALE_PATHS
 ------------
@@ -946,7 +1020,10 @@ See the `template documentation`_.
 TEMPLATE_LOADERS
 ----------------
 
-Default: ``('django.template.loaders.filesystem.load_template_source',)``
+Default::
+
+     ('django.template.loaders.filesystem.load_template_source',
+      'django.template.loaders.app_directories.load_template_source')
 
 A tuple of callables (as strings) that know how to import templates from
 various sources. See the `template documentation`_.
@@ -972,7 +1049,7 @@ The character set encoding used to create the test database. The value of this
 string is passed directly through to the database, so its format is
 backend-specific.
 
-Supported for the PostgreSQL_ (``postgresql``, ``postgresql_psycopg2``) and MySQL_ (``mysql``, ``mysql_old``) backends.
+Supported for the PostgreSQL_ (``postgresql``, ``postgresql_psycopg2``) and MySQL_ (``mysql``) backends.
 
 .. _PostgreSQL: http://www.postgresql.org/docs/8.2/static/multibyte.html
 .. _MySQL: http://www.mysql.org/doc/refman/5.0/en/charset-database.html
@@ -987,8 +1064,8 @@ Default: ``None``
 The collation order to use when creating the test database. This value is
 passed directly to the backend, so its format is backend-specific.
 
-Only supported for ``mysql`` and ``mysql_old`` backends (see `section 10.3.2`_
-of the MySQL manual for details).
+Only supported for the ``mysql`` backend (see `section 10.3.2`_ of the MySQL
+manual for details).
 
 .. _section 10.3.2: http://www.mysql.org/doc/refman/5.0/en/charset-database.html
 

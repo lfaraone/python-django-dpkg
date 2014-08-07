@@ -263,14 +263,25 @@ Creating superusers
 -------------------
 
 ``manage.py syncdb`` prompts you to create a superuser the first time you run
-it after adding ``'django.contrib.auth'`` to your ``INSTALLED_APPS``. But if
-you need to create a superuser after that via the command line, you can use the
-``create_superuser.py`` utility. Just run this command::
+it after adding ``'django.contrib.auth'`` to your ``INSTALLED_APPS``. If you need
+to create a superuser at a later date, you can use a command line utility.
+
+**New in Django development version.**::
+
+    manage.py createsuperuser --username=joe --email=joe@example.com
+
+You will be prompted for a password. After you enter one, the user will be
+created immediately. If you leave off the ``--username`` or the ``--email``
+options, it will prompt you for those values.
+
+If you're using an older release of Django, the old way of creating a superuser
+on the command line still works::
 
     python /path/to/django/contrib/auth/create_superuser.py
 
-Make sure to substitute ``/path/to/`` with the path to the Django codebase on
-your filesystem.
+...where ``/path/to`` is the path to the Django codebase on your filesystem. The
+``manage.py`` command is preferred because it figures out the correct path and
+environment for you.
 
 Storing additional information about users
 ------------------------------------------
@@ -415,6 +426,13 @@ use ``django.contrib.auth.logout()`` within your view. It takes an
 
 Note that ``logout()`` doesn't throw any errors if the user wasn't logged in.
 
+**New in Django development version:** When you call ``logout()``, the session
+data for the current request is completely cleaned out. All existing data is
+removed. This is to prevent another person from using the same web browser to
+log in and have access to the previous user's session data. If you want to put
+anything into the session that will be available to the user immediately after
+logging out, do that *after* calling ``django.contrib.auth.logout()``.
+
 Limiting access to logged-in users
 ----------------------------------
 
@@ -505,7 +523,7 @@ It's your responsibility to provide the login form in a template called
 ``registration/login.html`` by default. This template gets passed three
 template context variables:
 
-    * ``form``: A ``FormWrapper`` object representing the login form. See the
+    * ``form``: A ``Form`` object representing the login form. See the
       `forms documentation`_ for more on ``FormWrapper`` objects.
     * ``next``: The URL to redirect to after successful login. This may contain
       a query string, too.
@@ -530,14 +548,14 @@ block::
 
     {% block content %}
 
-    {% if form.has_errors %}
+    {% if form.errors %}
     <p>Your username and password didn't match. Please try again.</p>
     {% endif %}
 
     <form method="post" action=".">
     <table>
-    <tr><td><label for="id_username">Username:</label></td><td>{{ form.username }}</td></tr>
-    <tr><td><label for="id_password">Password:</label></td><td>{{ form.password }}</td></tr>
+    <tr><td>{{ form.username.label_tag }}</td><td>{{ form.username }}</td></tr>
+    <tr><td>{{ form.password.label_tag }}</td><td>{{ form.password }}</td></tr>
     </table>
 
     <input type="submit" value="login" />
@@ -620,7 +638,7 @@ The page shown after a user has changed their password.
 **Description:**
 
 Allows a user to reset their password, and sends them the new password
-in an email.
+in an e-mail.
 
 **Optional arguments:**
 
@@ -629,7 +647,7 @@ in an email.
       ``registration/password_reset_form.html`` if not supplied.
 
     * ``email_template_name``: The full name of a template to use for
-      generating the email with the new password. This will default to
+      generating the e-mail with the new password. This will default to
       ``registration/password_reset_email.html`` if not supplied.
 
 **Template context:**
@@ -666,29 +684,29 @@ successful login.
     * ``login_url``: The URL of the login page to redirect to. This
       will default to ``settings.LOGIN_URL`` if not supplied.
 
-Built-in manipulators
----------------------
+Built-in forms
+--------------
+
+**New in Django development version.**
 
 If you don't want to use the built-in views, but want the convenience
-of not having to write manipulators for this functionality, the
-authentication system provides several built-in manipulators:
+of not having to write forms for this functionality, the authentication
+system provides several built-in forms:
 
-    * ``django.contrib.auth.forms.AdminPasswordChangeForm``: A
-      manipulator used in the admin interface to change a user's
-      password.
+    * ``django.contrib.auth.forms.AdminPasswordChangeForm``: A form used in
+      the admin interface to change a user's password.
 
-    * ``django.contrib.auth.forms.AuthenticationForm``: A manipulator
-      for logging a user in.
+    * ``django.contrib.auth.forms.AuthenticationForm``: A form for logging a
+      user in.
 
-    * ``django.contrib.auth.forms.PasswordChangeForm``: A manipulator
-      for allowing a user to change their password.
+    * ``django.contrib.auth.forms.PasswordChangeForm``: A form for allowing a
+      user to change their password.
 
-    * ``django.contrib.auth.forms.PasswordResetForm``: A manipulator
-      for resetting a user's password and emailing the new password to
-      them.
+    * ``django.contrib.auth.forms.PasswordResetForm``: A form for resetting a
+      user's password and e-mailing the new password to them.
 
-    * ``django.contrib.auth.forms.UserCreationForm``: A manipulator
-      for creating a new user.
+    * ``django.contrib.auth.forms.UserCreationForm``: A form for creating a
+      new user.
 
 Limiting access to logged-in users that pass a test
 ---------------------------------------------------

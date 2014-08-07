@@ -1,16 +1,19 @@
 """
 XX. Generating HTML forms from models
 
-This is mostly just a reworking of the form_for_model/form_for_instance tests
-to use ModelForm. As such, the text may not make sense in all cases, and the
-examples are probably a poor fit for the ModelForm syntax. In other words,
-most of these tests should be rewritten.
+This is mostly just a reworking of the ``form_for_model``/``form_for_instance``
+tests to use ``ModelForm``. As such, the text may not make sense in all cases,
+and the examples are probably a poor fit for the ``ModelForm`` syntax. In other
+words, most of these tests should be rewritten.
 """
 
 import os
 import tempfile
 
 from django.db import models
+from django.core.files.storage import FileSystemStorage
+
+temp_storage = FileSystemStorage(tempfile.gettempdir())
 
 ARTICLE_STATUS = (
     (1, 'Draft'),
@@ -60,21 +63,30 @@ class PhoneNumber(models.Model):
 
 class TextFile(models.Model):
     description = models.CharField(max_length=20)
-    file = models.FileField(upload_to=tempfile.gettempdir())
+    file = models.FileField(storage=temp_storage, upload_to='tests')
 
     def __unicode__(self):
         return self.description
 
 class ImageFile(models.Model):
     description = models.CharField(max_length=20)
-    image = models.FileField(upload_to=tempfile.gettempdir())
+    try:
+        # If PIL is available, try testing PIL.
+        # Checking for the existence of Image is enough for CPython, but
+        # for PyPy, you need to check for the underlying modules
+        # If PIL is not available, this test is equivalent to TextFile above.
+        from PIL import Image, _imaging
+        image = models.ImageField(storage=temp_storage, upload_to='tests')
+    except ImportError:
+        image = models.FileField(storage=temp_storage, upload_to='tests')
 
     def __unicode__(self):
         return self.description
 
 __test__ = {'API_TESTS': """
->>> from django import newforms as forms
->>> from django.newforms.models import ModelForm
+>>> from django import forms
+>>> from django.forms.models import ModelForm
+>>> from django.core.files.uploadedfile import SimpleUploadedFile
 
 The bare bones, absolutely nothing custom, basic case.
 
@@ -106,7 +118,7 @@ Replacing a field.
 ...         model = Category
 
 >>> CategoryForm.base_fields['url'].__class__
-<class 'django.newforms.fields.BooleanField'>
+<class 'django.forms.fields.BooleanField'>
 
 
 Using 'fields'.
@@ -204,7 +216,7 @@ We can also subclass the Meta inner class to change the fields list.
 
 # Old form_for_x tests #######################################################
 
->>> from django.newforms import ModelForm, CharField
+>>> from django.forms import ModelForm, CharField
 >>> import datetime
 
 >>> Category.objects.all()
@@ -351,9 +363,8 @@ from the form can't provide a value for that field!
 <tr><th>Headline:</th><td><input type="text" name="headline" maxlength="50" /></td></tr>
 <tr><th>Pub date:</th><td><input type="text" name="pub_date" /></td></tr>
 
-Use form_for_instance to create a Form from a model instance. The difference
-between this Form and one created via form_for_model is that the object's
-current values are inserted as 'initial' data in each Field.
+When the ModelForm is passed an instance, that instance's current values are
+inserted as 'initial' data in each Field.
 >>> w = Writer.objects.get(name='Mike Royko')
 >>> class RoykoForm(ModelForm):
 ...     class Meta:
@@ -598,7 +609,7 @@ the data in the database when the form is instantiated.
 
 # ModelChoiceField ############################################################
 
->>> from django.newforms import ModelChoiceField, ModelMultipleChoiceField
+>>> from django.forms import ModelChoiceField, ModelMultipleChoiceField
 
 >>> f = ModelChoiceField(Category.objects.all())
 >>> list(f.choices)
@@ -777,6 +788,8 @@ u'Assistance'
 
 # FileField ###################################################################
 
+# File forms.
+
 >>> class TextFileForm(ModelForm):
 ...     class Meta:
 ...         model = TextFile
@@ -792,14 +805,25 @@ False
 
 # Upload a file and ensure it all works as expected.
 
->>> f = TextFileForm(data={'description': u'Assistance'}, files={'file': {'filename': 'test1.txt', 'content': 'hello world'}})
+>>> f = TextFileForm(data={'description': u'Assistance'}, files={'file': SimpleUploadedFile('test1.txt', 'hello world')})
 >>> f.is_valid()
 True
 >>> type(f.cleaned_data['file'])
-<class 'django.newforms.fields.UploadedFile'>
+<class 'django.core.files.uploadedfile.SimpleUploadedFile'>
 >>> instance = f.save()
 >>> instance.file
-u'...test1.txt'
+<FieldFile: tests/test1.txt>
+
+>>> instance.file.delete()
+
+>>> f = TextFileForm(data={'description': u'Assistance'}, files={'file': SimpleUploadedFile('test1.txt', 'hello world')})
+>>> f.is_valid()
+True
+>>> type(f.cleaned_data['file'])
+<class 'django.core.files.uploadedfile.SimpleUploadedFile'>
+>>> instance = f.save()
+>>> instance.file
+<FieldFile: tests/test1.txt>
 
 # Edit an instance that already has the file defined in the model. This will not
 # save the file again, but leave it exactly as it is.
@@ -808,23 +832,35 @@ u'...test1.txt'
 >>> f.is_valid()
 True
 >>> f.cleaned_data['file']
-u'...test1.txt'
+<FieldFile: tests/test1.txt>
 >>> instance = f.save()
 >>> instance.file
-u'...test1.txt'
+<FieldFile: tests/test1.txt>
 
 # Delete the current file since this is not done by Django.
-
->>> os.unlink(instance.get_file_filename())
+>>> instance.file.delete()
 
 # Override the file by uploading a new one.
 
->>> f = TextFileForm(data={'description': u'Assistance'}, files={'file': {'filename': 'test2.txt', 'content': 'hello world'}}, instance=instance)
+>>> f = TextFileForm(data={'description': u'Assistance'}, files={'file': SimpleUploadedFile('test2.txt', 'hello world')}, instance=instance)
 >>> f.is_valid()
 True
 >>> instance = f.save()
 >>> instance.file
-u'...test2.txt'
+<FieldFile: tests/test2.txt>
+
+# Delete the current file since this is not done by Django.
+>>> instance.file.delete()
+
+>>> f = TextFileForm(data={'description': u'Assistance'}, files={'file': SimpleUploadedFile('test2.txt', 'hello world')})
+>>> f.is_valid()
+True
+>>> instance = f.save()
+>>> instance.file
+<FieldFile: tests/test2.txt>
+
+# Delete the current file since this is not done by Django.
+>>> instance.file.delete()
 
 >>> instance.delete()
 
@@ -836,14 +872,28 @@ u'...test2.txt'
 True
 >>> instance = f.save()
 >>> instance.file
-''
+<FieldFile: None>
 
->>> f = TextFileForm(data={'description': u'Assistance'}, files={'file': {'filename': 'test3.txt', 'content': 'hello world'}}, instance=instance)
+>>> f = TextFileForm(data={'description': u'Assistance'}, files={'file': SimpleUploadedFile('test3.txt', 'hello world')}, instance=instance)
 >>> f.is_valid()
 True
 >>> instance = f.save()
 >>> instance.file
-u'...test3.txt'
+<FieldFile: tests/test3.txt>
+
+# Delete the current file since this is not done by Django.
+>>> instance.file.delete()
+>>> instance.delete()
+
+>>> f = TextFileForm(data={'description': u'Assistance'}, files={'file': SimpleUploadedFile('test3.txt', 'hello world')})
+>>> f.is_valid()
+True
+>>> instance = f.save()
+>>> instance.file
+<FieldFile: tests/test3.txt>
+
+# Delete the current file since this is not done by Django.
+>>> instance.file.delete()
 >>> instance.delete()
 
 # ImageField ###################################################################
@@ -856,16 +906,28 @@ u'...test3.txt'
 ...     class Meta:
 ...         model = ImageFile
 
->>> image_data = open(os.path.join(os.path.dirname(__file__), "test.png")).read()
+>>> image_data = open(os.path.join(os.path.dirname(__file__), "test.png"), 'rb').read()
 
->>> f = ImageFileForm(data={'description': u'An image'}, files={'image': {'filename': 'test.png', 'content': image_data}})
+>>> f = ImageFileForm(data={'description': u'An image'}, files={'image': SimpleUploadedFile('test.png', image_data)})
 >>> f.is_valid()
 True
 >>> type(f.cleaned_data['image'])
-<class 'django.newforms.fields.UploadedFile'>
+<class 'django.core.files.uploadedfile.SimpleUploadedFile'>
 >>> instance = f.save()
 >>> instance.image
-u'...test.png'
+<ImageFieldFile: tests/test.png>
+
+# Delete the current file since this is not done by Django.
+>>> instance.image.delete()
+
+>>> f = ImageFileForm(data={'description': u'An image'}, files={'image': SimpleUploadedFile('test.png', image_data)})
+>>> f.is_valid()
+True
+>>> type(f.cleaned_data['image'])
+<class 'django.core.files.uploadedfile.SimpleUploadedFile'>
+>>> instance = f.save()
+>>> instance.image
+<ImageFieldFile: tests/test.png>
 
 # Edit an instance that already has the image defined in the model. This will not
 # save the image again, but leave it exactly as it is.
@@ -874,24 +936,37 @@ u'...test.png'
 >>> f.is_valid()
 True
 >>> f.cleaned_data['image']
-u'...test.png'
+<ImageFieldFile: tests/test.png>
 >>> instance = f.save()
 >>> instance.image
-u'...test.png'
+<ImageFieldFile: tests/test.png>
 
 # Delete the current image since this is not done by Django.
 
->>> os.unlink(instance.get_image_filename())
+>>> instance.image.delete()
 
 # Override the file by uploading a new one.
 
->>> f = ImageFileForm(data={'description': u'Changed it'}, files={'image': {'filename': 'test2.png', 'content': image_data}}, instance=instance)
+>>> f = ImageFileForm(data={'description': u'Changed it'}, files={'image': SimpleUploadedFile('test2.png', image_data)}, instance=instance)
 >>> f.is_valid()
 True
 >>> instance = f.save()
 >>> instance.image
-u'...test2.png'
+<ImageFieldFile: tests/test2.png>
 
+# Delete the current file since this is not done by Django.
+>>> instance.image.delete()
+>>> instance.delete()
+
+>>> f = ImageFileForm(data={'description': u'Changed it'}, files={'image': SimpleUploadedFile('test2.png', image_data)})
+>>> f.is_valid()
+True
+>>> instance = f.save()
+>>> instance.image
+<ImageFieldFile: tests/test2.png>
+
+# Delete the current file since this is not done by Django.
+>>> instance.image.delete()
 >>> instance.delete()
 
 # Test the non-required ImageField
@@ -902,14 +977,43 @@ u'...test2.png'
 True
 >>> instance = f.save()
 >>> instance.image
-''
+<ImageFieldFile: None>
 
->>> f = ImageFileForm(data={'description': u'And a final one'}, files={'image': {'filename': 'test3.png', 'content': image_data}}, instance=instance)
+>>> f = ImageFileForm(data={'description': u'And a final one'}, files={'image': SimpleUploadedFile('test3.png', image_data)}, instance=instance)
 >>> f.is_valid()
 True
 >>> instance = f.save()
 >>> instance.image
-u'...test3.png'
+<ImageFieldFile: tests/test3.png>
+
+# Delete the current file since this is not done by Django.
+>>> instance.image.delete()
 >>> instance.delete()
+
+>>> f = ImageFileForm(data={'description': u'And a final one'}, files={'image': SimpleUploadedFile('test3.png', image_data)})
+>>> f.is_valid()
+True
+>>> instance = f.save()
+>>> instance.image
+<ImageFieldFile: tests/test3.png>
+>>> instance.delete()
+
+# Media on a ModelForm ########################################################
+
+# Similar to a regular Form class you can define custom media to be used on
+# the ModelForm.
+
+>>> class ModelFormWithMedia(ModelForm):
+...     class Media:
+...         js = ('/some/form/javascript',)
+...         css = {
+...             'all': ('/some/form/css',)
+...         }
+...     class Meta:
+...         model = PhoneNumber
+>>> f = ModelFormWithMedia()
+>>> print f.media
+<link href="/some/form/css" type="text/css" media="all" rel="stylesheet" />
+<script type="text/javascript" src="/some/form/javascript"></script>
 
 """}

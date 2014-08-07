@@ -148,15 +148,17 @@ Once you've claimed a ticket, you have a responsibility to work on that ticket
 in a reasonably timely fashion. If you don't have time to work on it, either
 unclaim it or don't claim it in the first place!
 
-Core Django developers go through the list of claimed tickets from time to
+Ticket triagers go through the list of claimed tickets from time to
 time, checking whether any progress has been made. If there's no sign of
-progress on a particular claimed ticket for a week or two after it's been
-claimed, we will unclaim it for you so that it's no longer monopolized and
+progress on a particular claimed ticket for a week or two, a triager may ask
+you to relinquish the ticket claim so that it's no longer monopolized and
 somebody else can claim it.
 
 If you've claimed a ticket and it's taking a long time (days or weeks) to code,
-keep everybody updated by posting comments on the ticket. That way, we'll know
-not to unclaim it. More communication is better than less communication!
+keep everybody updated by posting comments on the ticket. If you don't provide
+regular updates, and you don't respond to a request for a progress report,
+your claim on the ticket may be revoked. As always, more communication is
+better than less communication!
 
 Which tickets should be claimed?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -177,10 +179,10 @@ Patch style
       English than in code. Indentation is the most common example; it's hard to
       read patches when the only difference in code is that it's indented.
 
-	* When creating patches, always run ``svn diff`` from the top-level
-	  ``trunk`` directory -- i.e., the one that contains ``django``, ``docs``,
-	  ``tests``, ``AUTHORS``, etc. This makes it easy for other people to apply
-	  your patches.
+    * When creating patches, always run ``svn diff`` from the top-level
+      ``trunk`` directory -- i.e., the one that contains ``django``, ``docs``,
+      ``tests``, ``AUTHORS``, etc. This makes it easy for other people to apply
+      your patches.
 
     * Attach patches to a ticket in the `ticket tracker`_, using the "attach file"
       button. Please *don't* put the patch in the ticket description or comment
@@ -234,22 +236,28 @@ Since a picture is worth a thousand words, let's start there:
    :width: 590
    :alt: Django's ticket workflow
 
-We've got two roles here:
+We've got two official roles here:
 
-    * Core developers: people with commit access who make the decisions and
-      write the bulk of the code.
+    * Core developers: people with commit access who make the big decisions
+      and write the bulk of the code.
 
-    * Ticket triagers: community members who keep track of tickets, making
-      sure the tickets are always categorized correctly.
+    * Ticket triagers: trusted community members with a proven history of
+      working with the Django community. As a result of this history, they
+      have been entrusted by the core developers to make some of the smaller
+      decisions about tickets.
 
 Second, note the five triage stages:
 
-    1. A ticket starts as "Unreviewed", meaning that a triager has yet to
-       examine the ticket and move it along.
+    1. A ticket starts as "Unreviewed", meaning that nobody has examined
+       the ticket.
 
     2. "Design decision needed" means "this concept requires a design
        decision," which should be discussed either in the ticket comments or on
-       django-developers.
+       `django-developers`_. The "Design decision needed" step will generally
+       only be used for feature requests. It can also be used for issues
+       that *might* be bugs, depending on opinion or interpretation. Obvious
+       bugs (such as crashes, incorrect query results, or non-compliance with a
+       standard) skip this step and move straight to "Accepted".
 
     3. Once a ticket is ruled to be approved for fixing, it's moved into the
        "Accepted" stage. This stage is where all the real work gets done.
@@ -269,7 +277,7 @@ ticket has or needs in order to be "ready for checkin":
 
     "Has patch"
         This means the ticket has an associated patch_. These will be
-        reviewed to see if the patch is "good".
+        reviewed by the triage team to see if the patch is "good".
 
     "Needs documentation"
         This flag is used for tickets with patches that need associated
@@ -292,7 +300,11 @@ A ticket can be resolved in a number of ways:
         Django and the issue is fixed.
 
     "invalid"
-        Used if the ticket is found to be incorrect or a user error.
+        Used if the ticket is found to be incorrect. This means that the
+        issue in the ticket is actually the result of a user error, or
+        describes a problem with something other than Django, or isn't
+        a bug report or feature request at all (for example, some new users
+        submit support queries as tickets).
 
     "wontfix"
         Used when a core developer decides that this request is not
@@ -305,7 +317,8 @@ A ticket can be resolved in a number of ways:
         tickets, we keep all the discussion in one place, which helps everyone.
 
     "worksforme"
-        Used when the triage team is unable to replicate the original bug.
+        Used when the the ticket doesn't contain enough detail to replicate
+        the original bug.
 
 If you believe that the ticket was closed in error -- because you're
 still having the issue, or it's popped up somewhere else, or the triagers have
@@ -315,6 +328,54 @@ reopen tickets that have been marked as "wontfix" by core developers.
 .. _required details: `Reporting bugs`_
 .. _good patch: `Patch style`_
 .. _patch: `Submitting patches`_
+
+Triage by the general community
+-------------------------------
+
+Although the core developers and ticket triagers make the big decisions in
+the ticket triage process, there's also a lot that general community
+members can do to help the triage process. In particular, you can help out by:
+
+    * Closing "Unreviewed" tickets as "invalid", "worksforme" or "duplicate."
+
+    * Promoting "Unreviewed" tickets to "Design decision needed" if a design
+      decision needs to be made, or "Accepted" in case of obvious bugs.
+
+    * Correcting the "Needs tests", "Needs documentation", or "Has patch" flags
+      for tickets where they are incorrectly set.
+
+    * Checking that old tickets are still valid. If a ticket hasn't seen
+      any activity in a long time, it's possible that the problem has been
+      fixed but the ticket hasn't yet been closed.
+
+    * Contacting the owners of tickets that have been claimed but have not seen
+      any recent activity. If the owner doesn't respond after a week or so,
+      remove the owner's claim on the ticket.
+
+    * Identifying trends and themes in the tickets. If there a lot of bug reports
+      about a particular part of Django, it may indicate we should consider
+      refactoring that part of the code. If a trend is emerging, you should
+      raise it for discussion (referencing the relevant tickets) on
+      `django-developers`_.
+
+However, we do ask the following of all general community members working in
+the ticket database:
+
+    * Please **don't** close tickets as "wontfix." The core developers will
+      make the final determination of the fate of a ticket, usually after
+      consultation with the community.
+
+    * Please **don't** promote tickets to "Ready for checkin" unless they are
+      *trivial* changes -- for example, spelling mistakes or broken links in
+      documentation.
+
+    * Please **don't** reverse a decision that has been made by a core
+      developer. If you disagree with a discussion that has been made,
+      please post a message to `django-developers`_.
+
+    * Please be conservative in your actions. If you're unsure if you should
+      be making a change, don't make the change -- leave a comment with your
+      concerns on the ticket, or post a message to `django-developers`_.
 
 Submitting and maintaining translations
 =======================================
@@ -331,7 +392,7 @@ translated, here's what to do:
     * Create translations using the methods described in the
       `i18n documentation`_.
     * Create a diff of the ``.po`` file against the current Subversion trunk.
-    * Make sure that `` bin/compile-messages.py -l <lang>`` runs without
+    * Make sure that `` django-admin.py compilemessages -l <lang>`` runs without
       producing any warnings.
     * Attach the patch to a ticket in Django's ticket system.
 
@@ -464,7 +525,6 @@ Model style
 
         * All database fields
         * ``class Meta``
-        * ``class Admin``
         * ``def __unicode__()``
         * ``def __str__()``
         * ``def save()``
@@ -640,13 +700,8 @@ Django tarball. It's our policy to make sure all tests pass at all times.
 The tests cover:
 
     * Models and the database API (``tests/modeltests/``).
-    * The cache system (``tests/regressiontests/cache.py``).
-    * The ``django.utils.dateformat`` module (``tests/regressiontests/dateformat/``).
-    * Database typecasts (``tests/regressiontests/db_typecasts/``).
-    * The template system (``tests/regressiontests/templates/`` and
-      ``tests/regressiontests/defaultfilters/``).
-    * ``QueryDict`` objects (``tests/regressiontests/httpwrappers/``).
-    * Markup template tags (``tests/regressiontests/markup/``).
+    * Everything else in core Django code (``tests/regressiontests``)
+    * Contrib apps (``django/contrib/<contribapp>/tests``, see below)
 
 We appreciate any and all contributions to the test suite!
 
@@ -682,6 +737,29 @@ If you're using another backend:
       deleted when the tests are finished. This means your user account needs
       permission to execute ``CREATE DATABASE``.
 
+You will also need to ensure that your database uses UTF-8 as the default
+character set. If your database server doesn't use UTF-8 as a default charset,
+you will need to include a value for ``TEST_DATABASE_CHARSET`` in your settings
+file.
+   
+If you want to run the full suite of tests, you'll need to install a number of
+dependencies:
+
+    *  PyYAML_
+    *  Markdown_
+    *  Textile_
+    *  Docutils_
+    *  setuptools_
+
+Each of these dependencies is optional. If you're missing any of them, the
+associated tests will be skipped.
+
+.. _PyYAML: http://pyyaml.org/wiki/PyYAML
+.. _Markdown: http://pypi.python.org/pypi/Markdown/1.7
+.. _Textile: http://pypi.python.org/pypi/textile
+.. _docutils: http://pypi.python.org/pypi/docutils/0.4
+.. _setuptools: http://pypi.python.org/pypi/setuptools/
+
 To run a subset of the unit tests, append the names of the test modules to the
 ``runtests.py`` command line. See the list of directories in
 ``tests/modeltests`` and ``tests/regressiontests`` for module names.
@@ -692,6 +770,22 @@ for generic relations and internationalization, type::
 
     PYTHONPATH=..
     ./runtests.py --settings=settings generic_relations i18n
+
+Contrib apps
+------------
+
+Tests for apps in ``django/contrib/`` go in their respective directories under
+``django/contrib/``, in a ``tests.py`` file. (You can split the tests over
+multiple modules by using a ``tests`` directory in the normal Python way.)
+
+For the tests to be found, a ``models.py`` file must exist (it doesn't
+have to have anything in it). If you have URLs that need to be
+mapped, put them in ``tests/urls.py``.
+
+To run tests for just one contrib app (e.g. ``markup``), use the same
+method as above::
+
+    ./runtests.py --settings=settings markup
 
 Requesting features
 ===================

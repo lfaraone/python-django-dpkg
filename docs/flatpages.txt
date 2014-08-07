@@ -14,9 +14,14 @@ custom Django application.
 A flatpage can use a custom template or a default, systemwide flatpage
 template. It can be associated with one, or multiple, sites.
 
+**New in Django development version**
+
+The content field may optionally be left blank if you prefer to put your 
+content in a custom template.
+
 Here are some examples of flatpages on Django-powered sites:
 
-    * http://www.chicagocrime.org/about/
+    * http://www.everyblock.com/about/
     * http://www.lawrence.com/about/contact/
 
 Installation
@@ -65,6 +70,17 @@ Note that the order of ``MIDDLEWARE_CLASSES`` matters. Generally, you can put
 resort.
 
 For more on middleware, read the `middleware docs`_.
+
+.. admonition:: Ensure that your 404 template works
+    
+    Note that the ``FlatpageFallbackMiddleware`` only steps in once
+    another view has successfully produced a 404 response. If another
+    view or middleware class attempts to produce a 404 but ends up
+    raising an exception instead (such as a ``TemplateDoesNotExist``
+    exception if your site does not have an appropriate template to
+    use for HTTP 404 responses), the response will become an HTTP 500
+    ("Internal Server Error") and the ``FlatpageFallbackMiddleware``
+    will not attempt to serve a flat page.
 
 .. _SITE_ID: ../settings/#site-id
 .. _RequestContext: ../templates_python/#subclassing-context-djangocontext
