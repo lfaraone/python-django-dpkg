@@ -5,6 +5,7 @@ Requires MySQLdb: http://sourceforge.net/projects/mysql-python
 """
 
 from django.db.backends import util
+from django.utils.encoding import force_unicode
 try:
     import MySQLdb as Database
 except ImportError, e:
@@ -16,6 +17,7 @@ import types
 import re
 
 DatabaseError = Database.DatabaseError
+IntegrityError = Database.IntegrityError
 
 django_conversions = conversions.copy()
 django_conversions.update({
@@ -23,6 +25,10 @@ django_conversions.update({
     FIELD_TYPE.DATETIME: util.typecast_timestamp,
     FIELD_TYPE.DATE: util.typecast_date,
     FIELD_TYPE.TIME: util.typecast_time,
+    FIELD_TYPE.DECIMAL: util.typecast_decimal,
+    FIELD_TYPE.STRING: force_unicode,
+    FIELD_TYPE.VAR_STRING: force_unicode,
+    # Note: We don't add a convertor for BLOB here. Doesn't seem to be required.
 })
 
 # This should match the numerical portion of the version numbers (we can treat
@@ -52,7 +58,7 @@ class MysqlDebugWrapper:
             raise Database.Warning, "%s: %s" % (w, self.cursor.fetchall())
 
     def __getattr__(self, attr):
-        if self.__dict__.has_key(attr):
+        if attr in self.__dict__:
             return self.__dict__[attr]
         else:
             return getattr(self.cursor, attr)
@@ -85,6 +91,8 @@ class DatabaseWrapper(local):
         from django.conf import settings
         if not self._valid_connection():
             kwargs = {
+                # Note: use_unicode intentonally not set to work around some
+                # backwards-compat issues. We do it manually.
                 'user': settings.DATABASE_USER,
                 'db': settings.DATABASE_NAME,
                 'passwd': settings.DATABASE_PASSWORD,
@@ -99,8 +107,16 @@ class DatabaseWrapper(local):
             kwargs.update(self.options)
             self.connection = Database.connect(**kwargs)
             cursor = self.connection.cursor()
-            if self.connection.get_server_info() >= '4.1':
-                cursor.execute("SET NAMES 'utf8'")
+            if self.connection.get_server_info() >= '4.1' and not self.connection.character_set_name().startswith('utf8'):
+                if hasattr(self.connection, 'charset'):
+                    # MySQLdb < 1.2.1 backwards-compat hacks.
+                    conn = self.connection
+                    cursor.execute("SET NAMES 'utf8'")
+                    cursor.execute("SET CHARACTER SET 'utf8'")
+                    to_str = lambda u, dummy=None, c=conn: c.literal(u.encode('utf-8'))
+                    conn.converter[unicode] = to_str
+                else:
+                    self.connection.set_character_set('utf8')
         else:
             cursor = self.connection.cursor()
         if settings.DEBUG:
@@ -133,7 +149,14 @@ class DatabaseWrapper(local):
             self.server_version = tuple([int(x) for x in m.groups()])
         return self.server_version
 
+allows_group_by_ordinal = True
+allows_unique_and_pk = True
+autoindexes_primary_keys = False
+needs_datetime_string_cast = True     # MySQLdb requires a typecast for dates
+needs_upper_for_iops = False
 supports_constraints = True
+supports_tablespaces = False
+uses_case_insensitive_names = False
 
 def quote_name(name):
     if name.startswith("`") and name.endswith("`"):
@@ -166,6 +189,9 @@ def get_date_trunc_sql(lookup_type, field_name):
         sql = "CAST(DATE_FORMAT(%s, '%s') AS DATETIME)" % (field_name, format_str)
     return sql
 
+def get_datetime_cast_sql():
+    return None
+
 def get_limit_offset_sql(limit, offset=None):
     sql = "LIMIT "
     if offset and offset != 0:
@@ -187,11 +213,20 @@ def get_drop_foreignkey_sql():
 def get_pk_default_value():
     return "DEFAULT"
 
+def get_max_name_length():
+    return None;
+
+def get_start_transaction_sql():
+    return "BEGIN;"
+
+def get_autoinc_sql(table):
+    return None
+
 def get_sql_flush(style, tables, sequences):
     """Return a list of SQL statements required to remove all data from
     all tables in the database (without actually removing the tables
     themselves) and put the database in an empty 'initial' state
-    
+
     """
     # NB: The generated SQL below is specific to MySQL
     # 'TRUNCATE x;', 'TRUNCATE y;', 'TRUNCATE z;'... style SQL statements
@@ -203,7 +238,7 @@ def get_sql_flush(style, tables, sequences):
                  style.SQL_FIELD(quote_name(table))
                 )  for table in tables] + \
               ['SET FOREIGN_KEY_CHECKS = 1;']
-              
+
         # 'ALTER TABLE table AUTO_INCREMENT = 1;'... style SQL statements
         # to reset sequence indices
         sql.extend(["%s %s %s %s %s;" % \
@@ -217,11 +252,18 @@ def get_sql_flush(style, tables, sequences):
     else:
         return []
 
+def get_sql_sequence_reset(style, model_list):
+    "Returns a list of the SQL statements to reset sequences for the given models."
+    # No sequence reset required
+    return []
+
 OPERATOR_MAPPING = {
     'exact': '= %s',
     'iexact': 'LIKE %s',
     'contains': 'LIKE BINARY %s',
     'icontains': 'LIKE %s',
+    'regex': 'REGEXP BINARY %s',
+    'iregex': 'REGEXP %s',
     'gt': '> %s',
     'gte': '>= %s',
     'lt': '< %s',

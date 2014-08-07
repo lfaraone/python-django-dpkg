@@ -17,6 +17,7 @@ except ImportError:
     mx = None
 
 DatabaseError = Database.DatabaseError
+IntegrityError = Database.IntegrityError
 
 # We need to use a special Cursor class because adodbapi expects question-mark
 # param style, but Django expects "%s". This cursor converts question marks to
@@ -88,7 +89,14 @@ class DatabaseWrapper(local):
             self.connection.close()
             self.connection = None
 
+allows_group_by_ordinal = True
+allows_unique_and_pk = True
+autoindexes_primary_keys = True
+needs_datetime_string_cast = True
+needs_upper_for_iops = False
 supports_constraints = True
+supports_tablespaces = True
+uses_case_insensitive_names = False
 
 def quote_name(name):
     if name.startswith('[') and name.endswith(']'):
@@ -116,6 +124,9 @@ def get_date_trunc_sql(lookup_type, field_name):
     if lookup_type=='day':
         return "Convert(datetime, Convert(varchar(12), %s))" % field_name
 
+def get_datetime_cast_sql():
+    return None
+
 def get_limit_offset_sql(limit, offset=None):
     # TODO: This is a guess. Make sure this is correct.
     sql = "LIMIT %s" % limit
@@ -138,7 +149,19 @@ def get_drop_foreignkey_sql():
 def get_pk_default_value():
     return "DEFAULT"
 
-def get_sql_flush(sql_styler, full_table_list):
+def get_max_name_length():
+    return None
+
+def get_start_transaction_sql():
+    return "BEGIN;"
+
+def get_tablespace_sql(tablespace, inline=False):
+    return "ON %s" % quote_name(tablespace)
+
+def get_autoinc_sql(table):
+    return None
+
+def get_sql_flush(style, tables, sequences):
     """Return a list of SQL statements required to remove all data from
     all tables in the database (without actually removing the tables
     themselves) and put the database in an empty 'initial' state
@@ -147,9 +170,14 @@ def get_sql_flush(sql_styler, full_table_list):
     # TODO - SQL not actually tested against ADO MSSQL yet!
     # TODO - autoincrement indices reset required? See other get_sql_flush() implementations
     sql_list = ['%s %s;' % \
-                (sql_styler.SQL_KEYWORD('TRUNCATE'),
-                 sql_styler.SQL_FIELD(quote_name(table))
-                 )  for table in full_table_list]
+                (style.SQL_KEYWORD('TRUNCATE'),
+                 style.SQL_FIELD(quote_name(table))
+                 )  for table in tables]
+
+def get_sql_sequence_reset(style, model_list):
+    "Returns a list of the SQL statements to reset sequences for the given models."
+    # No sequence reset required
+    return []
 
 OPERATOR_MAPPING = {
     'exact': '= %s',

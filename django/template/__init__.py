@@ -58,8 +58,10 @@ import re
 from inspect import getargspec
 from django.conf import settings
 from django.template.context import Context, RequestContext, ContextPopException
-from django.utils.functional import curry
+from django.utils.functional import curry, Promise
 from django.utils.text import smart_split
+from django.utils.encoding import smart_unicode, force_unicode
+from django.utils.translation import ugettext as _
 
 __all__ = ('Template', 'Context', 'RequestContext', 'compile_string')
 
@@ -99,6 +101,10 @@ libraries = {}
 # global list of libraries to load by default for a new parser
 builtins = []
 
+# True if TEMPLATE_STRING_IF_INVALID contains a format string (%s). None means
+# uninitialised.
+invalid_var_format_string = None
+
 class TemplateSyntaxError(Exception):
     def __str__(self):
         try:
@@ -118,15 +124,18 @@ class TemplateSyntaxError(Exception):
 class TemplateDoesNotExist(Exception):
     pass
 
+class TemplateEncodingError(Exception):
+    pass
+
 class VariableDoesNotExist(Exception):
 
     def __init__(self, msg, params=()):
         self.msg = msg
         self.params = params
-    
+
     def __str__(self):
         return self.msg % self.params
-    
+
 class InvalidTemplateLibrary(Exception):
     pass
 
@@ -151,6 +160,10 @@ class StringOrigin(Origin):
 class Template(object):
     def __init__(self, template_string, origin=None, name='<Unknown Template>'):
         "Compilation stage"
+        try:
+            template_string = smart_unicode(template_string)
+        except UnicodeDecodeError:
+            raise TemplateEncodingError("Templates can only be constructed from unicode or UTF-8 strings.")
         if settings.TEMPLATE_DEBUG and origin == None:
             origin = StringOrigin(template_string)
             # Could do some crazy stack-frame stuff to record where this string
@@ -193,18 +206,27 @@ class Lexer(object):
 
     def tokenize(self):
         "Return a list of tokens from a given template_string"
-        # remove all empty strings, because the regex has a tendency to add them
-        bits = filter(None, tag_re.split(self.template_string))
-        return map(self.create_token, bits)
+        in_tag = False
+        result = []
+        for bit in tag_re.split(self.template_string):
+            if bit:
+                result.append(self.create_token(bit, in_tag))
+            in_tag = not in_tag
+        return result
 
-    def create_token(self,token_string):
-        "Convert the given token string into a new Token object and return it"
-        if token_string.startswith(VARIABLE_TAG_START):
-            token = Token(TOKEN_VAR, token_string[len(VARIABLE_TAG_START):-len(VARIABLE_TAG_END)].strip())
-        elif token_string.startswith(BLOCK_TAG_START):
-            token = Token(TOKEN_BLOCK, token_string[len(BLOCK_TAG_START):-len(BLOCK_TAG_END)].strip())
-        elif token_string.startswith(COMMENT_TAG_START):
-            token = Token(TOKEN_COMMENT, '')
+    def create_token(self, token_string, in_tag):
+        """
+        Convert the given token string into a new Token object and return it.
+        If in_tag is True, we are processing something that matched a tag,
+        otherwise it should be treated as a literal string.
+        """
+        if in_tag:
+            if token_string.startswith(VARIABLE_TAG_START):
+                token = Token(TOKEN_VAR, token_string[len(VARIABLE_TAG_START):-len(VARIABLE_TAG_END)].strip())
+            elif token_string.startswith(BLOCK_TAG_START):
+                token = Token(TOKEN_BLOCK, token_string[len(BLOCK_TAG_START):-len(BLOCK_TAG_END)].strip())
+            elif token_string.startswith(COMMENT_TAG_START):
+                token = Token(TOKEN_COMMENT, '')
         else:
             token = Token(TOKEN_TEXT, token_string)
         return token
@@ -215,22 +237,22 @@ class DebugLexer(Lexer):
 
     def tokenize(self):
         "Return a list of tokens from a given template_string"
-        token_tups, upto = [], 0
+        result, upto = [], 0
         for match in tag_re.finditer(self.template_string):
             start, end = match.span()
             if start > upto:
-                token_tups.append( (self.template_string[upto:start], (upto, start)) )
+                result.append(self.create_token(self.template_string[upto:start], (upto, start), False))
                 upto = start
-            token_tups.append( (self.template_string[start:end], (start,end)) )
+            result.append(self.create_token(self.template_string[start:end], (start, end), True))
             upto = end
         last_bit = self.template_string[upto:]
         if last_bit:
-            token_tups.append( (last_bit, (upto, upto + len(last_bit))) )
-        return [self.create_token(tok, (self.origin, loc)) for tok, loc in token_tups]
+            result.append(self.create_token(last_bit, (upto, upto + len(last_bit)), False))
+        return result
 
-    def create_token(self, token_string, source):
-        token = super(DebugLexer, self).create_token(token_string)
-        token.source = source
+    def create_token(self, token_string, source, in_tag):
+        token = super(DebugLexer, self).create_token(token_string, in_tag)
+        token.source = self.origin, source
         return token
 
 class Parser(object):
@@ -338,7 +360,7 @@ class Parser(object):
         return FilterExpression(token, self)
 
     def find_filter(self, filter_name):
-        if self.filters.has_key(filter_name):
+        if filter_name in self.filters:
             return self.filters[filter_name]
         else:
             raise TemplateSyntaxError, "Invalid filter: '%s'" % filter_name
@@ -466,7 +488,7 @@ class TokenParser(object):
                     while i < len(subject) and subject[i] != c:
                         i += 1
                     if i >= len(subject):
-                        raise TemplateSyntaxError, "Searching for value. Unexpected end of string in column %d: %s" % subject
+                        raise TemplateSyntaxError, "Searching for value. Unexpected end of string in column %d: %s" % (i, subject)
                 i += 1
             s = subject[p:i]
             while i < len(subject) and subject[i] in (' ', '\t'):
@@ -474,9 +496,6 @@ class TokenParser(object):
             self.backout.append(self.pointer)
             self.pointer = i
             return s
-
-
-
 
 filter_raw_string = r"""
 ^%(i18n_open)s"(?P<i18n_constant>%(str)s)"%(i18n_close)s|
@@ -493,7 +512,7 @@ filter_raw_string = r"""
          )?
  )""" % {
     'str': r"""[^"\\]*(?:\\.[^"\\]*)*""",
-    'var_chars': "A-Za-z0-9\_\." ,
+    'var_chars': "\w\." ,
     'filter_sep': re.escape(FILTER_SEPARATOR),
     'arg_sep': re.escape(FILTER_ARGUMENT_SEPARATOR),
     'i18n_open' : re.escape("_("),
@@ -501,7 +520,7 @@ filter_raw_string = r"""
   }
 
 filter_raw_string = filter_raw_string.replace("\n", "").replace(" ", "")
-filter_re = re.compile(filter_raw_string)
+filter_re = re.compile(filter_raw_string, re.UNICODE)
 
 class FilterExpression(object):
     """
@@ -555,7 +574,7 @@ class FilterExpression(object):
                 filters.append( (filter_func,args))
                 upto = match.end()
         if upto != len(token):
-            raise TemplateSyntaxError, "Could not parse the remainder: %s" % token[upto:]
+            raise TemplateSyntaxError, "Could not parse the remainder: '%s' from '%s'" % (token[upto:], token)
         self.var, self.filters = var, filters
 
     def resolve(self, context, ignore_failures=False):
@@ -566,6 +585,11 @@ class FilterExpression(object):
                 obj = None
             else:
                 if settings.TEMPLATE_STRING_IF_INVALID:
+                    global invalid_var_format_string
+                    if invalid_var_format_string is None:
+                        invalid_var_format_string = '%s' in settings.TEMPLATE_STRING_IF_INVALID
+                    if invalid_var_format_string:
+                        return settings.TEMPLATE_STRING_IF_INVALID % self.var
                     return settings.TEMPLATE_STRING_IF_INVALID
                 else:
                     obj = settings.TEMPLATE_STRING_IF_INVALID
@@ -678,6 +702,13 @@ def resolve_variable(path, context):
                     else:
                         raise
             del bits[0]
+    if isinstance(current, (basestring, Promise)):
+        try:
+            current = force_unicode(current)
+        except UnicodeDecodeError:
+            # Failing to convert to unicode can happen sometimes (e.g. debug
+            # tracebacks). So we allow it in this particular instance.
+            pass
     return current
 
 class Node(object):
@@ -705,7 +736,7 @@ class NodeList(list):
                 bits.append(self.render_node(node, context))
             else:
                 bits.append(node)
-        return ''.join(bits)
+        return ''.join([force_unicode(b) for b in bits])
 
     def get_nodes_by_type(self, nodetype):
         "Return a list of all nodes of the given type"
@@ -715,7 +746,7 @@ class NodeList(list):
         return nodes
 
     def render_node(self, node, context):
-        return(node.render(context))
+        return node.render(context)
 
 class DebugNodeList(NodeList):
     def render_node(self, node, context):
@@ -750,32 +781,17 @@ class VariableNode(Node):
     def __repr__(self):
         return "<Variable Node: %s>" % self.filter_expression
 
-    def encode_output(self, output):
-        # Check type so that we don't run str() on a Unicode object
-        if not isinstance(output, basestring):
-            try:
-                return str(output)
-            except UnicodeEncodeError:
-                # If __str__() returns a Unicode object, convert it to bytestring.
-                return unicode(output).encode(settings.DEFAULT_CHARSET)
-        elif isinstance(output, unicode):
-            return output.encode(settings.DEFAULT_CHARSET)
-        else:
-            return output
-
     def render(self, context):
-        output = self.filter_expression.resolve(context)
-        return self.encode_output(output)
+        return self.filter_expression.resolve(context)
 
 class DebugVariableNode(VariableNode):
     def render(self, context):
         try:
-            output = self.filter_expression.resolve(context)
+            return self.filter_expression.resolve(context)
         except TemplateSyntaxError, e:
             if not hasattr(e, 'source'):
                 e.source = self.source
             raise
-        return self.encode_output(output)
 
 def generic_tag_compiler(params, defaults, name, node_class, parser, token):
     "Returns a template.Node subclass."

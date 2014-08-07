@@ -15,7 +15,7 @@ class HumanizeTests(unittest.TestCase):
             self.assertEqual(rendered, result_list[index],
                              msg="""%s test failed, produced %s,
 should've produced %s""" % (method, rendered, result_list[index]))
-    
+
     def test_ordinal(self):
         test_list = ('1','2','3','4','11','12',
                      '13','101','102','103','111',
@@ -27,8 +27,10 @@ should've produced %s""" % (method, rendered, result_list[index]))
         self.humanize_tester(test_list, result_list, 'ordinal')
 
     def test_intcomma(self):
-        test_list = ('100','1000','10123','10311','1000000')
-        result_list = ('100', '1,000', '10,123', '10,311', '1,000,000')
+        test_list = (100, 1000, 10123, 10311, 1000000, 1234567.25,
+                     '100', '1000', '10123', '10311', '1000000', '1234567.1234567')
+        result_list = ('100', '1,000', '10,123', '10,311', '1,000,000', '1,234,567.25',
+                       '100', '1,000', '10,123', '10,311', '1,000,000', '1,234,567.1234567')
 
         self.humanize_tester(test_list, result_list, 'intcomma')
 
@@ -41,12 +43,12 @@ should've produced %s""" % (method, rendered, result_list[index]))
         self.humanize_tester(test_list, result_list, 'intword')
 
     def test_apnumber(self):
-        test_list = [str(x) for x in xrange(1,11)]
-        result_list = ('one', 'two', 'three', 'four', 'five', 'six',
-                       'seven', 'eight', 'nine', '10')
+        test_list = [str(x) for x in range(1, 11)]
+        result_list = (u'one', u'two', u'three', u'four', u'five', u'six',
+                       u'seven', u'eight', u'nine', u'10')
 
         self.humanize_tester(test_list, result_list, 'apnumber')
 
 if __name__ == '__main__':
     unittest.main()
-    
+
