@@ -6,33 +6,33 @@ Once you've created your `data models`_, Django automatically gives you a
 database-abstraction API that lets you create, retrieve, update and delete
 objects. This document explains that API.
 
-.. _`data models`: ../model_api/
+.. _`data models`: ../model-api/
 
 Throughout this reference, we'll refer to the following models, which comprise
 a weblog application::
 
     class Blog(models.Model):
-        name = models.CharField(maxlength=100)
+        name = models.CharField(max_length=100)
         tagline = models.TextField()
 
-        def __str__(self):
+        def __unicode__(self):
             return self.name
 
     class Author(models.Model):
-        name = models.CharField(maxlength=50)
-        email = models.URLField()
+        name = models.CharField(max_length=50)
+        email = models.EmailField()
 
-        def __str__(self):
+        def __unicode__(self):
             return self.name
 
     class Entry(models.Model):
         blog = models.ForeignKey(Blog)
-        headline = models.CharField(maxlength=255)
+        headline = models.CharField(max_length=255)
         body_text = models.TextField()
         pub_date = models.DateTimeField()
         authors = models.ManyToManyField(Author)
 
-        def __str__(self):
+        def __unicode__(self):
             return self.headline
 
 Creating objects
@@ -85,7 +85,7 @@ There's no way to tell what the value of an ID will be before you call
 unless you explicitly specify ``primary_key=True`` on a field. See the
 `AutoField documentation`_.)
 
-.. _AutoField documentation: ../model_api/#autofield
+.. _AutoField documentation: ../model-api/#autofield
 
 Explicitly specifying auto-primary-key values
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -112,11 +112,84 @@ the previous record in the database::
     b4 = Blog(id=3, name='Not Cheddar', tagline='Anything but cheese.')
     b4.save()  # Overrides the previous blog with ID=3!
 
-See _`How Django knows to UPDATE vs. INSERT`, below, for the reason this
+See `How Django knows to UPDATE vs. INSERT`_, below, for the reason this
 happens.
 
 Explicitly specifying auto-primary-key values is mostly useful for bulk-saving
 objects, when you're confident you won't have primary-key collision.
+
+What happens when you save?
+---------------------------
+
+When you save an object, Django performs the following steps:
+
+    1. **Emit a ``pre_save`` signal.** This provides a notification that
+       an object is about to be saved. You can register a listener that
+       will be invoked whenever this signal is emitted. (These signals are
+       not yet documented.)
+
+    2. **Pre-process the data.** Each field on the object is asked to
+       perform any automated data modification that the field may need
+       to perform.
+
+       Most fields do *no* pre-processing -- the field data is kept as-is.
+       Pre-processing is only used on fields that have special behavior.
+       For example, if your model has a ``DateField`` with ``auto_now=True``,
+       the pre-save phase will alter the data in the object to ensure that
+       the date field contains the current date stamp. (Our documentation
+       doesn't yet include a list of all the fields with this "special
+       behavior.")
+
+    3. **Prepare the data for the database.** Each field is asked to provide
+       its current value in a data type that can be written to the database.
+
+       Most fields require *no* data preparation. Simple data types, such as
+       integers and strings, are 'ready to write' as a Python object. However,
+       more complex data types often require some modification.
+
+       For example, ``DateFields`` use a Python ``datetime`` object to store
+       data. Databases don't store ``datetime`` objects, so the field value
+       must be converted into an ISO-compliant date string for insertion
+       into the database.
+
+    4. **Insert the data into the database.** The pre-processed, prepared
+       data is then composed into an SQL statement for insertion into the
+       database.
+
+    5. **Emit a ``post_save`` signal.** As with the ``pre_save`` signal, this
+       is used to provide notification that an object has been successfully
+       saved. (These signals are not yet documented.)
+
+Raw saves
+~~~~~~~~~
+
+**New in Django development version**
+
+The pre-processing step (#2 in the previous section) is useful, but it modifies
+the data stored in a field. This can cause problems if you're relying upon the
+data you provide being used as-is.
+
+For example, if you're setting up conditions for a test, you'll want the test
+conditions to be repeatable. If pre-processing is performed, the data used
+to specify test conditions may be modified, changing the conditions for the
+test each time the test is run.
+
+In cases such as this, you need to prevent pre-processing from being performed
+when you save an object. To do this, you can invoke a **raw save**  by passing
+``raw=True`` as an argument to the ``save()`` method::
+
+    b4.save(raw=True) # Save object, but do no pre-processing
+
+A raw save skips the usual data pre-processing that is performed during the
+save. All other steps in the save (pre-save signal, data preparation, data
+insertion, and post-save signal) are performed as normal.
+
+.. admonition:: When to use a raw save
+
+    Generally speaking, you shouldn't need to use a raw save. Disabling field
+    pre-processing is an extraordinary measure that should only be required
+    in extraordinary circumstances, such as setting up reliable test
+    conditions.
 
 Saving changes to objects
 =========================
@@ -134,6 +207,24 @@ the database until you explicitly call ``save()``.
 
 The ``save()`` method has no return value.
 
+Saving ForeignKey and ManyToManyField fields
+--------------------------------------------
+
+Updating ``ForeignKey`` fields works exactly the same way as saving a normal
+field; simply assign an object of the right type to the field in question:: 
+
+    cheese_blog = Blog.objects.get(name="Cheddar Talk") 
+    entry.blog = cheese_blog 
+    entry.save() 
+
+Updating a ``ManyToManyField`` works a little differently; use the ``add()``
+method on the field to add a record to the relation::
+
+    joe = Author.objects.create(name="Joe")
+    entry.authors.add(joe)
+
+Django will complain if you try to assign or add an object of the wrong type.
+
 How Django knows to UPDATE vs. INSERT
 -------------------------------------
 
@@ -143,8 +234,8 @@ or ``UPDATE`` SQL statements. Specifically, when you call ``save()``, Django
 follows this algorithm:
 
     * If the object's primary key attribute is set to a value that evaluates to
-      ``True`` (i.e., a value other than ``None`` or the empty string), Django 
-      executes a ``SELECT`` query to determine whether a record with the given 
+      ``True`` (i.e., a value other than ``None`` or the empty string), Django
+      executes a ``SELECT`` query to determine whether a record with the given
       primary key already exists.
     * If the record with the given primary key does already exist, Django
       executes an ``UPDATE`` query.
@@ -327,7 +418,7 @@ For example, this returns the first 5 objects (``LIMIT 5``)::
 
     Entry.objects.all()[:5]
 
-This returns the fifth through tenth objects (``OFFSET 5 LIMIT 5``)::
+This returns the sixth through tenth objects (``OFFSET 5 LIMIT 5``)::
 
     Entry.objects.all()[5:10]
 
@@ -379,7 +470,7 @@ The lookup parameters (``**kwargs``) should be in the format described in
 `Field lookups`_ below. Multiple parameters are joined via ``AND`` in the
 underlying SQL statement, and the whole thing is enclosed in a ``NOT()``.
 
-This example excludes all entries whose ``pub_date`` is the current date/time
+This example excludes all entries whose ``pub_date`` is later than 2005-1-3
 AND whose ``headline`` is "Hello"::
 
     Entry.objects.exclude(pub_date__gt=datetime.date(2005, 1, 3), headline='Hello')
@@ -389,8 +480,8 @@ In SQL terms, that evaluates to::
     SELECT ...
     WHERE NOT (pub_date > '2005-1-3' AND headline = 'Hello')
 
-This example excludes all entries whose ``pub_date`` is the current date/time
-OR whose ``headline`` is "Hello"::
+This example excludes all entries whose ``pub_date`` is later than 2005-1-3
+OR whose headline is "Hello"::
 
     Entry.objects.exclude(pub_date__gt=datetime.date(2005, 1, 3)).exclude(headline='Hello')
 
@@ -419,6 +510,9 @@ The result above will be ordered by ``pub_date`` descending, then by
 like so::
 
     Entry.objects.order_by('?')
+
+Note: ``order_by('?')`` queries may be expensive and slow, depending on the
+database backend you're using.
 
 To order by a field in a different table, add the other table's name and a dot,
 like so::
@@ -525,19 +619,19 @@ Examples::
     [datetime.datetime(2005, 3, 20), datetime.datetime(2005, 2, 20)]
     >>> Entry.objects.filter(headline__contains='Lennon').dates('pub_date', 'day')
     [datetime.datetime(2005, 3, 20)]
-    
+
 ``none()``
 ~~~~~~~~~~
 
 **New in Django development version**
 
-Returns an ``EmptyQuerySet`` -- a ``QuerySet`` that always evaluates to 
+Returns an ``EmptyQuerySet`` -- a ``QuerySet`` that always evaluates to
 an empty list. This can be used in cases where you know that you should
 return an empty result set and your caller is expecting a ``QuerySet``
 object (instead of returning an empty list, for example.)
 
 Examples::
-    
+
     >>> Entry.objects.none()
     []
 
@@ -589,7 +683,7 @@ related ``Person`` *and* the related ``City``::
     p = b.author         # Doesn't hit the database.
     c = p.hometown       # Doesn't hit the database.
 
-    sv = Book.objects.get(id=4) # No select_related() in this example.
+    b = Book.objects.get(id=4) # No select_related() in this example.
     p = b.author         # Hits the database.
     c = p.hometown       # Hits the database.
 
@@ -610,7 +704,7 @@ follow::
     c = p.hometown       # Requires a database call.
 
 The ``depth`` argument is new in the Django development version.
-    
+
 ``extra(select=None, where=None, params=None, tables=None)``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -708,13 +802,16 @@ of the arguments is required, but you should use at least one of them.
 
         Entry.objects.extra(where=['headline=%s'], params=['Lennon'])
 
+    The combined number of placeholders in the list of strings for ``select``
+    or ``where`` should equal the number of values in the ``params`` list.
+
 QuerySet methods that do not return QuerySets
 ---------------------------------------------
 
 The following ``QuerySet`` methods evaluate the ``QuerySet`` and return
 something *other than* a ``QuerySet``.
 
-These methods do not use a cache (see _`Caching and QuerySets` below). Rather,
+These methods do not use a cache (see `Caching and QuerySets`_ below). Rather,
 they query the database each time they're called.
 
 ``get(**kwargs)``
@@ -854,6 +951,23 @@ Example::
 
 If you pass ``in_bulk()`` an empty list, you'll get an empty dictionary.
 
+``iterator()``
+~~~~~~~~~~~~~~
+
+Evaluates the ``QuerySet`` (by performing the query) and returns an
+`iterator`_ over the results. A ``QuerySet`` typically reads all of
+its results and instantiates all of the corresponding objects the
+first time you access it; ``iterator()`` will instead read results and
+instantiate objects in discrete chunks, yielding them one at a
+time. For a ``QuerySet`` which returns a large number of objects, this
+often results in better performance and a significant reduction in
+memory use.
+
+Note that using ``iterator()`` on a ``QuerySet`` which has already
+been evaluated will force it to evaluate again, repeating the query.
+
+.. _iterator: http://www.python.org/dev/peps/pep-0234/
+
 ``latest(field_name=None)``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -906,8 +1020,8 @@ The database API supports the following lookup types:
 exact
 ~~~~~
 
-Exact match. If the value provided for comparison is ``None``, it will 
-be interpreted as an SQL ``NULL`` (See isnull_ for more details).  
+Exact match. If the value provided for comparison is ``None``, it will
+be interpreted as an SQL ``NULL`` (See isnull_ for more details).
 
 Examples::
 
@@ -1136,7 +1250,7 @@ such as January 3, July 3, etc.
 isnull
 ~~~~~~
 
-Takes either ``True`` or ``False``, which correspond to SQL queries of 
+Takes either ``True`` or ``False``, which correspond to SQL queries of
 ``IS NULL`` and ``IS NOT NULL``, respectively.
 
 Example::
@@ -1149,10 +1263,10 @@ SQL equivalent::
 
 .. admonition:: ``__isnull=True`` vs ``__exact=None``
 
-    There is an important difference between ``__isnull=True`` and 
+    There is an important difference between ``__isnull=True`` and
     ``__exact=None``. ``__exact=None`` will *always* return an empty result
-    set, because SQL requires that no value is equal to ``NULL``. 
-    ``__isnull`` determines if the field is currently holding the value 
+    set, because SQL requires that no value is equal to ``NULL``.
+    ``__isnull`` determines if the field is currently holding the value
     of ``NULL`` without performing a comparison.
 
 search
@@ -1163,6 +1277,58 @@ like ``contains`` but is significantly faster due to full-text indexing.
 
 Note this is only available in MySQL and requires direct manipulation of the
 database to add the full-text index.
+
+regex
+~~~~~
+
+**New in Django development version**
+
+Case-sensitive regular expression match.
+
+The regular expression syntax is that of the database backend in use. In the
+case of SQLite, which doesn't natively support regular-expression lookups, the
+syntax is that of Python's ``re`` module.
+
+Example::
+
+    Entry.objects.get(title__regex=r'^(An?|The) +')
+
+SQL equivalents::
+
+    SELECT ... WHERE title REGEXP BINARY '^(An?|The) +'; -- MySQL
+
+    SELECT ... WHERE REGEXP_LIKE(title, '^(an?|the) +', 'c'); -- Oracle
+
+    SELECT ... WHERE title ~ '^(An?|The) +'; -- PostgreSQL
+
+    SELECT ... WHERE title REGEXP '^(An?|The) +'; -- SQLite
+
+Using raw strings (e.g., ``r'foo'`` instead of ``'foo'``) for passing in the
+regular expression syntax is recommended.
+
+Regular expression matching is not supported on the ``ado_mssql`` backend.
+It will raise a ``NotImplementedError`` at runtime.
+
+iregex
+~~~~~~
+
+**New in Django development version**
+
+Case-insensitive regular expression match.
+
+Example::
+
+    Entry.objects.get(title__iregex=r'^(an?|the) +')
+
+SQL equivalents::
+
+    SELECT ... WHERE title REGEXP '^(an?|the) +'; -- MySQL
+
+    SELECT ... WHERE REGEXP_LIKE(title, '^(an?|the) +', 'i'); -- Oracle
+
+    SELECT ... WHERE title ~* '^(an?|the) +'; -- PostgreSQL
+
+    SELECT ... WHERE title REGEXP '(?i)^(an?|the) +'; -- SQLite
 
 Default lookups are exact
 -------------------------
@@ -1181,7 +1347,7 @@ The pk lookup shortcut
 ----------------------
 
 For convenience, Django provides a ``pk`` lookup type, which stands for
-"primary_key". 
+"primary_key".
 
 In the example ``Blog`` model, the primary key is the ``id`` field, so these
 three statements are equivalent::
@@ -1190,14 +1356,14 @@ three statements are equivalent::
     Blog.objects.get(id=14) # __exact is implied
     Blog.objects.get(pk=14) # pk implies id__exact
 
-The use of ``pk`` isn't limited to ``__exact`` queries -- any query term 
+The use of ``pk`` isn't limited to ``__exact`` queries -- any query term
 can be combined with ``pk`` to perform a query on the primary key of a model::
 
     # Get blogs entries  with id 1, 4 and 7
     Blog.objects.filter(pk__in=[1,4,7])
     # Get all blog entries with id > 14
-    Blog.objects.filter(pk__gt=14) 
-    
+    Blog.objects.filter(pk__gt=14)
+
 ``pk`` lookups also work across joins. For example, these three statements are
 equivalent::
 
@@ -1229,8 +1395,8 @@ whose ``headline`` contains ``'Lennon'``::
 
     Blog.objects.filter(entry__headline__contains='Lennon')
 
-Escaping parenthesis and underscores in LIKE statements
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Escaping percent signs and underscores in LIKE statements
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The field lookups that equate to ``LIKE`` SQL statements (``iexact``,
 ``contains``, ``icontains``, ``startswith``, ``istartswith``, ``endswith``
@@ -1369,7 +1535,7 @@ precede the definition of any keyword arguments. For example::
 
 See the `OR lookups examples page`_ for more examples.
 
-.. _OR lookups examples page: http://www.djangoproject.com/documentation/models/or_lookups/
+.. _OR lookups examples page: ../models/or_lookups/
 
 Related objects
 ===============
@@ -1672,8 +1838,8 @@ following model::
         ('F', 'Female'),
     )
     class Person(models.Model):
-        name = models.CharField(maxlength=20)
-        gender = models.CharField(maxlength=1, choices=GENDER_CHOICES)
+        name = models.CharField(max_length=20)
+        gender = models.CharField(max_length=1, choices=GENDER_CHOICES)
 
 ...each ``Person`` instance will have a ``get_gender_display()`` method. Example::
 
@@ -1700,7 +1866,7 @@ Note that in the case of identical date values, these methods will use the ID
 as a fallback check. This guarantees that no records are skipped or duplicated.
 For a full example, see the `lookup API sample model`_.
 
-.. _lookup API sample model: http://www.djangoproject.com/documentation/models/lookup/
+.. _lookup API sample model: ../models/lookup/
 
 get_FOO_filename()
 ------------------
@@ -1748,39 +1914,48 @@ Shortcuts
 
 As you develop views, you will discover a number of common idioms in the
 way you use the database API. Django encodes some of these idioms as
-shortcuts that can be used to simplify the process of writing views.
+shortcuts that can be used to simplify the process of writing views. These
+functions are in the ``django.shortcuts`` module.
 
 get_object_or_404()
 -------------------
 
 One common idiom to use ``get()`` and raise ``Http404`` if the
-object doesn't exist. This idiom is captured by ``get_object_or_404()``. 
-This function takes a Django model as its first argument and an 
-arbitrary number of keyword arguments, which it passes to the manager's 
-``get()`` function. It raises ``Http404`` if the object doesn't
-exist. For example:: 
-    
+object doesn't exist. This idiom is captured by ``get_object_or_404()``.
+This function takes a Django model as its first argument and an
+arbitrary number of keyword arguments, which it passes to the default
+manager's ``get()`` function. It raises ``Http404`` if the object doesn't
+exist. For example::
+
     # Get the Entry with a primary key of 3
     e = get_object_or_404(Entry, pk=3)
 
-When you provide a model to this shortcut function, the default manager 
-is used to execute the underlying ``get()`` query. If you don't want to 
-use the default manager, or you want to search a list of related objects, 
-you can provide ``get_object_or_404()`` with a manager object, instead. 
+When you provide a model to this shortcut function, the default manager
+is used to execute the underlying ``get()`` query. If you don't want to
+use the default manager, or if you want to search a list of related objects,
+you can provide ``get_object_or_404()`` with a ``Manager`` object instead.
 For example::
 
-    # Get the author of blog instance `e` with a name of 'Fred'
+    # Get the author of blog instance e with a name of 'Fred'
     a = get_object_or_404(e.authors, name='Fred')
 
     # Use a custom manager 'recent_entries' in the search for an
     # entry with a primary key of 3
     e = get_object_or_404(Entry.recent_entries, pk=3)
 
+**New in Django development version:** The first argument to
+``get_object_or_404()`` can be a ``QuerySet`` object. This is useful in cases
+where you've defined a custom manager method. For example::
+
+    # Use a QuerySet returned from a 'published' method of a custom manager
+    # in the search for an entry with primary key of 5
+    e = get_object_or_404(Entry.objects.published(), pk=5)
+
 get_list_or_404()
 -----------------
 
-``get_list_or_404`` behaves the same was as ``get_object_or_404()`` 
--- except the it uses using ``filter()`` instead of ``get()``. It raises 
+``get_list_or_404`` behaves the same way as ``get_object_or_404()``
+-- except that it uses ``filter()`` instead of ``get()``. It raises
 ``Http404`` if the list is empty.
 
 Falling back to raw SQL
@@ -1801,4 +1976,4 @@ interface to your database. You can access your database via other tools,
 programming languages or database frameworks; there's nothing Django-specific
 about your database.
 
-.. _Executing custom SQL: ../model_api/#executing-custom-sql
+.. _Executing custom SQL: ../model-api/#executing-custom-sql

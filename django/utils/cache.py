@@ -13,13 +13,18 @@ into account when building its cache key. Requests with the same path but
 different header content for headers named in "Vary" need to get different
 cache keys to prevent delivery of wrong content.
 
-A example: i18n middleware would need to distinguish caches by the
+An example: i18n middleware would need to distinguish caches by the
 "Accept-language" header.
 """
 
-import datetime, md5, re
+import md5
+import re
+import time
+
 from django.conf import settings
 from django.core.cache import cache
+from django.utils.encoding import smart_str, iri_to_uri
+from django.utils.http import http_date
 
 cc_delim_re = re.compile(r'\s*,\s*')
 
@@ -36,24 +41,31 @@ def patch_cache_control(response, **kwargs):
       str() to it.
     """
     def dictitem(s):
-        t = s.split('=',1)
+        t = s.split('=', 1)
         if len(t) > 1:
-            return (t[0].lower().replace('-', '_'), t[1])
+            return (t[0].lower(), t[1])
         else:
-            return (t[0].lower().replace('-', '_'), True)
+            return (t[0].lower(), True)
 
     def dictvalue(t):
-        if t[1] == True:
+        if t[1] is True:
             return t[0]
         else:
-            return t[0] + '=' + str(t[1])
+            return t[0] + '=' + smart_str(t[1])
 
     if response.has_header('Cache-Control'):
         cc = cc_delim_re.split(response['Cache-Control'])
         cc = dict([dictitem(el) for el in cc])
     else:
         cc = {}
-    for (k,v) in kwargs.items():
+
+    # If there's already a max-age header but we're being asked to set a new
+    # max-age, use the minumum of the two ages. In practice this happens when
+    # a decorator and a piece of middleware both operate on a given view.
+    if 'max-age' in cc and 'max_age' in kwargs:
+        kwargs['max_age'] = min(cc['max-age'], kwargs['max_age'])
+
+    for (k, v) in kwargs.items():
         cc[k.replace('_', '-')] = v
     cc = ', '.join([dictvalue(el) for el in cc.items()])
     response['Cache-Control'] = cc
@@ -72,22 +84,19 @@ def patch_response_headers(response, cache_timeout=None):
     """
     if cache_timeout is None:
         cache_timeout = settings.CACHE_MIDDLEWARE_SECONDS
-    now = datetime.datetime.utcnow()
+    if cache_timeout < 0:
+        cache_timeout = 0 # Can't have max-age negative
     if not response.has_header('ETag'):
         response['ETag'] = md5.new(response.content).hexdigest()
     if not response.has_header('Last-Modified'):
-        response['Last-Modified'] = now.strftime('%a, %d %b %Y %H:%M:%S GMT')
+        response['Last-Modified'] = http_date()
     if not response.has_header('Expires'):
-        expires = now + datetime.timedelta(0, cache_timeout)
-        response['Expires'] = expires.strftime('%a, %d %b %Y %H:%M:%S GMT')
-    if cache_timeout < 0:
-        cache_timeout = 0 # Can't have max-age negative
+        response['Expires'] = http_date(time.time() + cache_timeout)
     patch_cache_control(response, max_age=cache_timeout)
 
 def add_never_cache_headers(response):
     """
-    Add headers to a response to indicate that 
-    a page should never be cached.
+    Adds headers to a response to indicate that a page should never be cached.
     """
     patch_response_headers(response, cache_timeout=-1)
 
@@ -110,13 +119,14 @@ def patch_vary_headers(response, newheaders):
     response['Vary'] = ', '.join(vary)
 
 def _generate_cache_key(request, headerlist, key_prefix):
-    "Returns a cache key from the headers given in the header list."
+    """Returns a cache key from the headers given in the header list."""
     ctx = md5.new()
     for header in headerlist:
         value = request.META.get(header, None)
         if value is not None:
             ctx.update(value)
-    return 'views.decorators.cache.cache_page.%s.%s.%s' % (key_prefix, request.path, ctx.hexdigest())
+    return 'views.decorators.cache.cache_page.%s.%s.%s' % (
+               key_prefix, iri_to_uri(request.path), ctx.hexdigest())
 
 def get_cache_key(request, key_prefix=None):
     """
@@ -130,7 +140,8 @@ def get_cache_key(request, key_prefix=None):
     """
     if key_prefix is None:
         key_prefix = settings.CACHE_MIDDLEWARE_KEY_PREFIX
-    cache_key = 'views.decorators.cache.cache_header.%s.%s' % (key_prefix, request.path)
+    cache_key = 'views.decorators.cache.cache_header.%s.%s' % (
+                    key_prefix, iri_to_uri(request.path))
     headerlist = cache.get(cache_key, None)
     if headerlist is not None:
         return _generate_cache_key(request, headerlist, key_prefix)
@@ -154,9 +165,11 @@ def learn_cache_key(request, response, cache_timeout=None, key_prefix=None):
         key_prefix = settings.CACHE_MIDDLEWARE_KEY_PREFIX
     if cache_timeout is None:
         cache_timeout = settings.CACHE_MIDDLEWARE_SECONDS
-    cache_key = 'views.decorators.cache.cache_header.%s.%s' % (key_prefix, request.path)
+    cache_key = 'views.decorators.cache.cache_header.%s.%s' % (
+                    key_prefix, iri_to_uri(request.path))
     if response.has_header('Vary'):
-        headerlist = ['HTTP_'+header.upper().replace('-', '_') for header in vary_delim_re.split(response['Vary'])]
+        headerlist = ['HTTP_'+header.upper().replace('-', '_')
+                      for header in vary_delim_re.split(response['Vary'])]
         cache.set(cache_key, headerlist, cache_timeout)
         return _generate_cache_key(request, headerlist, key_prefix)
     else:

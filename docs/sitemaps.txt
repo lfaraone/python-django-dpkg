@@ -2,8 +2,6 @@
 The sitemap framework
 =====================
 
-**New in Django development version**.
-
 Django comes with a high-level sitemap-generating framework that makes
 creating sitemap_ XML files easy.
 
@@ -23,7 +21,7 @@ you express this information in Python code.
 It works much like Django's `syndication framework`_. To create a sitemap, just
 write a ``Sitemap`` class and point to it in your URLconf_.
 
-.. _syndication framework: ../syndication/
+.. _syndication framework: ../syndication_feeds/
 .. _URLconf: ../url_dispatch/
 
 Installation
@@ -49,7 +47,7 @@ Initialization
 ==============
 
 To activate sitemap generation on your Django site, add this line to your
-URLconf_:
+URLconf_::
 
     (r'^sitemap.xml$', 'django.contrib.sitemaps.views.sitemap', {'sitemaps': sitemaps})
 

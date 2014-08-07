@@ -6,7 +6,8 @@ import re
 import sys
 import gettext as gettext_module
 from cStringIO import StringIO
-from django.utils.functional import lazy
+
+from django.utils.encoding import force_unicode
 
 try:
     import threading
@@ -71,10 +72,10 @@ class DjangoTranslation(gettext_module.GNUTranslations):
         # the output charset. Before 2.4, the output charset is
         # identical with the translation file charset.
         try:
-            self.set_output_charset(settings.DEFAULT_CHARSET)
+            self.set_output_charset('utf-8')
         except AttributeError:
             pass
-        self.django_output_charset = settings.DEFAULT_CHARSET
+        self.django_output_charset = 'utf-8'
         self.__language = '??'
 
     def merge(self, other):
@@ -213,8 +214,16 @@ def deactivate():
     will resolve against the default translation object, again.
     """
     global _active
-    if _active.has_key(currentThread()):
+    if currentThread() in _active:
         del _active[currentThread()]
+
+def deactivate_all():
+    """
+    Makes the active translation object a NullTranslations() instance. This is
+    useful when we want delayed translations to appear as the original string
+    for some reason.
+    """
+    _active[currentThread()] = gettext_module.NullTranslations()
 
 def get_language():
     "Returns the currently selected language."
@@ -252,52 +261,68 @@ def catalog():
         _default = translation(settings.LANGUAGE_CODE)
     return _default
 
-def gettext(message):
+def do_translate(message, translation_function):
     """
-    This function will be patched into the builtins module to provide the _
-    helper function. It will use the current thread as a discriminator to find
-    the translation object to use. If no current translation is activated, the
+    Translates 'message' using the given 'translation_function' name -- which
+    will be either gettext or ugettext. It uses the current thread to find the
+    translation object to use. If no current translation is activated, the
     message will be run through the default translation object.
     """
     global _default, _active
     t = _active.get(currentThread(), None)
     if t is not None:
-        return t.gettext(message)
+        return getattr(t, translation_function)(message)
     if _default is None:
         from django.conf import settings
         _default = translation(settings.LANGUAGE_CODE)
-    return _default.gettext(message)
+    return getattr(_default, translation_function)(message)
+
+def gettext(message):
+    return do_translate(message, 'gettext')
+
+def ugettext(message):
+    return do_translate(message, 'ugettext')
 
 def gettext_noop(message):
     """
     Marks strings for translation but doesn't translate them now. This can be
     used to store strings in global variables that should stay in the base
-    language (because they might be used externally) and will be translated later.
+    language (because they might be used externally) and will be translated
+    later.
     """
     return message
 
-def ngettext(singular, plural, number):
-    """
-    Returns the translation of either the singular or plural, based on the number.
-    """
+def do_ntranslate(singular, plural, number, translation_function):
     global _default, _active
 
     t = _active.get(currentThread(), None)
     if t is not None:
-        return t.ngettext(singular, plural, number)
+        return getattr(t, translation_function)(singular, plural, number)
     if _default is None:
         from django.conf import settings
         _default = translation(settings.LANGUAGE_CODE)
-    return _default.ngettext(singular, plural, number)
+    return getattr(_default, translation_function)(singular, plural, number)
 
-gettext_lazy = lazy(gettext, str)
-ngettext_lazy = lazy(ngettext, str)
+def ngettext(singular, plural, number):
+    """
+    Returns a UTF-8 bytestring of the translation of either the singular or
+    plural, based on the number.
+    """
+    return do_ntranslate(singular, plural, number, 'ngettext')
+
+def ungettext(singular, plural, number):
+    """
+    Returns a unicode strings of the translation of either the singular or
+    plural, based on the number.
+    """
+    return do_ntranslate(singular, plural, number, 'ungettext')
 
 def check_for_language(lang_code):
     """
-    Checks whether there is a global language file for the given language code.
-    This is used to decide whether a user-provided language is available. This is
-    only used for language codes from either the cookies or session.
+    Checks whether there is a global language file for the given language
+    code. This is used to decide whether a user-provided language is
+    available. This is only used for language codes from either the cookies or
+    session.
     """
     from django.conf import settings
     globalpath = os.path.join(os.path.dirname(sys.modules[settings.__module__].__file__), 'locale')
@@ -308,9 +333,10 @@ def check_for_language(lang_code):
 
 def get_language_from_request(request):
     """
-    Analyzes the request to find what language the user wants the system to show.
-    Only languages listed in settings.LANGUAGES are taken into account. If the user
-    requests a sublanguage where we have a main language, we send out the main language.
+    Analyzes the request to find what language the user wants the system to
+    show. Only languages listed in settings.LANGUAGES are taken into account.
+    If the user requests a sublanguage where we have a main language, we send
+    out the main language.
     """
     global _accepted
     from django.conf import settings
@@ -366,9 +392,9 @@ def get_date_formats():
     one, the formats provided in the settings will be used.
     """
     from django.conf import settings
-    date_format = _('DATE_FORMAT')
-    datetime_format = _('DATETIME_FORMAT')
-    time_format = _('TIME_FORMAT')
+    date_format = ugettext('DATE_FORMAT')
+    datetime_format = ugettext('DATETIME_FORMAT')
+    time_format = ugettext('TIME_FORMAT')
     if date_format == 'DATE_FORMAT':
         date_format = settings.DATE_FORMAT
     if datetime_format == 'DATETIME_FORMAT':
@@ -384,20 +410,13 @@ def get_partial_date_formats():
     one, the formats provided in the settings will be used.
     """
     from django.conf import settings
-    year_month_format = _('YEAR_MONTH_FORMAT')
-    month_day_format = _('MONTH_DAY_FORMAT')
+    year_month_format = ugettext('YEAR_MONTH_FORMAT')
+    month_day_format = ugettext('MONTH_DAY_FORMAT')
     if year_month_format == 'YEAR_MONTH_FORMAT':
         year_month_format = settings.YEAR_MONTH_FORMAT
     if month_day_format == 'MONTH_DAY_FORMAT':
         month_day_format = settings.MONTH_DAY_FORMAT
     return year_month_format, month_day_format
-
-def install():
-    """
-    Installs the gettext function as the default translation function under
-    the name '_'.
-    """
-    __builtins__['_'] = gettext
 
 dot_re = re.compile(r'\S')
 def blankout(src, char):
@@ -469,6 +488,8 @@ def templatize(src):
                     elif g[0] == "'": g = g.strip("'")
                     out.write(' gettext(%r) ' % g)
                 elif bmatch:
+                    for fmatch in constant_re.findall(t.contents):
+                        out.write(' _(%s) ' % fmatch)
                     intrans = True
                     inplural = False
                     singular = []
@@ -491,16 +512,6 @@ def templatize(src):
             else:
                 out.write(blankout(t.contents, 'X'))
     return out.getvalue()
-
-def string_concat(*strings):
-    """"
-    lazy variant of string concatenation, needed for translations that are
-    constructed from multiple parts. Handles lazy strings and non-strings by
-    first turning all arguments to strings, before joining them.
-    """
-    return ''.join([str(el) for el in strings])
-
-string_concat = lazy(string_concat, str)
 
 def parse_accept_lang_header(lang_string):
     """

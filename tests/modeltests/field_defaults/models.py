@@ -13,10 +13,10 @@ from django.db import models
 from datetime import datetime
 
 class Article(models.Model):
-    headline = models.CharField(maxlength=100, default='Default headline')
+    headline = models.CharField(max_length=100, default='Default headline')
     pub_date = models.DateTimeField(default=datetime.now)
 
-    def __str__(self):
+    def __unicode__(self):
         return self.headline
 
 __test__ = {'API_TESTS':"""
@@ -42,7 +42,7 @@ __test__ = {'API_TESTS':"""
 
 # Access database columns via Python attributes.
 >>> a.headline
-'Default headline'
+u'Default headline'
 
 # make sure the two dates are sufficiently close
 >>> d = now - a.pub_date

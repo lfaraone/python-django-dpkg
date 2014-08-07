@@ -4,6 +4,10 @@ from django import http
 import sys
 
 class BaseHandler(object):
+    # Changes that are always applied to a response (in this order).
+    response_fixes = [http.fix_location_header,
+            http.conditional_content_removal]
+
     def __init__(self):
         self._request_middleware = self._view_middleware = self._response_middleware = self._exception_middleware = None
 
@@ -112,7 +116,7 @@ class BaseHandler(object):
             else:
                 # Get the exception info now, in case another exception is thrown later.
                 exc_info = sys.exc_info()
-                receivers = dispatcher.send(signal=signals.got_request_exception)
+                receivers = dispatcher.send(signal=signals.got_request_exception, request=request)
                 # When DEBUG is False, send an error message to the admins.
                 subject = 'Error (%s IP): %s' % ((request.META.get('REMOTE_ADDR') in settings.INTERNAL_IPS and 'internal' or 'EXTERNAL'), request.path)
                 try:
@@ -129,3 +133,14 @@ class BaseHandler(object):
         "Helper function to return the traceback as a string"
         import traceback
         return '\n'.join(traceback.format_exception(*(exc_info or sys.exc_info())))
+
+    def apply_response_fixes(self, request, response):
+        """
+        Applies each of the functions in self.response_fixes to the request and
+        response, modifying the response in the process. Returns the new
+        response.
+        """
+        for func in self.response_fixes:
+            response = func(request, response)
+        return response
+

@@ -3,11 +3,21 @@
 import os, sys, traceback
 import unittest
 
+import django.contrib as contrib
+
+try:
+    set
+except NameError:
+    from sets import Set as set     # For Python 2.3
+
+
+CONTRIB_DIR_NAME = 'django.contrib'
 MODEL_TESTS_DIR_NAME = 'modeltests'
 REGRESSION_TESTS_DIR_NAME = 'regressiontests'
-TEST_DATABASE_NAME = 'django_test_db'
+
 TEST_TEMPLATE_DIR = 'templates'
 
+CONTRIB_DIR = os.path.dirname(contrib.__file__)
 MODEL_TEST_DIR = os.path.join(os.path.dirname(__file__), MODEL_TESTS_DIR_NAME)
 REGRESSION_TEST_DIR = os.path.join(os.path.dirname(__file__), REGRESSION_TESTS_DIR_NAME)
 
@@ -24,7 +34,7 @@ ALWAYS_INSTALLED_APPS = [
 
 def get_test_models():
     models = []
-    for loc, dirpath in (MODEL_TESTS_DIR_NAME, MODEL_TEST_DIR), (REGRESSION_TESTS_DIR_NAME, REGRESSION_TEST_DIR):
+    for loc, dirpath in (MODEL_TESTS_DIR_NAME, MODEL_TEST_DIR), (REGRESSION_TESTS_DIR_NAME, REGRESSION_TEST_DIR), (CONTRIB_DIR_NAME, CONTRIB_DIR):
         for f in os.listdir(dirpath):
             if f.startswith('__init__') or f.startswith('.') or f.startswith('sql') or f.startswith('invalid'):
                 continue
@@ -33,7 +43,7 @@ def get_test_models():
 
 def get_invalid_models():
     models = []
-    for loc, dirpath in (MODEL_TESTS_DIR_NAME, MODEL_TEST_DIR), (REGRESSION_TESTS_DIR_NAME, REGRESSION_TEST_DIR):
+    for loc, dirpath in (MODEL_TESTS_DIR_NAME, MODEL_TEST_DIR), (REGRESSION_TESTS_DIR_NAME, REGRESSION_TEST_DIR), (CONTRIB_DIR_NAME, CONTRIB_DIR):
         for f in os.listdir(dirpath):
             if f.startswith('__init__') or f.startswith('.') or f.startswith('sql'):
                 continue
@@ -47,7 +57,7 @@ class InvalidModelTestCase(unittest.TestCase):
         self.model_label = model_label
 
     def runTest(self):
-        from django.core import management
+        from django.core.management.validation import get_validation_errors
         from django.db.models.loading import load_app
         from cStringIO import StringIO
 
@@ -56,8 +66,14 @@ class InvalidModelTestCase(unittest.TestCase):
         except Exception, e:
             self.fail('Unable to load invalid model module')
 
+        # Make sure sys.stdout is not a tty so that we get errors without
+        # coloring attached (makes matching the results easier). We restore
+        # sys.stderr afterwards.
+        orig_stdout = sys.stdout
         s = StringIO()
-        count = management.get_validation_errors(s, module)
+        sys.stdout = s
+        count = get_validation_errors(s, module)
+        sys.stdout = orig_stdout
         s.seek(0)
         error_log = s.read()
         actual = error_log.split('\n')
@@ -69,7 +85,7 @@ class InvalidModelTestCase(unittest.TestCase):
         self.assert_(not unexpected, "Unexpected Errors: " + '\n'.join(unexpected))
         self.assert_(not missing, "Missing Errors: " + '\n'.join(missing))
 
-def django_tests(verbosity, tests_to_run):
+def django_tests(verbosity, interactive, test_labels):
     from django.conf import settings
 
     old_installed_apps = settings.INSTALLED_APPS
@@ -77,19 +93,22 @@ def django_tests(verbosity, tests_to_run):
     old_root_urlconf = settings.ROOT_URLCONF
     old_template_dirs = settings.TEMPLATE_DIRS
     old_use_i18n = settings.USE_I18N
+    old_language_code = settings.LANGUAGE_CODE
     old_middleware_classes = settings.MIDDLEWARE_CLASSES
 
     # Redirect some settings for the duration of these tests.
-    settings.TEST_DATABASE_NAME = TEST_DATABASE_NAME
     settings.INSTALLED_APPS = ALWAYS_INSTALLED_APPS
     settings.ROOT_URLCONF = 'urls'
     settings.TEMPLATE_DIRS = (os.path.join(os.path.dirname(__file__), TEST_TEMPLATE_DIR),)
     settings.USE_I18N = True
+    settings.LANGUAGE_CODE = 'en'
     settings.MIDDLEWARE_CLASSES = (
         'django.contrib.sessions.middleware.SessionMiddleware',
         'django.contrib.auth.middleware.AuthenticationMiddleware',
         'django.middleware.common.CommonMiddleware',
     )
+    if not hasattr(settings, 'SITE_ID'):
+        settings.SITE_ID = 1
 
     # Load all the ALWAYS_INSTALLED_APPS.
     # (This import statement is intentionally delayed until after we
@@ -105,12 +124,13 @@ def django_tests(verbosity, tests_to_run):
             # if the model was named on the command line, or
             # no models were named (i.e., run all), import
             # this model and add it to the list to test.
-            if not tests_to_run or model_name in tests_to_run:
+            if not test_labels or model_name in set([label.split('.')[0] for label in test_labels]):
                 if verbosity >= 1:
                     print "Importing model %s" % model_name
                 mod = load_app(model_label)
-                settings.INSTALLED_APPS.append(model_label)
-                test_models.append(mod)
+                if mod:
+                    if model_label not in settings.INSTALLED_APPS:
+                        settings.INSTALLED_APPS.append(model_label)
         except Exception, e:
             sys.stderr.write("Error while importing %s:" % model_name + ''.join(traceback.format_exception(*sys.exc_info())[1:]))
             continue
@@ -119,21 +139,21 @@ def django_tests(verbosity, tests_to_run):
     extra_tests = []
     for model_dir, model_name in get_invalid_models():
         model_label = '.'.join([model_dir, model_name])
-        if not tests_to_run or model_name in tests_to_run:
+        if not test_labels or model_name in test_labels:
             extra_tests.append(InvalidModelTestCase(model_label))
 
     # Run the test suite, including the extra validation tests.
     from django.test.simple import run_tests
-    failures = run_tests(test_models, verbosity, extra_tests=extra_tests)
+    failures = run_tests(test_labels, verbosity=verbosity, interactive=interactive, extra_tests=extra_tests)
     if failures:
         sys.exit(failures)
 
     # Restore the old settings.
     settings.INSTALLED_APPS = old_installed_apps
-    settings.TESTS_DATABASE_NAME = old_test_database_name
     settings.ROOT_URLCONF = old_root_urlconf
     settings.TEMPLATE_DIRS = old_template_dirs
     settings.USE_I18N = old_use_i18n
+    settings.LANGUAGE_CODE = old_language_code
     settings.MIDDLEWARE_CLASSES = old_middleware_classes
 
 if __name__ == "__main__":
@@ -143,6 +163,8 @@ if __name__ == "__main__":
     parser.add_option('-v','--verbosity', action='store', dest='verbosity', default='0',
         type='choice', choices=['0', '1', '2'],
         help='Verbosity level; 0=minimal output, 1=normal output, 2=all output')
+    parser.add_option('--noinput', action='store_false', dest='interactive', default=True,
+        help='Tells Django to NOT prompt the user for input of any kind.')
     parser.add_option('--settings',
         help='Python path to settings module, e.g. "myproject.settings". If this isn\'t provided, the DJANGO_SETTINGS_MODULE environment variable will be used.')
     options, args = parser.parse_args()
@@ -151,4 +173,4 @@ if __name__ == "__main__":
     elif "DJANGO_SETTINGS_MODULE" not in os.environ:
         parser.error("DJANGO_SETTINGS_MODULE is not set in the environment. "
                       "Set it or use --settings.")
-    django_tests(int(options.verbosity), args)
+    django_tests(int(options.verbosity), options.interactive, args)

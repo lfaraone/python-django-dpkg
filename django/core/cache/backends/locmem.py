@@ -1,13 +1,25 @@
 "Thread-safe in-memory cache backend."
 
+import time
+try:
+    import cPickle as pickle
+except ImportError:
+    import pickle
+
 from django.core.cache.backends.simple import CacheClass as SimpleCacheClass
 from django.utils.synch import RWLock
-import copy, time
 
 class CacheClass(SimpleCacheClass):
     def __init__(self, host, params):
         SimpleCacheClass.__init__(self, host, params)
         self._lock = RWLock()
+
+    def add(self, key, value, timeout=None):
+        self._lock.writer_enters()
+        try:
+            SimpleCacheClass.add(self, key, value, timeout)
+        finally:
+            self._lock.writer_leaves()
 
     def get(self, key, default=None):
         should_delete = False
@@ -20,7 +32,10 @@ class CacheClass(SimpleCacheClass):
             elif exp < now:
                 should_delete = True
             else:
-                return copy.deepcopy(self._cache[key])
+                try:
+                    return pickle.loads(self._cache[key])
+                except pickle.PickleError:
+                    return default
         finally:
             self._lock.reader_leaves()
         if should_delete:
@@ -35,7 +50,10 @@ class CacheClass(SimpleCacheClass):
     def set(self, key, value, timeout=None):
         self._lock.writer_enters()
         try:
-            SimpleCacheClass.set(self, key, value, timeout)
+            try:
+                super(CacheClass, self).set(key, pickle.dumps(value), timeout)
+            except pickle.PickleError:
+                pass
         finally:
             self._lock.writer_leaves()
 

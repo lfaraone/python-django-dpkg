@@ -34,14 +34,8 @@ will be raised if the template doesn't have proper syntax.
 
 Sample code:
 
->>> import template
->>> s = '''
-... <html>
-... {% if test %}
-...     <h1>{{ varvalue }}</h1>
-... {% endif %}
-... </html>
-... '''
+>>> from django import template
+>>> s = u'<html>{% if test %}<h1>{{ varvalue }}</h1>{% endif %}</html>'
 >>> t = template.Template(s)
 
 (t is now a compiled template, and its render() method can be called multiple
@@ -49,17 +43,20 @@ times with multiple contexts)
 
 >>> c = template.Context({'test':True, 'varvalue': 'Hello'})
 >>> t.render(c)
-'\n<html>\n\n    <h1>Hello</h1>\n\n</html>\n'
+u'<html><h1>Hello</h1></html>'
 >>> c = template.Context({'test':False, 'varvalue': 'Hello'})
 >>> t.render(c)
-'\n<html>\n\n</html>\n'
+u'<html></html>'
 """
 import re
 from inspect import getargspec
 from django.conf import settings
 from django.template.context import Context, RequestContext, ContextPopException
-from django.utils.functional import curry
+from django.utils.itercompat import is_iterable
+from django.utils.functional import curry, Promise
 from django.utils.text import smart_split
+from django.utils.encoding import smart_unicode, force_unicode
+from django.utils.translation import ugettext as _
 
 __all__ = ('Template', 'Context', 'RequestContext', 'compile_string')
 
@@ -91,13 +88,15 @@ UNKNOWN_SOURCE="&lt;unknown source&gt;"
 tag_re = re.compile('(%s.*?%s|%s.*?%s|%s.*?%s)' % (re.escape(BLOCK_TAG_START), re.escape(BLOCK_TAG_END),
                                           re.escape(VARIABLE_TAG_START), re.escape(VARIABLE_TAG_END),
                                           re.escape(COMMENT_TAG_START), re.escape(COMMENT_TAG_END)))
-# matches if the string is valid number
-number_re = re.compile(r'[-+]?(\d+|\d*\.\d+)$')
 
 # global dictionary of libraries that have been loaded using get_library
 libraries = {}
 # global list of libraries to load by default for a new parser
 builtins = []
+
+# True if TEMPLATE_STRING_IF_INVALID contains a format string (%s). None means
+# uninitialised.
+invalid_var_format_string = None
 
 class TemplateSyntaxError(Exception):
     def __str__(self):
@@ -118,15 +117,18 @@ class TemplateSyntaxError(Exception):
 class TemplateDoesNotExist(Exception):
     pass
 
+class TemplateEncodingError(Exception):
+    pass
+
 class VariableDoesNotExist(Exception):
 
     def __init__(self, msg, params=()):
         self.msg = msg
         self.params = params
-    
+
     def __str__(self):
         return self.msg % self.params
-    
+
 class InvalidTemplateLibrary(Exception):
     pass
 
@@ -151,6 +153,10 @@ class StringOrigin(Origin):
 class Template(object):
     def __init__(self, template_string, origin=None, name='<Unknown Template>'):
         "Compilation stage"
+        try:
+            template_string = smart_unicode(template_string)
+        except UnicodeDecodeError:
+            raise TemplateEncodingError("Templates can only be constructed from unicode or UTF-8 strings.")
         if settings.TEMPLATE_DEBUG and origin == None:
             origin = StringOrigin(template_string)
             # Could do some crazy stack-frame stuff to record where this string
@@ -193,18 +199,27 @@ class Lexer(object):
 
     def tokenize(self):
         "Return a list of tokens from a given template_string"
-        # remove all empty strings, because the regex has a tendency to add them
-        bits = filter(None, tag_re.split(self.template_string))
-        return map(self.create_token, bits)
+        in_tag = False
+        result = []
+        for bit in tag_re.split(self.template_string):
+            if bit:
+                result.append(self.create_token(bit, in_tag))
+            in_tag = not in_tag
+        return result
 
-    def create_token(self,token_string):
-        "Convert the given token string into a new Token object and return it"
-        if token_string.startswith(VARIABLE_TAG_START):
-            token = Token(TOKEN_VAR, token_string[len(VARIABLE_TAG_START):-len(VARIABLE_TAG_END)].strip())
-        elif token_string.startswith(BLOCK_TAG_START):
-            token = Token(TOKEN_BLOCK, token_string[len(BLOCK_TAG_START):-len(BLOCK_TAG_END)].strip())
-        elif token_string.startswith(COMMENT_TAG_START):
-            token = Token(TOKEN_COMMENT, '')
+    def create_token(self, token_string, in_tag):
+        """
+        Convert the given token string into a new Token object and return it.
+        If in_tag is True, we are processing something that matched a tag,
+        otherwise it should be treated as a literal string.
+        """
+        if in_tag:
+            if token_string.startswith(VARIABLE_TAG_START):
+                token = Token(TOKEN_VAR, token_string[len(VARIABLE_TAG_START):-len(VARIABLE_TAG_END)].strip())
+            elif token_string.startswith(BLOCK_TAG_START):
+                token = Token(TOKEN_BLOCK, token_string[len(BLOCK_TAG_START):-len(BLOCK_TAG_END)].strip())
+            elif token_string.startswith(COMMENT_TAG_START):
+                token = Token(TOKEN_COMMENT, '')
         else:
             token = Token(TOKEN_TEXT, token_string)
         return token
@@ -215,22 +230,22 @@ class DebugLexer(Lexer):
 
     def tokenize(self):
         "Return a list of tokens from a given template_string"
-        token_tups, upto = [], 0
+        result, upto = [], 0
         for match in tag_re.finditer(self.template_string):
             start, end = match.span()
             if start > upto:
-                token_tups.append( (self.template_string[upto:start], (upto, start)) )
+                result.append(self.create_token(self.template_string[upto:start], (upto, start), False))
                 upto = start
-            token_tups.append( (self.template_string[start:end], (start,end)) )
+            result.append(self.create_token(self.template_string[start:end], (start, end), True))
             upto = end
         last_bit = self.template_string[upto:]
         if last_bit:
-            token_tups.append( (last_bit, (upto, upto + len(last_bit))) )
-        return [self.create_token(tok, (self.origin, loc)) for tok, loc in token_tups]
+            result.append(self.create_token(last_bit, (upto, upto + len(last_bit)), False))
+        return result
 
-    def create_token(self, token_string, source):
-        token = super(DebugLexer, self).create_token(token_string)
-        token.source = source
+    def create_token(self, token_string, source, in_tag):
+        token = super(DebugLexer, self).create_token(token_string, in_tag)
+        token.source = self.origin, source
         return token
 
 class Parser(object):
@@ -338,7 +353,7 @@ class Parser(object):
         return FilterExpression(token, self)
 
     def find_filter(self, filter_name):
-        if self.filters.has_key(filter_name):
+        if filter_name in self.filters:
             return self.filters[filter_name]
         else:
             raise TemplateSyntaxError, "Invalid filter: '%s'" % filter_name
@@ -466,7 +481,7 @@ class TokenParser(object):
                     while i < len(subject) and subject[i] != c:
                         i += 1
                     if i >= len(subject):
-                        raise TemplateSyntaxError, "Searching for value. Unexpected end of string in column %d: %s" % subject
+                        raise TemplateSyntaxError, "Searching for value. Unexpected end of string in column %d: %s" % (i, subject)
                 i += 1
             s = subject[p:i]
             while i < len(subject) and subject[i] in (' ', '\t'):
@@ -474,9 +489,6 @@ class TokenParser(object):
             self.backout.append(self.pointer)
             self.pointer = i
             return s
-
-
-
 
 filter_raw_string = r"""
 ^%(i18n_open)s"(?P<i18n_constant>%(str)s)"%(i18n_close)s|
@@ -493,7 +505,7 @@ filter_raw_string = r"""
          )?
  )""" % {
     'str': r"""[^"\\]*(?:\\.[^"\\]*)*""",
-    'var_chars': "A-Za-z0-9\_\." ,
+    'var_chars': "\w\." ,
     'filter_sep': re.escape(FILTER_SEPARATOR),
     'arg_sep': re.escape(FILTER_ARGUMENT_SEPARATOR),
     'i18n_open' : re.escape("_("),
@@ -501,7 +513,7 @@ filter_raw_string = r"""
   }
 
 filter_raw_string = filter_raw_string.replace("\n", "").replace(" ", "")
-filter_re = re.compile(filter_raw_string)
+filter_re = re.compile(filter_raw_string, re.UNICODE)
 
 class FilterExpression(object):
     """
@@ -509,10 +521,11 @@ class FilterExpression(object):
     and return a list of tuples of the filter name and arguments.
     Sample:
         >>> token = 'variable|default:"Default value"|date:"Y-m-d"'
-        >>> p = FilterParser(token)
-        >>> p.filters
-        [('default', 'Default value'), ('date', 'Y-m-d')]
-        >>> p.var
+        >>> p = Parser('')
+        >>> fe = FilterExpression(token, p)
+        >>> len(fe.filters)
+        2
+        >>> fe.var
         'variable'
 
     This class should never be instantiated outside of the
@@ -549,23 +562,29 @@ class FilterExpression(object):
                 elif constant_arg is not None:
                     args.append((False, constant_arg.replace(r'\"', '"')))
                 elif var_arg:
-                    args.append((True, var_arg))
+                    args.append((True, Variable(var_arg)))
                 filter_func = parser.find_filter(filter_name)
                 self.args_check(filter_name,filter_func, args)
                 filters.append( (filter_func,args))
                 upto = match.end()
         if upto != len(token):
-            raise TemplateSyntaxError, "Could not parse the remainder: %s" % token[upto:]
-        self.var, self.filters = var, filters
+            raise TemplateSyntaxError, "Could not parse the remainder: '%s' from '%s'" % (token[upto:], token)
+        self.filters = filters
+        self.var = Variable(var)
 
     def resolve(self, context, ignore_failures=False):
         try:
-            obj = resolve_variable(self.var, context)
+            obj = self.var.resolve(context)
         except VariableDoesNotExist:
             if ignore_failures:
                 obj = None
             else:
                 if settings.TEMPLATE_STRING_IF_INVALID:
+                    global invalid_var_format_string
+                    if invalid_var_format_string is None:
+                        invalid_var_format_string = '%s' in settings.TEMPLATE_STRING_IF_INVALID
+                    if invalid_var_format_string:
+                        return settings.TEMPLATE_STRING_IF_INVALID % self.var
                     return settings.TEMPLATE_STRING_IF_INVALID
                 else:
                     obj = settings.TEMPLATE_STRING_IF_INVALID
@@ -575,7 +594,7 @@ class FilterExpression(object):
                 if not lookup:
                     arg_vals.append(arg)
                 else:
-                    arg_vals.append(resolve_variable(arg, context))
+                    arg_vals.append(arg.resolve(context))
             obj = func(obj, *arg_vals)
         return obj
 
@@ -617,37 +636,98 @@ class FilterExpression(object):
 def resolve_variable(path, context):
     """
     Returns the resolved variable, which may contain attribute syntax, within
-    the given context. The variable may be a hard-coded string (if it begins
-    and ends with single or double quote marks).
+    the given context.
+    
+    Deprecated; use the Variable class instead.
+    """
+    return Variable(path).resolve(context)
 
-    >>> c = {'article': {'section':'News'}}
-    >>> resolve_variable('article.section', c)
-    'News'
-    >>> resolve_variable('article', c)
-    {'section': 'News'}
-    >>> class AClass: pass
-    >>> c = AClass()
-    >>> c.article = AClass()
-    >>> c.article.section = 'News'
-    >>> resolve_variable('article.section', c)
-    'News'
+class Variable(object):
+    """
+    A template variable, resolvable against a given context. The variable may be
+    a hard-coded string (if it begins and ends with single or double quote
+    marks)::
+    
+        >>> c = {'article': {'section':'News'}}
+        >>> Variable('article.section').resolve(c)
+        u'News'
+        >>> Variable('article').resolve(c)
+        {'section': 'News'}
+        >>> class AClass: pass
+        >>> c = AClass()
+        >>> c.article = AClass()
+        >>> c.article.section = 'News'
+        >>> Variable('article.section').resolve(c)
+        u'News'
 
     (The example assumes VARIABLE_ATTRIBUTE_SEPARATOR is '.')
     """
-    if number_re.match(path):
-        number_type = '.' in path and float or int
-        current = number_type(path)
-    elif path[0] in ('"', "'") and path[0] == path[-1]:
-        current = path[1:-1]
-    else:
+    
+    def __init__(self, var):
+        self.var = var
+        self.literal = None
+        self.lookups = None
+        
+        try:
+            # First try to treat this variable as a number.
+            #
+            # Note that this could cause an OverflowError here that we're not 
+            # catching. Since this should only happen at compile time, that's
+            # probably OK.
+            self.literal = float(var)
+        
+            # So it's a float... is it an int? If the original value contained a
+            # dot or an "e" then it was a float, not an int.
+            if '.' not in var and 'e' not in var.lower():
+                self.literal = int(self.literal)
+                
+            # "2." is invalid
+            if var.endswith('.'):
+                raise ValueError
+
+        except ValueError:
+            # A ValueError means that the variable isn't a number.
+            # If it's wrapped with quotes (single or double), then
+            # we're also dealing with a literal.
+            if var[0] in "\"'" and var[0] == var[-1]:
+                self.literal = var[1:-1]
+            
+            else:
+                # Otherwise we'll set self.lookups so that resolve() knows we're
+                # dealing with a bonafide variable
+                self.lookups = tuple(var.split(VARIABLE_ATTRIBUTE_SEPARATOR))
+    
+    def resolve(self, context):
+        """Resolve this variable against a given context."""
+        if self.lookups is not None:
+            # We're dealing with a variable that needs to be resolved
+            return self._resolve_lookup(context)
+        else:
+            # We're dealing with a literal, so it's already been "resolved"
+            return self.literal
+            
+    def __repr__(self):
+        return "<%s: %r>" % (self.__class__.__name__, self.var)
+    
+    def __str__(self):
+        return self.var
+
+    def _resolve_lookup(self, context):
+        """
+        Performs resolution of a real variable (i.e. not a literal) against the
+        given context. 
+        
+        As indicated by the method's name, this method is an implementation
+        detail and shouldn't be called by external code. Use Variable.resolve()
+        instead.
+        """
         current = context
-        bits = path.split(VARIABLE_ATTRIBUTE_SEPARATOR)
-        while bits:
+        for bit in self.lookups:
             try: # dictionary lookup
-                current = current[bits[0]]
+                current = current[bit]
             except (TypeError, AttributeError, KeyError):
                 try: # attribute lookup
-                    current = getattr(current, bits[0])
+                    current = getattr(current, bit)
                     if callable(current):
                         if getattr(current, 'alters_data', False):
                             current = settings.TEMPLATE_STRING_IF_INVALID
@@ -665,20 +745,27 @@ def resolve_variable(path, context):
                                     raise
                 except (TypeError, AttributeError):
                     try: # list-index lookup
-                        current = current[int(bits[0])]
+                        current = current[int(bit)]
                     except (IndexError, # list index out of range
                             ValueError, # invalid literal for int()
-                            KeyError,   # current is a dict without `int(bits[0])` key
+                            KeyError,   # current is a dict without `int(bit)` key
                             TypeError,  # unsubscriptable object
                             ):
-                        raise VariableDoesNotExist("Failed lookup for key [%s] in %r", (bits[0], current)) # missing attribute
+                        raise VariableDoesNotExist("Failed lookup for key [%s] in %r", (bit, current)) # missing attribute
                 except Exception, e:
                     if getattr(e, 'silent_variable_failure', False):
                         current = settings.TEMPLATE_STRING_IF_INVALID
                     else:
                         raise
-            del bits[0]
-    return current
+    
+        if isinstance(current, (basestring, Promise)):
+            try:
+                current = force_unicode(current)
+            except UnicodeDecodeError:
+                # Failing to convert to unicode can happen sometimes (e.g. debug
+                # tracebacks). So we allow it in this particular instance.
+                pass
+        return current
 
 class Node(object):
     def render(self, context):
@@ -705,7 +792,7 @@ class NodeList(list):
                 bits.append(self.render_node(node, context))
             else:
                 bits.append(node)
-        return ''.join(bits)
+        return ''.join([force_unicode(b) for b in bits])
 
     def get_nodes_by_type(self, nodetype):
         "Return a list of all nodes of the given type"
@@ -715,7 +802,7 @@ class NodeList(list):
         return nodes
 
     def render_node(self, node, context):
-        return(node.render(context))
+        return node.render(context)
 
 class DebugNodeList(NodeList):
     def render_node(self, node, context):
@@ -750,32 +837,17 @@ class VariableNode(Node):
     def __repr__(self):
         return "<Variable Node: %s>" % self.filter_expression
 
-    def encode_output(self, output):
-        # Check type so that we don't run str() on a Unicode object
-        if not isinstance(output, basestring):
-            try:
-                return str(output)
-            except UnicodeEncodeError:
-                # If __str__() returns a Unicode object, convert it to bytestring.
-                return unicode(output).encode(settings.DEFAULT_CHARSET)
-        elif isinstance(output, unicode):
-            return output.encode(settings.DEFAULT_CHARSET)
-        else:
-            return output
-
     def render(self, context):
-        output = self.filter_expression.resolve(context)
-        return self.encode_output(output)
+        return self.filter_expression.resolve(context)
 
 class DebugVariableNode(VariableNode):
     def render(self, context):
         try:
-            output = self.filter_expression.resolve(context)
+            return self.filter_expression.resolve(context)
         except TemplateSyntaxError, e:
             if not hasattr(e, 'source'):
                 e.source = self.source
             raise
-        return self.encode_output(output)
 
 def generic_tag_compiler(params, defaults, name, node_class, parser, token):
     "Returns a template.Node subclass."
@@ -849,10 +921,10 @@ class Library(object):
 
         class SimpleNode(Node):
             def __init__(self, vars_to_resolve):
-                self.vars_to_resolve = vars_to_resolve
+                self.vars_to_resolve = map(Variable, vars_to_resolve)
 
             def render(self, context):
-                resolved_vars = [resolve_variable(var, context) for var in self.vars_to_resolve]
+                resolved_vars = [var.resolve(context) for var in self.vars_to_resolve]
                 return func(*resolved_vars)
 
         compile_func = curry(generic_tag_compiler, params, defaults, getattr(func, "_decorated_function", func).__name__, SimpleNode)
@@ -871,10 +943,10 @@ class Library(object):
 
             class InclusionNode(Node):
                 def __init__(self, vars_to_resolve):
-                    self.vars_to_resolve = vars_to_resolve
+                    self.vars_to_resolve = map(Variable, vars_to_resolve)
 
                 def render(self, context):
-                    resolved_vars = [resolve_variable(var, context) for var in self.vars_to_resolve]
+                    resolved_vars = [var.resolve(context) for var in self.vars_to_resolve]
                     if takes_context:
                         args = [context] + resolved_vars
                     else:
@@ -884,7 +956,7 @@ class Library(object):
 
                     if not getattr(self, 'nodelist', False):
                         from django.template.loader import get_template, select_template
-                        if hasattr(file_name, '__iter__'):
+                        if not isinstance(file_name, basestring) and is_iterable(file_name):
                             t = select_template(file_name)
                         else:
                             t = get_template(file_name)
