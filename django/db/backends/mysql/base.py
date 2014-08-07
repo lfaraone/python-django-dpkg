@@ -123,8 +123,11 @@ class DatabaseFeatures(BaseDatabaseFeatures):
     update_can_self_select = False
     allows_group_by_pk = True
     related_fields_match_type = True
+    allow_sliced_subqueries = False
 
 class DatabaseOperations(BaseDatabaseOperations):
+    compiler_module = "django.db.backends.mysql.compiler"
+
     def date_extract_sql(self, lookup_type, field_name):
         # http://dev.mysql.com/doc/mysql/en/date-and-time-functions.html
         if lookup_type == 'week_day':
@@ -223,6 +226,9 @@ class DatabaseOperations(BaseDatabaseOperations):
         first = '%s-01-01 00:00:00'
         second = '%s-12-31 23:59:59.99'
         return [first % value, second % value]
+
+    def max_name_length(self):
+        return 64
 
 class DatabaseWrapper(BaseDatabaseWrapper):
 

@@ -1,11 +1,6 @@
 # coding: utf-8
 from django.db import models
 
-try:
-    sorted
-except NameError:
-    from django.utils.itercompat import sorted      # For Python 2.3
-
 class Author(models.Model):
     name = models.CharField(max_length=100)
     age = models.IntegerField()
@@ -48,10 +43,7 @@ class Store(models.Model):
 # Different backends and numbers.
 __test__ = {'API_TESTS': """
 >>> from django.core import management
->>> try:
-...     from decimal import Decimal
-... except:
-...     from django.utils._decimal import Decimal
+>>> from decimal import Decimal
 >>> from datetime import date
 
 # Reset the database representation of this app.
@@ -191,8 +183,8 @@ u'The Definitive Guide to Django: Web Development Done Right'
 
 # Calling values on a queryset that has annotations returns the output
 # as a dictionary
->>> Book.objects.filter(pk=1).annotate(mean_age=Avg('authors__age')).values()
-[{'rating': 4.5, 'isbn': u'159059725', 'name': u'The Definitive Guide to Django: Web Development Done Right', 'pubdate': datetime.date(2007, 12, 6), 'price': Decimal("30..."), 'contact_id': 1, 'id': 1, 'publisher_id': 1, 'pages': 447, 'mean_age': 34.5}]
+>>> [sorted(o.iteritems()) for o in Book.objects.filter(pk=1).annotate(mean_age=Avg('authors__age')).values()]
+[[('contact_id', 1), ('id', 1), ('isbn', u'159059725'), ('mean_age', 34.5), ('name', u'The Definitive Guide to Django: Web Development Done Right'), ('pages', 447), ('price', Decimal("30...")), ('pubdate', datetime.date(2007, 12, 6)), ('publisher_id', 1), ('rating', 4.5)]]
 
 >>> Book.objects.filter(pk=1).annotate(mean_age=Avg('authors__age')).values('pk', 'isbn', 'mean_age')
 [{'pk': 1, 'isbn': u'159059725', 'mean_age': 34.5}]
@@ -203,8 +195,8 @@ u'The Definitive Guide to Django: Web Development Done Right'
 
 # An empty values() call before annotating has the same effect as an
 # empty values() call after annotating
->>> Book.objects.filter(pk=1).values().annotate(mean_age=Avg('authors__age'))
-[{'rating': 4.5, 'isbn': u'159059725', 'name': u'The Definitive Guide to Django: Web Development Done Right', 'pubdate': datetime.date(2007, 12, 6), 'price': Decimal("30..."), 'contact_id': 1, 'id': 1, 'publisher_id': 1, 'pages': 447, 'mean_age': 34.5}]
+>>> [sorted(o.iteritems()) for o in Book.objects.filter(pk=1).values().annotate(mean_age=Avg('authors__age'))]
+[[('contact_id', 1), ('id', 1), ('isbn', u'159059725'), ('mean_age', 34.5), ('name', u'The Definitive Guide to Django: Web Development Done Right'), ('pages', 447), ('price', Decimal("30...")), ('pubdate', datetime.date(2007, 12, 6)), ('publisher_id', 1), ('rating', 4.5)]]
 
 # Calling annotate() on a ValuesQuerySet annotates over the groups of
 # fields to be selected by the ValuesQuerySet.
@@ -361,5 +353,9 @@ True
 
 >>> Book.objects.filter(pk=1).annotate(mean_age=Avg('authors__age')).values_list('mean_age', flat=True)
 [34.5]
+
+>>> qs = Book.objects.values_list('price').annotate(count=Count('price')).order_by('-count', 'price')
+>>> list(qs) == [(Decimal('29.69'), 2), (Decimal('23.09'), 1), (Decimal('30'), 1), (Decimal('75'), 1), (Decimal('82.8'), 1)]
+True
 
 """}

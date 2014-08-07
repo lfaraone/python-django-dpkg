@@ -88,7 +88,6 @@ def result_headers(cl):
                     "class_attrib": mark_safe(' class="action-checkbox-column"')
                 }
                 continue
-            header = pretty_name(header)
 
             # It is a non-field, but perhaps one that is sortable
             admin_order_field = getattr(attr, "admin_order_field", None)
@@ -179,7 +178,7 @@ def items_for_result(cl, result, form):
                 result_repr = conditional_escape(result_repr)
             yield mark_safe(u'<td%s>%s</td>' % (row_class, result_repr))
     if form:
-        yield mark_safe(force_unicode(form[cl.model._meta.pk.name]))
+        yield mark_safe(u'<td>%s</td>' % force_unicode(form[cl.model._meta.pk.name]))
 
 def results(cl):
     if cl.formset:
