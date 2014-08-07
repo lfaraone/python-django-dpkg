@@ -57,6 +57,8 @@ from django.utils.functional import curry, Promise
 from django.utils.text import smart_split
 from django.utils.encoding import smart_unicode, force_unicode
 from django.utils.translation import ugettext as _
+from django.utils.safestring import SafeData, EscapeData, mark_safe, mark_for_escaping
+from django.utils.html import escape
 
 __all__ = ('Template', 'Context', 'RequestContext', 'compile_string')
 
@@ -152,15 +154,12 @@ class StringOrigin(Origin):
 
 class Template(object):
     def __init__(self, template_string, origin=None, name='<Unknown Template>'):
-        "Compilation stage"
         try:
             template_string = smart_unicode(template_string)
         except UnicodeDecodeError:
             raise TemplateEncodingError("Templates can only be constructed from unicode or UTF-8 strings.")
-        if settings.TEMPLATE_DEBUG and origin == None:
+        if settings.TEMPLATE_DEBUG and origin is None:
             origin = StringOrigin(template_string)
-            # Could do some crazy stack-frame stuff to record where this string
-            # came from...
         self.nodelist = compile_string(template_string, origin)
         self.name = name
 
@@ -175,13 +174,18 @@ class Template(object):
 
 def compile_string(template_string, origin):
     "Compiles template_string into NodeList ready for rendering"
-    lexer = lexer_factory(template_string, origin)
-    parser = parser_factory(lexer.tokenize())
+    if settings.TEMPLATE_DEBUG:
+        from debug import DebugLexer, DebugParser
+        lexer_class, parser_class = DebugLexer, DebugParser
+    else:
+        lexer_class, parser_class = Lexer, Parser
+    lexer = lexer_class(template_string, origin)
+    parser = parser_class(lexer.tokenize())
     return parser.parse()
 
 class Token(object):
     def __init__(self, token_type, contents):
-        "The token_type must be TOKEN_TEXT, TOKEN_VAR, TOKEN_BLOCK or TOKEN_COMMENT"
+        # token_type must be TOKEN_TEXT, TOKEN_VAR, TOKEN_BLOCK or TOKEN_COMMENT.
         self.token_type, self.contents = token_type, contents
 
     def __str__(self):
@@ -198,7 +202,7 @@ class Lexer(object):
         self.origin = origin
 
     def tokenize(self):
-        "Return a list of tokens from a given template_string"
+        "Return a list of tokens from a given template_string."
         in_tag = False
         result = []
         for bit in tag_re.split(self.template_string):
@@ -222,30 +226,6 @@ class Lexer(object):
                 token = Token(TOKEN_COMMENT, '')
         else:
             token = Token(TOKEN_TEXT, token_string)
-        return token
-
-class DebugLexer(Lexer):
-    def __init__(self, template_string, origin):
-        super(DebugLexer, self).__init__(template_string, origin)
-
-    def tokenize(self):
-        "Return a list of tokens from a given template_string"
-        result, upto = [], 0
-        for match in tag_re.finditer(self.template_string):
-            start, end = match.span()
-            if start > upto:
-                result.append(self.create_token(self.template_string[upto:start], (upto, start), False))
-                upto = start
-            result.append(self.create_token(self.template_string[start:end], (start, end), True))
-            upto = end
-        last_bit = self.template_string[upto:]
-        if last_bit:
-            result.append(self.create_token(last_bit, (upto, upto + len(last_bit)), False))
-        return result
-
-    def create_token(self, token_string, source, in_tag):
-        token = super(DebugLexer, self).create_token(token_string, in_tag)
-        token.source = self.origin, source
         return token
 
 class Parser(object):
@@ -317,17 +297,17 @@ class Parser(object):
     def exit_command(self):
         pass
 
-    def error(self, token, msg ):
+    def error(self, token, msg):
         return TemplateSyntaxError(msg)
 
     def empty_variable(self, token):
-        raise self.error( token, "Empty variable tag")
+        raise self.error(token, "Empty variable tag")
 
     def empty_block_tag(self, token):
-        raise self.error( token, "Empty block tag")
+        raise self.error(token, "Empty block tag")
 
     def invalid_block_tag(self, token, command):
-        raise self.error( token, "Invalid block tag: '%s'" % command)
+        raise self.error(token, "Invalid block tag: '%s'" % command)
 
     def unclosed_block_tag(self, parse_until):
         raise self.error(None, "Unclosed tags: %s " %  ', '.join(parse_until))
@@ -356,57 +336,7 @@ class Parser(object):
         if filter_name in self.filters:
             return self.filters[filter_name]
         else:
-            raise TemplateSyntaxError, "Invalid filter: '%s'" % filter_name
-
-class DebugParser(Parser):
-    def __init__(self, lexer):
-        super(DebugParser, self).__init__(lexer)
-        self.command_stack = []
-
-    def enter_command(self, command, token):
-        self.command_stack.append( (command, token.source) )
-
-    def exit_command(self):
-        self.command_stack.pop()
-
-    def error(self, token, msg):
-        return self.source_error(token.source, msg)
-
-    def source_error(self, source,msg):
-        e = TemplateSyntaxError(msg)
-        e.source = source
-        return e
-
-    def create_nodelist(self):
-        return DebugNodeList()
-
-    def create_variable_node(self, contents):
-        return DebugVariableNode(contents)
-
-    def extend_nodelist(self, nodelist, node, token):
-        node.source = token.source
-        super(DebugParser, self).extend_nodelist(nodelist, node, token)
-
-    def unclosed_block_tag(self, parse_until):
-        command, source = self.command_stack.pop()
-        msg = "Unclosed tag '%s'. Looking for one of: %s " % (command, ', '.join(parse_until))
-        raise self.source_error( source, msg)
-
-    def compile_function_error(self, token, e):
-        if not hasattr(e, 'source'):
-            e.source = token.source
-
-def lexer_factory(*args, **kwargs):
-    if settings.TEMPLATE_DEBUG:
-        return DebugLexer(*args, **kwargs)
-    else:
-        return Lexer(*args, **kwargs)
-
-def parser_factory(*args, **kwargs):
-    if settings.TEMPLATE_DEBUG:
-        return DebugParser(*args, **kwargs)
-    else:
-        return Parser(*args, **kwargs)
+            raise TemplateSyntaxError("Invalid filter: '%s'" % filter_name)
 
 class TokenParser(object):
     """
@@ -424,7 +354,7 @@ class TokenParser(object):
 
     def top(self):
         "Overload this method to do the actual parsing and return the result."
-        raise NotImplemented
+        raise NotImplementedError()
 
     def more(self):
         "Returns True if there is more stuff in the tag."
@@ -433,7 +363,7 @@ class TokenParser(object):
     def back(self):
         "Undoes the last microparser. Use this for lookahead and backtracking."
         if not len(self.backout):
-            raise TemplateSyntaxError, "back called without some previous parsing"
+            raise TemplateSyntaxError("back called without some previous parsing")
         self.pointer = self.backout.pop()
 
     def tag(self):
@@ -441,7 +371,7 @@ class TokenParser(object):
         subject = self.subject
         i = self.pointer
         if i >= len(subject):
-            raise TemplateSyntaxError, "expected another tag, found end of string: %s" % subject
+            raise TemplateSyntaxError("expected another tag, found end of string: %s" % subject)
         p = i
         while i < len(subject) and subject[i] not in (' ', '\t'):
             i += 1
@@ -457,14 +387,14 @@ class TokenParser(object):
         subject = self.subject
         i = self.pointer
         if i >= len(subject):
-            raise TemplateSyntaxError, "Searching for value. Expected another value but found end of string: %s" % subject
+            raise TemplateSyntaxError("Searching for value. Expected another value but found end of string: %s" % subject)
         if subject[i] in ('"', "'"):
             p = i
             i += 1
             while i < len(subject) and subject[i] != subject[p]:
                 i += 1
             if i >= len(subject):
-                raise TemplateSyntaxError, "Searching for value. Unexpected end of string in column %d: %s" % (i, subject)
+                raise TemplateSyntaxError("Searching for value. Unexpected end of string in column %d: %s" % (i, subject))
             i += 1
             res = subject[p:i]
             while i < len(subject) and subject[i] in (' ', '\t'):
@@ -481,7 +411,7 @@ class TokenParser(object):
                     while i < len(subject) and subject[i] != c:
                         i += 1
                     if i >= len(subject):
-                        raise TemplateSyntaxError, "Searching for value. Unexpected end of string in column %d: %s" % (i, subject)
+                        raise TemplateSyntaxError("Searching for value. Unexpected end of string in column %d: %s" % (i, subject))
                 i += 1
             s = subject[p:i]
             while i < len(subject) and subject[i] in (' ', '\t'):
@@ -540,19 +470,19 @@ class FilterExpression(object):
         for match in matches:
             start = match.start()
             if upto != start:
-                raise TemplateSyntaxError, "Could not parse some characters: %s|%s|%s"  % \
-                                           (token[:upto], token[upto:start], token[start:])
+                raise TemplateSyntaxError("Could not parse some characters: %s|%s|%s"  % \
+                                           (token[:upto], token[upto:start], token[start:]))
             if var == None:
                 var, constant, i18n_constant = match.group("var", "constant", "i18n_constant")
                 if i18n_constant:
-                    var = '"%s"' %  _(i18n_constant)
+                    var = '"%s"' %  _(i18n_constant.replace(r'\"', '"'))
                 elif constant:
-                    var = '"%s"' % constant
+                    var = '"%s"' % constant.replace(r'\"', '"')
                 upto = match.end()
                 if var == None:
-                    raise TemplateSyntaxError, "Could not find variable at start of %s" % token
+                    raise TemplateSyntaxError("Could not find variable at start of %s" % token)
                 elif var.find(VARIABLE_ATTRIBUTE_SEPARATOR + '_') > -1 or var[0] == '_':
-                    raise TemplateSyntaxError, "Variables and attributes may not begin with underscores: '%s'" % var
+                    raise TemplateSyntaxError("Variables and attributes may not begin with underscores: '%s'" % var)
             else:
                 filter_name = match.group("filter_name")
                 args = []
@@ -568,7 +498,7 @@ class FilterExpression(object):
                 filters.append( (filter_func,args))
                 upto = match.end()
         if upto != len(token):
-            raise TemplateSyntaxError, "Could not parse the remainder: '%s' from '%s'" % (token[upto:], token)
+            raise TemplateSyntaxError("Could not parse the remainder: '%s' from '%s'" % (token[upto:], token))
         self.filters = filters
         self.var = Variable(var)
 
@@ -592,10 +522,19 @@ class FilterExpression(object):
             arg_vals = []
             for lookup, arg in args:
                 if not lookup:
-                    arg_vals.append(arg)
+                    arg_vals.append(mark_safe(arg))
                 else:
                     arg_vals.append(arg.resolve(context))
-            obj = func(obj, *arg_vals)
+            if getattr(func, 'needs_autoescape', False):
+                new_obj = func(obj, autoescape=context.autoescape, *arg_vals)
+            else:
+                new_obj = func(obj, *arg_vals)
+            if getattr(func, 'is_safe', False) and isinstance(obj, SafeData):
+                obj = mark_safe(new_obj)
+            elif isinstance(obj, EscapeData):
+                obj = mark_for_escaping(new_obj)
+            else:
+                obj = new_obj
         return obj
 
     def args_check(name, func, provided):
@@ -616,7 +555,7 @@ class FilterExpression(object):
                 provided.pop(0)
         except IndexError:
             # Not enough
-            raise TemplateSyntaxError, "%s requires %d arguments, %d provided" % (name, len(nondefs), plen)
+            raise TemplateSyntaxError("%s requires %d arguments, %d provided" % (name, len(nondefs), plen))
 
         # Defaults can be overridden.
         defaults = defaults and list(defaults) or []
@@ -625,7 +564,7 @@ class FilterExpression(object):
                 defaults.pop(0)
         except IndexError:
             # Too many.
-            raise TemplateSyntaxError, "%s requires %d arguments, %d provided" % (name, len(nondefs), plen)
+            raise TemplateSyntaxError("%s requires %d arguments, %d provided" % (name, len(nondefs), plen))
 
         return True
     args_check = staticmethod(args_check)
@@ -637,7 +576,7 @@ def resolve_variable(path, context):
     """
     Returns the resolved variable, which may contain attribute syntax, within
     the given context.
-    
+
     Deprecated; use the Variable class instead.
     """
     return Variable(path).resolve(context)
@@ -647,7 +586,7 @@ class Variable(object):
     A template variable, resolvable against a given context. The variable may be
     a hard-coded string (if it begins and ends with single or double quote
     marks)::
-    
+
         >>> c = {'article': {'section':'News'}}
         >>> Variable('article.section').resolve(c)
         u'News'
@@ -662,61 +601,69 @@ class Variable(object):
 
     (The example assumes VARIABLE_ATTRIBUTE_SEPARATOR is '.')
     """
-    
+
     def __init__(self, var):
         self.var = var
         self.literal = None
         self.lookups = None
-        
+        self.translate = False
+
         try:
             # First try to treat this variable as a number.
             #
-            # Note that this could cause an OverflowError here that we're not 
+            # Note that this could cause an OverflowError here that we're not
             # catching. Since this should only happen at compile time, that's
             # probably OK.
             self.literal = float(var)
-        
+
             # So it's a float... is it an int? If the original value contained a
             # dot or an "e" then it was a float, not an int.
             if '.' not in var and 'e' not in var.lower():
                 self.literal = int(self.literal)
-                
+
             # "2." is invalid
             if var.endswith('.'):
                 raise ValueError
 
         except ValueError:
             # A ValueError means that the variable isn't a number.
+            if var.startswith('_(') and var.endswith(')'):
+                # The result of the lookup should be translated at rendering
+                # time.
+                self.translate = True
+                var = var[2:-1]
             # If it's wrapped with quotes (single or double), then
             # we're also dealing with a literal.
             if var[0] in "\"'" and var[0] == var[-1]:
-                self.literal = var[1:-1]
-            
+                self.literal = mark_safe(var[1:-1])
             else:
                 # Otherwise we'll set self.lookups so that resolve() knows we're
                 # dealing with a bonafide variable
                 self.lookups = tuple(var.split(VARIABLE_ATTRIBUTE_SEPARATOR))
-    
+
     def resolve(self, context):
         """Resolve this variable against a given context."""
         if self.lookups is not None:
             # We're dealing with a variable that needs to be resolved
-            return self._resolve_lookup(context)
+            value = self._resolve_lookup(context)
         else:
             # We're dealing with a literal, so it's already been "resolved"
-            return self.literal
-            
+            value = self.literal
+        if self.translate:
+            return _(value)
+        return value
+
     def __repr__(self):
         return "<%s: %r>" % (self.__class__.__name__, self.var)
-    
+
     def __str__(self):
         return self.var
 
     def _resolve_lookup(self, context):
         """
         Performs resolution of a real variable (i.e. not a literal) against the
-        given context. 
-        
+        given context.
+
         As indicated by the method's name, this method is an implementation
         detail and shouldn't be called by external code. Use Variable.resolve()
         instead.
@@ -757,14 +704,7 @@ class Variable(object):
                         current = settings.TEMPLATE_STRING_IF_INVALID
                     else:
                         raise
-    
-        if isinstance(current, (basestring, Promise)):
-            try:
-                current = force_unicode(current)
-            except UnicodeDecodeError:
-                # Failing to convert to unicode can happen sometimes (e.g. debug
-                # tracebacks). So we allow it in this particular instance.
-                pass
+
         return current
 
 class Node(object):
@@ -792,7 +732,7 @@ class NodeList(list):
                 bits.append(self.render_node(node, context))
             else:
                 bits.append(node)
-        return ''.join([force_unicode(b) for b in bits])
+        return mark_safe(''.join([force_unicode(b) for b in bits]))
 
     def get_nodes_by_type(self, nodetype):
         "Return a list of all nodes of the given type"
@@ -803,22 +743,6 @@ class NodeList(list):
 
     def render_node(self, node, context):
         return node.render(context)
-
-class DebugNodeList(NodeList):
-    def render_node(self, node, context):
-        try:
-            result = node.render(context)
-        except TemplateSyntaxError, e:
-            if not hasattr(e, 'source'):
-                e.source = node.source
-            raise
-        except Exception, e:
-            from sys import exc_info
-            wrapped = TemplateSyntaxError('Caught an exception while rendering: %s' % e)
-            wrapped.source = node.source
-            wrapped.exc_info = exc_info()
-            raise wrapped
-        return result
 
 class TextNode(Node):
     def __init__(self, s):
@@ -838,16 +762,16 @@ class VariableNode(Node):
         return "<Variable Node: %s>" % self.filter_expression
 
     def render(self, context):
-        return self.filter_expression.resolve(context)
-
-class DebugVariableNode(VariableNode):
-    def render(self, context):
         try:
-            return self.filter_expression.resolve(context)
-        except TemplateSyntaxError, e:
-            if not hasattr(e, 'source'):
-                e.source = self.source
-            raise
+            output = force_unicode(self.filter_expression.resolve(context))
+        except UnicodeDecodeError:
+            # Unicode conversion can fail sometimes for reasons out of our
+            # control (e.g. exception rendering). In that case, we fail quietly.
+            return ''
+        if (context.autoescape and not isinstance(output, SafeData)) or isinstance(output, EscapeData):
+            return force_unicode(escape(output))
+        else:
+            return force_unicode(output)
 
 def generic_tag_compiler(params, defaults, name, node_class, parser, token):
     "Returns a template.Node subclass."
@@ -860,7 +784,7 @@ def generic_tag_compiler(params, defaults, name, node_class, parser, token):
             message = "%s takes %s arguments" % (name, bmin)
         else:
             message = "%s takes between %s and %s arguments" % (name, bmin, bmax)
-        raise TemplateSyntaxError, message
+        raise TemplateSyntaxError(message)
     return node_class(bits)
 
 class Library(object):
@@ -886,7 +810,7 @@ class Library(object):
             self.tags[name] = compile_function
             return compile_function
         else:
-            raise InvalidTemplateLibrary, "Unsupported arguments to Library.tag: (%r, %r)", (name, compile_function)
+            raise InvalidTemplateLibrary("Unsupported arguments to Library.tag: (%r, %r)", (name, compile_function))
 
     def tag_function(self,func):
         self.tags[getattr(func, "_decorated_function", func).__name__] = func
@@ -910,7 +834,7 @@ class Library(object):
             self.filters[name] = filter_func
             return filter_func
         else:
-            raise InvalidTemplateLibrary, "Unsupported arguments to Library.filter: (%r, %r)", (name, filter_func)
+            raise InvalidTemplateLibrary("Unsupported arguments to Library.filter: (%r, %r)", (name, filter_func))
 
     def filter_function(self, func):
         self.filters[getattr(func, "_decorated_function", func).__name__] = func
@@ -939,7 +863,7 @@ class Library(object):
                 if params[0] == 'context':
                     params = params[1:]
                 else:
-                    raise TemplateSyntaxError, "Any tag function decorated with takes_context=True must have a first argument of 'context'"
+                    raise TemplateSyntaxError("Any tag function decorated with takes_context=True must have a first argument of 'context'")
 
             class InclusionNode(Node):
                 def __init__(self, vars_to_resolve):
@@ -961,7 +885,8 @@ class Library(object):
                         else:
                             t = get_template(file_name)
                         self.nodelist = t.nodelist
-                    return self.nodelist.render(context_class(dict))
+                    return self.nodelist.render(context_class(dict,
+                            autoescape=context.autoescape))
 
             compile_func = curry(generic_tag_compiler, params, defaults, getattr(func, "_decorated_function", func).__name__, InclusionNode)
             compile_func.__doc__ = func.__doc__
@@ -975,12 +900,12 @@ def get_library(module_name):
         try:
             mod = __import__(module_name, {}, {}, [''])
         except ImportError, e:
-            raise InvalidTemplateLibrary, "Could not load template library from %s, %s" % (module_name, e)
+            raise InvalidTemplateLibrary("Could not load template library from %s, %s" % (module_name, e))
         try:
             lib = mod.register
             libraries[module_name] = lib
         except AttributeError:
-            raise InvalidTemplateLibrary, "Template library %s does not have a variable named 'register'" % module_name
+            raise InvalidTemplateLibrary("Template library %s does not have a variable named 'register'" % module_name)
     return lib
 
 def add_to_builtins(module_name):

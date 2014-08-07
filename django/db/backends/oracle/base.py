@@ -47,7 +47,8 @@ class DatabaseOperations(BaseDatabaseOperations):
                 BEGIN
                     SELECT %(sq_name)s.nextval
                     INTO :new.%(col_name)s FROM dual;
-                END;/""" % locals()
+                END;
+                /""" % locals()
         return sequence_sql, trigger_sql
 
     def date_extract_sql(self, lookup_type, field_name):
@@ -412,6 +413,7 @@ class DatabaseWrapper(BaseDatabaseWrapper):
         return self.connection is not None
 
     def _cursor(self, settings):
+        cursor = None
         if not self._valid_connection():
             if len(settings.DATABASE_HOST.strip()) == 0:
                 settings.DATABASE_HOST = 'localhost'
@@ -421,16 +423,25 @@ class DatabaseWrapper(BaseDatabaseWrapper):
             else:
                 conn_string = "%s/%s@%s" % (settings.DATABASE_USER, settings.DATABASE_PASSWORD, settings.DATABASE_NAME)
                 self.connection = Database.connect(conn_string, **self.options)
+            cursor = FormatStylePlaceholderCursor(self.connection)
+            # Set oracle date to ansi date format.  This only needs to execute
+            # once when we create a new connection.
+            cursor.execute("ALTER SESSION SET NLS_DATE_FORMAT = 'YYYY-MM-DD' "
+                           "NLS_TIMESTAMP_FORMAT = 'YYYY-MM-DD HH24:MI:SS.FF'")
             try:
                 self.oracle_version = int(self.connection.version.split('.')[0])
             except ValueError:
                 pass
-        cursor = FormatStylePlaceholderCursor(self.connection)
+            try:
+                self.connection.stmtcachesize = 20
+            except:
+                # Django docs specify cx_Oracle version 4.3.1 or higher, but
+                # stmtcachesize is available only in 4.3.2 and up.
+                pass
+        if not cursor:
+            cursor = FormatStylePlaceholderCursor(self.connection)
         # Default arraysize of 1 is highly sub-optimal.
         cursor.arraysize = 100
-        # Set oracle date to ansi date format.
-        cursor.execute("ALTER SESSION SET NLS_DATE_FORMAT = 'YYYY-MM-DD'")
-        cursor.execute("ALTER SESSION SET NLS_TIMESTAMP_FORMAT = 'YYYY-MM-DD HH24:MI:SS.FF'")
         return cursor
 
 class FormatStylePlaceholderCursor(Database.Cursor):
@@ -454,6 +465,23 @@ class FormatStylePlaceholderCursor(Database.Cursor):
         else:
             return tuple([smart_str(p, self.charset, True) for p in params])
 
+    def _guess_input_sizes(self, params_list):
+        # Mark any string parameter greater than 4000 characters as an NCLOB.
+        if isinstance(params_list[0], dict):
+            sizes = {}
+            iterators = [params.iteritems() for params in params_list]
+        else:
+            sizes = [None] * len(params_list[0])
+            iterators = [enumerate(params) for params in params_list]
+        for iterator in iterators:
+            for key, value in iterator:
+                if isinstance(value, basestring) and len(value) > 4000:
+                    sizes[key] = Database.NCLOB
+        if isinstance(sizes, dict):
+            self.setinputsizes(**sizes)
+        else:
+            self.setinputsizes(*sizes)
+
     def execute(self, query, params=None):
         if params is None:
             params = []
@@ -467,6 +495,7 @@ class FormatStylePlaceholderCursor(Database.Cursor):
         if query.endswith(';') or query.endswith('/'):
             query = query[:-1]
         query = smart_str(query, self.charset) % tuple(args)
+        self._guess_input_sizes([params])
         return Database.Cursor.execute(self, query, params)
 
     def executemany(self, query, params=None):
@@ -483,10 +512,14 @@ class FormatStylePlaceholderCursor(Database.Cursor):
             query = query[:-1]
         query = smart_str(query, self.charset) % tuple(args)
         new_param_list = [self._format_params(i) for i in params]
+        self._guess_input_sizes(new_param_list)
         return Database.Cursor.executemany(self, query, new_param_list)
 
     def fetchone(self):
-        return to_unicode(Database.Cursor.fetchone(self))
+        row = Database.Cursor.fetchone(self)
+        if row is None:
+            return row
+        return tuple([to_unicode(e) for e in row])
 
     def fetchmany(self, size=None):
         if size is None:

@@ -47,7 +47,11 @@ contenttypes
 ============
 
 A light framework for hooking into "types" of content, where each installed
-Django model is a separate content type. This is not yet documented.
+Django model is a separate content type.
+
+See the `contenttypes documentation`_.
+
+.. _contenttypes documentation: ../contenttypes/
 
 csrf
 ====
@@ -57,6 +61,17 @@ A middleware for preventing Cross Site Request Forgeries
 See the `csrf documentation`_.
 
 .. _csrf documentation: ../csrf/
+
+flatpages
+=========
+
+A framework for managing simple "flat" HTML content in a database.
+
+See the `flatpages documentation`_.
+
+.. _flatpages documentation: ../flatpages/
+
+Requires the sites_ contrib package to be installed as well.
 
 formtools
 =========
@@ -162,23 +177,16 @@ Examples (when 'today' is 17 Feb 2007):
 
 .. _DATE_FORMAT: ../settings/#date_format
 
-flatpages
-=========
-
-A framework for managing simple "flat" HTML content in a database.
-
-See the `flatpages documentation`_.
-
-.. _flatpages documentation: ../flatpages/
-
-Requires the sites_ contrib package to be installed as well.
-
 localflavor
 ===========
 
 A collection of various Django snippets that are useful only for a particular
-country or culture. For example, ``django.contrib.localflavor.usa.forms``
+country or culture. For example, ``django.contrib.localflavor.us.forms``
 contains a ``USZipCodeField`` that you can use to validate U.S. zip codes.
+
+See the `localflavor documentation`_.
+
+.. _localflavor documentation: ../localflavor/
 
 markup
 ======
@@ -211,6 +219,15 @@ See the `redirects documentation`_.
 
 .. _redirects documentation: ../redirects/
 
+sessions
+========
+
+A framework for storing data in anonymous sessions.
+
+See the `sessions documentation`_.
+
+.. _sessions documentation: ../sessions/
+
 sites
 =====
 
@@ -239,6 +256,16 @@ A framework for generating syndication feeds, in RSS and Atom, quite easily.
 See the `syndication documentation`_.
 
 .. _syndication documentation: ../syndication_feeds/
+
+webdesign
+=========
+
+Helpers and utilties targeted primarily at Web *designers* rather than
+Web *developers*.
+
+See the `Web design helpers documentation`_.
+
+.. _Web design helpers documentation: ../webdesign/
 
 Other add-ons
 =============

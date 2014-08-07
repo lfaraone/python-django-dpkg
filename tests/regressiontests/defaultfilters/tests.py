@@ -37,6 +37,8 @@ u''
 u'13.1031'
 >>> floatformat(u'foo', u'bar')
 u''
+>>> floatformat(None)
+u''
 
 >>> addslashes(u'"double quotes" and \'single quotes\'')
 u'\\"double quotes\\" and \\\'single quotes\\\''
@@ -46,6 +48,18 @@ u'\\\\ : backslashes, too'
 
 >>> capfirst(u'hello world')
 u'Hello world'
+
+>>> escapejs(u'"double quotes" and \'single quotes\'')
+u'\\"double quotes\\" and \\\'single quotes\\\''
+
+>>> escapejs(ur'\ : backslashes, too')
+u'\\\\ : backslashes, too'
+
+>>> escapejs(u'and lots of whitespace: \r\n\t\v\f\b')
+u'and lots of whitespace: \\r\\n\\t\\v\\f\\b'
+
+>>> escapejs(ur'<script>and this</script>')
+u'<script>and this<\\/script>'
 
 >>> fix_ampersands(u'Jack & Jill & Jeroboam')
 u'Jack &amp; Jill &amp; Jeroboam'
@@ -194,10 +208,10 @@ u'a stri to be maled'
 >>> cut(u'a string to be mangled', 'strings')
 u'a string to be mangled'
 
->>> escape(u'<some html & special characters > here')
+>>> force_escape(u'<some html & special characters > here')
 u'&lt;some html &amp; special characters &gt; here'
 
->>> escape(u'<some html & special characters > here ĐÅ€£')
+>>> force_escape(u'<some html & special characters > here ĐÅ€£')
 u'&lt;some html &amp; special characters &gt; here \xc4\x90\xc3\x85\xe2\x82\xac\xc2\xa3'
 
 >>> linebreaks(u'line 1')

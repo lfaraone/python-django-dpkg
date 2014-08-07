@@ -73,13 +73,15 @@ installed.
 
 If you plan to use Django's ``manage.py syncdb`` command to
 automatically create database tables for your models, you'll need to
-ensure that Django has permission to create tables in the database
-you're using; if you plan to manually create the tables, you can
-simply grant Django ``SELECT``, ``INSERT``, ``UPDATE`` and ``DELETE``
-permissions. Django does not issue ``ALTER TABLE`` statements, and so
-will not require permission to do so. If you will be using Django's
-`testing framework`_ with data fixtures, Django will need permission
-to create a temporary test database.
+ensure that Django has permission to create and alter tables in the
+database you're using; if you plan to manually create the tables, you
+can simply grant Django ``SELECT``, ``INSERT``, ``UPDATE`` and
+``DELETE`` permissions. On some databases, Django will need
+``ALTER TABLE`` privileges during ``syncdb`` but won't issue
+``ALTER TABLE`` statements on a table once ``syncdb`` has created it.
+
+If you're using Django's `testing framework`_ to test database queries,
+Django will need permission to create a test database.
 
 .. _PostgreSQL: http://www.postgresql.org/
 .. _MySQL: http://www.mysql.com/
@@ -187,10 +189,10 @@ latest bug fixes and improvements, follow these instructions:
    "Where are my ``site-packages`` stored?" section above.)
 
    Alternatively, you can define your ``PYTHONPATH`` environment variable
-   so that it includes the ``django`` subdirectory of ``django-trunk``.
-   This is perhaps the most convenient solution on Windows systems, which
-   don't support symbolic links. (Environment variables can be defined on
-   Windows systems `from the Control Panel`_.)
+   so that it includes the ``django-trunk`` directory. This is perhaps the
+   most convenient solution on Windows systems, which don't support symbolic
+   links. (Environment variables can be defined on Windows systems `from the
+   Control Panel`_.)
 
    .. admonition:: What about Apache and mod_python?
 
@@ -204,11 +206,18 @@ latest bug fixes and improvements, follow these instructions:
 
       .. _How to use Django with mod_python: ../modpython/
 
-4. Copy the file ``django-trunk/django/bin/django-admin.py`` to somewhere on
-   your system path, such as ``/usr/local/bin`` (Unix) or ``C:\Python24\Scripts``
-   (Windows). This step simply lets you type ``django-admin.py`` from within
-   any directory, rather than having to qualify the command with the full path
-   to the file.
+4. On Unix-like systems, create a symbolic link to the file
+   ``django-trunk/django/bin/django-admin.py`` in a directory on your system
+   path, such as ``/usr/local/bin``. For example::
+
+       ln -s `pwd`/django-trunk/django/bin/django-admin.py /usr/local/bin
+
+   This simply lets you type ``django-admin.py`` from within any directory,
+   rather than having to qualify the command with the full path to the file.
+
+   On Windows systems, the same result can be achieved by copying the file
+   ``django-trunk/django/bin/django-admin.py`` to somewhere on your system
+   path, for example ``C:\Python24\Scripts``.
 
 You *don't* have to run ``python setup.py install``, because you've already
 carried out the equivalent actions in steps 3 and 4.
