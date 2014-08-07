@@ -1,5 +1,4 @@
-from __future__ import absolute_import, unicode_literals
-
+from __future__ import unicode_literals
 
 from django.template import Template, Context
 from django.test import TestCase
@@ -7,7 +6,6 @@ from django.utils.encoding import force_text, force_bytes
 from django.utils.functional import lazy
 from django.utils.safestring import mark_safe, mark_for_escaping, SafeData, EscapeData
 from django.utils import six
-from django.utils import translation
 
 lazystr = lazy(force_text, six.text_type)
 lazybytes = lazy(force_bytes, bytes)
@@ -45,3 +43,7 @@ class SafeStringTest(TestCase):
         self.assertIsInstance(mark_for_escaping(s), EscapeData)
         self.assertIsInstance(mark_for_escaping(b), EscapeData)
         self.assertRenderEqual('{% autoescape off %}{{ s }}{% endautoescape %}', 'a&amp;b', s=mark_for_escaping(s))
+
+    def test_html(self):
+        s = '<h1>interop</h1>'
+        self.assertEqual(s, mark_safe(s).__html__())

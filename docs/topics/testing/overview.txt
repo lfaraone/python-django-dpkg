@@ -22,27 +22,15 @@ module defines tests using a class-based approach.
 
 .. admonition:: unittest2
 
+    .. deprecated:: 1.7
+
     Python 2.7 introduced some major changes to the ``unittest`` library,
-    adding some extremely useful features. To ensure that every Django
-    project can benefit from these new features, Django ships with a
-    copy of unittest2_, a copy of Python 2.7's ``unittest``, backported for
-    Python 2.6 compatibility.
+    adding some extremely useful features. To ensure that every Django project
+    could benefit from these new features, Django used to ship with a copy of
+    Python 2.7's ``unittest`` backported for Python 2.6 compatibility.
 
-    To access this library, Django provides the
-    ``django.utils.unittest`` module alias. If you are using Python
-    2.7, or you have installed ``unittest2`` locally, Django will map the alias
-    to it. Otherwise, Django will use its own bundled version of ``unittest2``.
-
-    To use this alias, simply use::
-
-        from django.utils import unittest
-
-    wherever you would have historically used::
-
-        import unittest
-
-    If you want to continue to use the legacy ``unittest`` library, you can --
-    you just won't get any of the nice new ``unittest2`` features.
+    Since Django no longer supports Python versions older than 2.7,
+    ``django.utils.unittest`` is deprecated. Simply use ``unittest``.
 
 .. _unittest2: https://pypi.python.org/pypi/unittest2
 
@@ -182,8 +170,13 @@ defined in :setting:`DATABASES`. When using the SQLite database engine
 the tests will by default use an in-memory database (i.e., the
 database will be created in memory, bypassing the filesystem
 entirely!). If you want to use a different database name, specify
-:setting:`TEST_NAME` in the dictionary for any given database in
-:setting:`DATABASES`.
+:setting:`NAME <TEST_NAME>` in the :setting:`TEST <DATABASE-TEST>`
+dictionary for any given database in :setting:`DATABASES`.
+
+.. versionchanged:: 1.7
+
+    On PostgreSQL, :setting:`USER` will also need read access to the built-in
+    ``postgres`` database.
 
 Aside from using a separate database, the test runner will otherwise
 use all of the same database settings you have in your settings file:
@@ -193,11 +186,17 @@ need to make sure that the given user account has sufficient privileges to
 create a new database on the system.
 
 For fine-grained control over the character encoding of your test
-database, use the :setting:`TEST_CHARSET` option. If you're using
-MySQL, you can also use the :setting:`TEST_COLLATION` option to
+database, use the :setting:`CHARSET <TEST_CHARSET>` TEST option. If you're using
+MySQL, you can also use the :setting:`COLLATION <TEST_COLLATION>` option to
 control the particular collation used by the test database. See the
 :doc:`settings documentation </ref/settings>` for details of these
-advanced settings.
+and other advanced settings.
+
+.. versionchanged:: 1.7
+
+   The different options in the :setting:`TEST <DATABASE-TEST>` database
+   setting used to be separate options in the database settings dictionary,
+   prefixed with ``TEST_``.
 
 .. admonition:: Finding data from your production database when running tests?
 
@@ -207,6 +206,11 @@ advanced settings.
     module-level code and a real database exists, production data could pollute
     your tests. *It is a bad idea to have such import-time database queries in
     your code* anyway - rewrite your code so that it doesn't do this.
+
+    .. versionadded:: 1.7
+
+        This also applies to customized implementations of
+        :meth:`~django.apps.AppConfig.ready()`.
 
 .. seealso::
 
@@ -222,19 +226,13 @@ the Django test runner reorders tests in the following way:
 
 * All :class:`~django.test.TestCase` subclasses are run first.
 
-* Then, all other unittests (including :class:`unittest.TestCase`,
-  :class:`~django.test.SimpleTestCase` and
+* Then, all other Django-based tests (test cases based on
+  :class:`~django.test.SimpleTestCase`, including
   :class:`~django.test.TransactionTestCase`) are run with no particular
   ordering guaranteed nor enforced among them.
 
-* Then any other tests (e.g. doctests) that may alter the database without
-  restoring it to its original state are run.
-
-.. versionchanged:: 1.5
-
-    Before Django 1.5, the only guarantee was that
-    :class:`~django.test.TestCase` tests were always ran first, before any other
-    tests.
+* Then any other :class:`unittest.TestCase` tests (including doctests) that may
+  alter the database without restoring it to its original state are run.
 
 .. note::
 
@@ -242,6 +240,33 @@ the Django test runner reorders tests in the following way:
     ordering. This is the case with doctests that relied on state left in the
     database by a given :class:`~django.test.TransactionTestCase` test, they
     must be updated to be able to run independently.
+
+.. _test-case-serialized-rollback:
+
+Rollback emulation
+------------------
+
+Any initial data loaded in migrations will only be available in ``TestCase``
+tests and not in ``TransactionTestCase`` tests, and additionally only on
+backends where transactions are supported (the most important exception being
+MyISAM).
+
+Django can reload that data for you on a per-testcase basis by
+setting the ``serialized_rollback`` option to ``True`` in the body of the
+``TestCase`` or ``TransactionTestCase``, but note that this will slow down
+that test suite by approximately 3x.
+
+Third-party apps or those developing against MyISAM will need to set this;
+in general, however, you should be developing your own projects against a
+transactional database and be using ``TestCase`` for most tests, and thus
+not need this setting.
+
+The initial serialization is usually very quick, but if you wish to exclude
+some apps from this process (and speed up test runs slightly), you may add
+those apps to :setting:`TEST_NON_SERIALIZED_APPS`.
+
+Apps without migrations are not affected; ``initial_data`` fixtures are
+reloaded as usual.
 
 Other test conditions
 ---------------------

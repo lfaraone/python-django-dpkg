@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Unittests for fixtures.
-from __future__ import absolute_import, unicode_literals
+from __future__ import unicode_literals
 
 import json
 import os
@@ -15,7 +15,7 @@ from django.db import transaction, IntegrityError
 from django.db.models import signals
 from django.test import (TestCase, TransactionTestCase, skipIfDBFeature,
     skipUnlessDBFeature)
-from django.test.utils import override_settings
+from django.test import override_settings
 from django.utils.encoding import force_text
 from django.utils._os import upath
 from django.utils import six
@@ -64,7 +64,7 @@ class TestFixtures(TestCase):
     def test_loaddata_not_found_fields_not_ignore(self):
         """
         Test for ticket #9279 -- Error is raised for entries in
-        the serialised data for fields that have been removed
+        the serialized data for fields that have been removed
         from the database when not ignored.
         """
         with self.assertRaises(DeserializationError):
@@ -77,7 +77,7 @@ class TestFixtures(TestCase):
     def test_loaddata_not_found_fields_ignore(self):
         """
         Test for ticket #9279 -- Ignores entries in
-        the serialised data for fields that have been removed
+        the serialized data for fields that have been removed
         from the database.
         """
         management.call_command(
@@ -90,7 +90,7 @@ class TestFixtures(TestCase):
 
     def test_loaddata_not_found_fields_ignore_xml(self):
         """
-        Test for ticket #19998 -- Ignore entries in the XML serialised data
+        Test for ticket #19998 -- Ignore entries in the XML serialized data
         for fields that have been removed from the model definition.
         """
         management.call_command(
@@ -209,55 +209,68 @@ class TestFixtures(TestCase):
         """
         Test for ticket #4371 -- Loading a fixture file with invalid data
         using explicit filename.
-        Validate that error conditions are caught correctly
+        Test for ticket #18213 -- warning conditions are caught correctly
         """
-        with six.assertRaisesRegex(self, management.CommandError,
-                "No fixture data found for 'bad_fixture2'. \(File format may be invalid.\)"):
+        with warnings.catch_warnings(record=True) as warning_list:
+            warnings.simplefilter("always")
             management.call_command(
                 'loaddata',
                 'bad_fixture2.xml',
                 verbosity=0,
             )
+            warning = warning_list.pop()
+            self.assertEqual(warning.category, RuntimeWarning)
+            self.assertEqual(str(warning.message), "No fixture data found for 'bad_fixture2'. (File format may be invalid.)")
 
     def test_invalid_data_no_ext(self):
         """
         Test for ticket #4371 -- Loading a fixture file with invalid data
         without file extension.
-        Validate that error conditions are caught correctly
+        Test for ticket #18213 -- warning conditions are caught correctly
         """
-        with six.assertRaisesRegex(self, management.CommandError,
-                "No fixture data found for 'bad_fixture2'. \(File format may be invalid.\)"):
+        with warnings.catch_warnings(record=True) as warning_list:
+            warnings.simplefilter("always")
             management.call_command(
                 'loaddata',
                 'bad_fixture2',
                 verbosity=0,
             )
+            warning = warning_list.pop()
+            self.assertEqual(warning.category, RuntimeWarning)
+            self.assertEqual(str(warning.message), "No fixture data found for 'bad_fixture2'. (File format may be invalid.)")
 
     def test_empty(self):
         """
-        Test for ticket #4371 -- Loading a fixture file with no data returns an error.
-        Validate that error conditions are caught correctly
+        Test for ticket #18213 -- Loading a fixture file with no data output a warning.
+        Previously empty fixture raises an error exception, see ticket #4371.
         """
-        with six.assertRaisesRegex(self, management.CommandError,
-                "No fixture data found for 'empty'. \(File format may be invalid.\)"):
+        with warnings.catch_warnings(record=True) as warning_list:
+            warnings.simplefilter("always")
             management.call_command(
                 'loaddata',
                 'empty',
                 verbosity=0,
             )
+            warning = warning_list.pop()
+            self.assertEqual(warning.category, RuntimeWarning)
+            self.assertEqual(str(warning.message), "No fixture data found for 'empty'. (File format may be invalid.)")
 
     def test_error_message(self):
         """
-        (Regression for #9011 - error message is correct)
+        Regression for #9011 - error message is correct.
+        Change from error to warning for ticket #18213.
         """
-        with six.assertRaisesRegex(self, management.CommandError,
-                "^No fixture data found for 'bad_fixture2'. \(File format may be invalid.\)$"):
+        with warnings.catch_warnings(record=True) as warning_list:
+            warnings.simplefilter("always")
             management.call_command(
                 'loaddata',
                 'bad_fixture2',
                 'animal',
                 verbosity=0,
             )
+            warning = warning_list.pop()
+            self.assertEqual(warning.category, RuntimeWarning)
+            self.assertEqual(str(warning.message), "No fixture data found for 'bad_fixture2'. (File format may be invalid.)")
 
     def test_pg_sequence_resetting_checks(self):
         """
@@ -372,7 +385,6 @@ class TestFixtures(TestCase):
         self.maxDiff = 1024
         self.assertEqual(data, animals_data)
 
-
     def test_proxy_model_included(self):
         """
         Regression for #11428 - Proxy models aren't included when you dumpdata
@@ -391,8 +403,9 @@ class TestFixtures(TestCase):
             stdout.getvalue(),
             """[{"pk": %d, "model": "fixtures_regress.widget", "fields": {"name": "grommet"}}]"""
             % widget.pk
-            )
+        )
 
+    @skipUnlessDBFeature('supports_forward_references')
     def test_loaddata_works_when_fixture_has_forward_refs(self):
         """
         Regression for #3615 - Forward references cause fixtures not to load in MySQL (InnoDB)
@@ -417,6 +430,7 @@ class TestFixtures(TestCase):
                 verbosity=0,
             )
 
+    @skipUnlessDBFeature('supports_forward_references')
     @override_settings(FIXTURE_DIRS=[os.path.join(_cur_dir, 'fixtures_1'),
                                      os.path.join(_cur_dir, 'fixtures_2')])
     def test_loaddata_forward_refs_split_fixtures(self):
@@ -465,6 +479,18 @@ class TestFixtures(TestCase):
         management.call_command(
             'loaddata',
             'special-article.json',
+            verbosity=0,
+        )
+
+    def test_ticket_22421(self):
+        """
+        Regression for ticket #22421 -- loaddata on a model that inherits from
+        a grand-parent model with a M2M but via an abstract parent shouldn't
+        blow up.
+        """
+        management.call_command(
+            'loaddata',
+            'feature.json',
             verbosity=0,
         )
 
@@ -534,7 +560,7 @@ class NaturalKeyFixtureTests(TestCase):
             'loaddata',
             'forward_ref_lookup.json',
             verbosity=0,
-            )
+        )
 
         stdout = StringIO()
         management.call_command(
@@ -544,12 +570,13 @@ class NaturalKeyFixtureTests(TestCase):
             'fixtures_regress.store',
             verbosity=0,
             format='json',
-            use_natural_keys=True,
+            use_natural_foreign_keys=True,
+            use_natural_primary_keys=True,
             stdout=stdout,
         )
         self.assertJSONEqual(
             stdout.getvalue(),
-            """[{"pk": 2, "model": "fixtures_regress.store", "fields": {"main": null, "name": "Amazon"}}, {"pk": 3, "model": "fixtures_regress.store", "fields": {"main": null, "name": "Borders"}}, {"pk": 4, "model": "fixtures_regress.person", "fields": {"name": "Neal Stephenson"}}, {"pk": 1, "model": "fixtures_regress.book", "fields": {"stores": [["Amazon"], ["Borders"]], "name": "Cryptonomicon", "author": ["Neal Stephenson"]}}]"""
+            """[{"fields": {"main": null, "name": "Amazon"}, "model": "fixtures_regress.store"}, {"fields": {"main": null, "name": "Borders"}, "model": "fixtures_regress.store"}, {"fields": {"name": "Neal Stephenson"}, "model": "fixtures_regress.person"}, {"pk": 1, "model": "fixtures_regress.book", "fields": {"stores": [["Amazon"], ["Borders"]], "name": "Cryptonomicon", "author": ["Neal Stephenson"]}}]"""
         )
 
     def test_dependency_sorting(self):

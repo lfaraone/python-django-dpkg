@@ -27,7 +27,7 @@ Welcome to Django 1.6!
 These release notes cover the `new features`_, as well as some `backwards
 incompatible changes`_ you'll want to be aware of when upgrading from Django
 1.5 or older versions. We've also dropped some features, which are detailed in
-:doc:`our deprecation plan </internals/deprecation>`, and we've `begun the
+:ref:`our deprecation plan <deprecation-removed-in-1.6>`, and we've `begun the
 deprecation process for some features`_.
 
 .. _`new features`: `What's new in Django 1.6`_
@@ -168,7 +168,7 @@ Minor features
   :setting:`CSRF_COOKIE_HTTPONLY`.
 
 * The :meth:`~django.test.TransactionTestCase.assertQuerysetEqual` now checks
-  for undefined order and raises :exc:`~exceptions.ValueError` if undefined
+  for undefined order and raises :exc:`ValueError` if undefined
   order is spotted. The order is seen as undefined if the given ``QuerySet``
   isn't ordered and there are more than one ordered values to compare against.
 
@@ -304,11 +304,9 @@ Minor features
   :class:`~django.views.generic.base.RedirectView` now support HTTP ``PATCH``
   method.
 
-* :class:`GenericForeignKey <django.contrib.contenttypes.generic.GenericForeignKey>`
-  now takes an optional
-  :attr:`~django.contrib.contenttypes.generic.GenericForeignKey.for_concrete_model`
-  argument, which when set to ``False`` allows the field to reference proxy
-  models. The default is ``True`` to retain the old behavior.
+* ``GenericForeignKey`` now takes an optional ``for_concrete_model`` argument,
+  which when set to ``False`` allows the field to reference proxy models. The
+  default is ``True`` to retain the old behavior.
 
 * The :class:`~django.middleware.locale.LocaleMiddleware` now stores the active
   language in session if it is not present there. This prevents loss of
@@ -382,7 +380,7 @@ Backwards incompatible changes in 1.6
 .. warning::
 
     In addition to the changes outlined in this section, be sure to review the
-    :doc:`deprecation plan </internals/deprecation>` for any features that
+    :ref:`deprecation plan <deprecation-removed-in-1.6>` for any features that
     have been removed. If you haven't updated your code within the
     deprecation timeline for a given feature, its removal may appear as a
     backwards incompatible change.
@@ -446,7 +444,7 @@ but will not be removed from Django until version 1.8.
 
 .. _recommendations in the Python documentation: http://docs.python.org/2/library/doctest.html#unittest-api
 
-Removal of ``django.contrib.gis.tests.GeoDjangoTestSuiteRunner`` Geodjango custom test runner
+Removal of ``django.contrib.gis.tests.GeoDjangoTestSuiteRunner`` GeoDjango custom test runner
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 This is for developers working on the GeoDjango application itself and related
@@ -919,7 +917,7 @@ Miscellaneous
   :ttag:`{% url %}<url>` tag, it causes template rendering to fail like always
   when ``NoReverseMatch`` is raised.
 
-* :meth:`django.test.client.Client.logout` now calls
+* :meth:`django.test.Client.logout` now calls
   :meth:`django.contrib.auth.logout` which will send the
   :func:`~django.contrib.auth.signals.user_logged_out` signal.
 
@@ -968,6 +966,8 @@ Miscellaneous
   Any unnamed captured group will now be passed to ``get_redirect_url()``
   which may result in a ``TypeError`` if you don't update the signature of your
   custom method.
+
+.. _deprecated-features-1.6:
 
 Features deprecated in 1.6
 ==========================

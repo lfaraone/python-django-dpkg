@@ -3,5 +3,6 @@ docutils
 numpy
 Pillow
 PyYAML
-pytz
+pytz > dev
 selenium
+sqlparse

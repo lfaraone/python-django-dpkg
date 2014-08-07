@@ -3,11 +3,11 @@
 # Translators:
 msgid ""
 msgstr ""
-"Project-Id-Version: django-core\n"
+"Project-Id-Version: Django\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2013-05-02 16:18+0200\n"
-"PO-Revision-Date: 2013-04-24 18:57+0000\n"
-"Last-Translator: claudep <claude@2xlibre.net>\n"
+"POT-Creation-Date: 2012-10-15 10:56+0200\n"
+"PO-Revision-Date: 2012-08-01 11:31+0000\n"
+"Last-Translator: Павал Клёк <yehekim@gmail.com>\n"
 "Language-Team: Belarusian (http://www.transifex.com/projects/p/django/"
 "language/be/)\n"
 "MIME-Version: 1.0\n"
@@ -32,47 +32,47 @@ msgstr ""
 "Галоўнае поле ҐІС — адлюстроўвае ґеамэтрычныя віды паводле спэцыфікацыі "
 "«OpenGIS»."
 
-#: db/models/fields.py:270
+#: db/models/fields.py:271
 msgid "Point"
 msgstr "Пункт"
 
-#: db/models/fields.py:274
+#: db/models/fields.py:275
 msgid "Line string"
 msgstr "Ломаная"
 
-#: db/models/fields.py:278
+#: db/models/fields.py:279
 msgid "Polygon"
 msgstr "Шматкутнік"
 
-#: db/models/fields.py:282
+#: db/models/fields.py:283
 msgid "Multi-point"
 msgstr "Набор пунктаў"
 
-#: db/models/fields.py:286
+#: db/models/fields.py:287
 msgid "Multi-line string"
 msgstr "Набор ломаных"
 
-#: db/models/fields.py:290
+#: db/models/fields.py:291
 msgid "Multi polygon"
 msgstr "Набор шматкутнікаў"
 
-#: db/models/fields.py:294
+#: db/models/fields.py:295
 msgid "Geometry collection"
 msgstr "Набор ґеамэтрычных аб’ектаў"
 
-#: forms/fields.py:23
+#: forms/fields.py:19
 msgid "No geometry value provided."
 msgstr "Не пазначылі значэньне ґеамэтрыі."
 
-#: forms/fields.py:24
+#: forms/fields.py:20
 msgid "Invalid geometry value."
 msgstr "Хібнае значэньне ґеамэтрыі."
 
-#: forms/fields.py:25
+#: forms/fields.py:21
 msgid "Invalid geometry type."
 msgstr "Хібны від ґеамэтрыі."
 
-#: forms/fields.py:26
+#: forms/fields.py:22
 msgid ""
 "An error occurred when transforming the geometry to the SRID of the geometry "
 "form field."

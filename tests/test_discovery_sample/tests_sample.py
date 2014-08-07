@@ -1,16 +1,12 @@
-from unittest import TestCase as UnitTestCase
+import doctest
+from unittest import TestCase
 
-from django.test import TestCase as DjangoTestCase
-from django.utils.unittest import TestCase as UT2TestCase
+from django.test import SimpleTestCase, TestCase as DjangoTestCase
 
-
-class TestVanillaUnittest(UnitTestCase):
-
-    def test_sample(self):
-        self.assertEqual(1, 1)
+from . import doctests
 
 
-class TestUnittest2(UT2TestCase):
+class TestVanillaUnittest(TestCase):
 
     def test_sample(self):
         self.assertEqual(1, 1)
@@ -20,3 +16,19 @@ class TestDjangoTestCase(DjangoTestCase):
 
     def test_sample(self):
         self.assertEqual(1, 1)
+
+
+class TestZimpleTestCase(SimpleTestCase):
+    # Z is used to trick this test case to appear after Vanilla in default suite
+
+    def test_sample(self):
+        self.assertEqual(1, 1)
+
+
+class EmptyTestCase(TestCase):
+    pass
+
+
+def load_tests(loader, tests, ignore):
+    tests.addTests(doctest.DocTestSuite(doctests))
+    return tests

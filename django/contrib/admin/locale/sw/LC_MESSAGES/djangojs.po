@@ -1,13 +1,12 @@
 # This file is distributed under the same license as the Django package.
 #
 # Translators:
-# machaku <bmachaku@gmail.com>, 2013
 msgid ""
 msgstr ""
-"Project-Id-Version: django-core\n"
+"Project-Id-Version: Django\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2013-05-02 16:18+0200\n"
-"PO-Revision-Date: 2013-11-12 06:43+0000\n"
+"POT-Creation-Date: 2012-03-23 02:35+0100\n"
+"PO-Revision-Date: 2012-07-06 17:25+0000\n"
 "Last-Translator: machaku <bmachaku@gmail.com>\n"
 "Language-Team: Swahili (http://www.transifex.com/projects/p/django/language/"
 "sw/)\n"
@@ -20,7 +19,7 @@ msgstr ""
 #: static/admin/js/SelectFilter2.js:45
 #, c-format
 msgid "Available %s"
-msgstr "Yaliyomo: %s"
+msgstr "vilivyomo: %s"
 
 #: static/admin/js/SelectFilter2.js:46
 #, c-format
@@ -28,9 +27,6 @@ msgid ""
 "This is the list of available %s. You may choose some by selecting them in "
 "the box below and then clicking the \"Choose\" arrow between the two boxes."
 msgstr ""
-"Hii ni orodha ya %s uliyochagua. Unaweza kuchagua baadhi vitu kwa kuvichagua "
-"katika kisanduku hapo chini kisha kubofya mshale wa \"Chagua\" kati ya "
-"visanduku viwili."
 
 #: static/admin/js/SelectFilter2.js:53
 #, c-format
@@ -43,12 +39,12 @@ msgstr "Chuja"
 
 #: static/admin/js/SelectFilter2.js:61
 msgid "Choose all"
-msgstr "Chagua vyote"
+msgstr "Chagua kila kitu"
 
 #: static/admin/js/SelectFilter2.js:61
 #, c-format
 msgid "Click to choose all %s at once."
-msgstr "Bofya kuchagua %s kwa pamoja."
+msgstr "Bofya kuchagua kila %s kwa pamoja."
 
 #: static/admin/js/SelectFilter2.js:67
 msgid "Choose"
@@ -75,7 +71,7 @@ msgstr ""
 
 #: static/admin/js/SelectFilter2.js:80
 msgid "Remove all"
-msgstr "Ondoa vyote"
+msgstr "Ondoa yote"
 
 #: static/admin/js/SelectFilter2.js:80
 #, c-format
@@ -96,7 +92,7 @@ msgstr ""
 "Umeacha kuhifadhi mabadiliko katika uga zinazoharirika. Ikiwa utafanya tendo "
 "lingine, mabadiliko ambayo hayajahifadhiwa yatapotea."
 
-#: static/admin/js/actions.js:121 static/admin/js/actions.min.js:5
+#: static/admin/js/actions.js:121 static/admin/js/actions.min.js:6
 msgid ""
 "You have selected an action, but you haven't saved your changes to "
 "individual fields yet. Please click OK to save. You'll need to re-run the "
@@ -114,7 +110,7 @@ msgstr ""
 "Umechagua tendo, lakini bado hujahifadhi mabadiliko yako katika uga husika.  "
 "Inawezekana unatafuta kitufe cha Nenda badala ya Hifadhi"
 
-#: static/admin/js/calendar.js:8
+#: static/admin/js/calendar.js:26
 msgid ""
 "January February March April May June July August September October November "
 "December"
@@ -122,7 +118,7 @@ msgstr ""
 "Januari Februari Machi Aprili Mei Juni Julai Agosti Septemba Oktoba Novemba "
 "Desemba"
 
-#: static/admin/js/calendar.js:9
+#: static/admin/js/calendar.js:27
 msgid "S M T W T F S"
 msgstr "J2 J3 J4 J5 IJ JM JP"
 
@@ -131,53 +127,53 @@ msgstr "J2 J3 J4 J5 IJ JM JP"
 msgid "Show"
 msgstr "Onesha"
 
-#: static/admin/js/collapse.js:16 static/admin/js/collapse.min.js:1
+#: static/admin/js/collapse.js:15 static/admin/js/collapse.min.js:1
 msgid "Hide"
 msgstr "Ficha"
 
-#: static/admin/js/admin/DateTimeShortcuts.js:52
-#: static/admin/js/admin/DateTimeShortcuts.js:88
+#: static/admin/js/admin/DateTimeShortcuts.js:49
+#: static/admin/js/admin/DateTimeShortcuts.js:85
 msgid "Now"
 msgstr "Sasa"
 
-#: static/admin/js/admin/DateTimeShortcuts.js:56
+#: static/admin/js/admin/DateTimeShortcuts.js:53
 msgid "Clock"
 msgstr "Saa"
 
-#: static/admin/js/admin/DateTimeShortcuts.js:84
+#: static/admin/js/admin/DateTimeShortcuts.js:81
 msgid "Choose a time"
 msgstr "Chagua wakati"
 
-#: static/admin/js/admin/DateTimeShortcuts.js:89
+#: static/admin/js/admin/DateTimeShortcuts.js:86
 msgid "Midnight"
 msgstr "Usiku wa manane"
 
-#: static/admin/js/admin/DateTimeShortcuts.js:90
+#: static/admin/js/admin/DateTimeShortcuts.js:87
 msgid "6 a.m."
 msgstr "Saa 12 alfajiri"
 
-#: static/admin/js/admin/DateTimeShortcuts.js:91
+#: static/admin/js/admin/DateTimeShortcuts.js:88
 msgid "Noon"
 msgstr "Adhuhuri"
 
-#: static/admin/js/admin/DateTimeShortcuts.js:95
-#: static/admin/js/admin/DateTimeShortcuts.js:208
+#: static/admin/js/admin/DateTimeShortcuts.js:92
+#: static/admin/js/admin/DateTimeShortcuts.js:204
 msgid "Cancel"
 msgstr "Ghairi"
 
-#: static/admin/js/admin/DateTimeShortcuts.js:148
-#: static/admin/js/admin/DateTimeShortcuts.js:201
+#: static/admin/js/admin/DateTimeShortcuts.js:144
+#: static/admin/js/admin/DateTimeShortcuts.js:197
 msgid "Today"
 msgstr "Leo"
 
-#: static/admin/js/admin/DateTimeShortcuts.js:152
+#: static/admin/js/admin/DateTimeShortcuts.js:148
 msgid "Calendar"
 msgstr "Kalenda"
 
-#: static/admin/js/admin/DateTimeShortcuts.js:199
+#: static/admin/js/admin/DateTimeShortcuts.js:195
 msgid "Yesterday"
 msgstr "Jana"
 
-#: static/admin/js/admin/DateTimeShortcuts.js:203
+#: static/admin/js/admin/DateTimeShortcuts.js:199
 msgid "Tomorrow"
 msgstr "Kesho"

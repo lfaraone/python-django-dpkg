@@ -51,7 +51,7 @@ the Python package that holds your app. Then add the app to your
 
 By default, :djadmin:`inspectdb` creates unmanaged models. That is,
 ``managed = False`` in the model's ``Meta`` class tells Django not to manage
-each table's creation and deletion::
+each table's creation, modification, and deletion::
 
     class Person(models.Model):
         id = models.IntegerField(primary_key=True)
@@ -72,10 +72,10 @@ change the :attr:`~django.db.models.Options.managed` option above to ``True``
 Install the core Django tables
 ==============================
 
-Next, run the :djadmin:`syncdb` command to install any extra needed database
+Next, run the :djadmin:`migrate` command to install any extra needed database
 records such as admin permissions and content types::
 
-    $ python manage.py syncdb
+    $ python manage.py migrate
 
 Test and tweak
 ==============

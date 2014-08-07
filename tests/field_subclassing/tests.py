@@ -1,10 +1,13 @@
-from __future__ import absolute_import
+from __future__ import unicode_literals
 
-from django.core import serializers
+import inspect
+
+from django.core import exceptions, serializers
+from django.db import connection
 from django.test import TestCase
 
-from .fields import Small
-from .models import DataModel, MyModel, OtherModel
+from .fields import Small, CustomTypedField
+from .models import ChoicesModel, DataModel, MyModel, OtherModel
 
 
 class CustomField(TestCase):
@@ -37,7 +40,7 @@ class CustomField(TestCase):
         # Custom fields still have normal field's attributes.
         self.assertEqual(m._meta.get_field("data").verbose_name, "small field")
 
-        # The m.data attribute has been initialised correctly. It's a Small
+        # The m.data attribute has been initialized correctly. It's a Small
         # object.
         self.assertEqual((m.data.first, m.data.second), (1, 2))
 
@@ -74,7 +77,7 @@ class CustomField(TestCase):
         m.delete()
 
         m1 = MyModel.objects.create(name="1", data=Small(1, 2))
-        m2 = MyModel.objects.create(name="2", data=Small(2, 3))
+        MyModel.objects.create(name="2", data=Small(2, 3))
 
         self.assertQuerysetEqual(
             MyModel.objects.all(), [
@@ -90,3 +93,32 @@ class CustomField(TestCase):
         o = OtherModel.objects.get()
         self.assertEqual(o.data.first, "a")
         self.assertEqual(o.data.second, "b")
+
+    def test_subfieldbase_plays_nice_with_module_inspect(self):
+        """
+        Custom fields should play nice with python standard module inspect.
+
+        http://users.rcn.com/python/download/Descriptor.htm#properties
+        """
+        # Even when looking for totally different properties, SubfieldBase's
+        # non property like behavior made inspect crash. Refs #12568.
+        data = dict(inspect.getmembers(MyModel))
+        self.assertIn('__module__', data)
+        self.assertEqual(data['__module__'], 'field_subclassing.models')
+
+    def test_validation_of_choices_for_custom_field(self):
+        # a valid choice
+        o = ChoicesModel.objects.create(data=Small('a', 'b'))
+        o.full_clean()
+
+        # an invalid choice
+        o = ChoicesModel.objects.create(data=Small('d', 'e'))
+        with self.assertRaises(exceptions.ValidationError):
+            o.full_clean()
+
+
+class TestDbType(TestCase):
+
+    def test_db_parameters_respects_db_type(self):
+        f = CustomTypedField()
+        self.assertEqual(f.db_parameters(connection)['type'], 'custom_field')

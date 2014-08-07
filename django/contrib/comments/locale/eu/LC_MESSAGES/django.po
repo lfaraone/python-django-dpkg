@@ -1,16 +1,15 @@
 # This file is distributed under the same license as the Django package.
 #
 # Translators:
-# Aitzol Naberan <anaberan@codesyntax.com>, 2011
-# Ander Martínez <ander.basaundi@gmail.com>, 2013
-# Jannis Leidel <jannis@leidel.info>, 2011
+# Aitzol Naberan <anaberan@codesyntax.com>, 2011.
+# Jannis Leidel <jannis@leidel.info>, 2011.
 msgid ""
 msgstr ""
-"Project-Id-Version: django-core\n"
+"Project-Id-Version: Django\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2013-05-25 14:19+0200\n"
-"PO-Revision-Date: 2013-06-10 21:56+0000\n"
-"Last-Translator: Ander Martínez <ander.basaundi@gmail.com>\n"
+"POT-Creation-Date: 2012-10-15 10:56+0200\n"
+"PO-Revision-Date: 2012-02-14 13:24+0000\n"
+"Last-Translator: Aitzol Naberan <anaberan@codesyntax.com>\n"
 "Language-Team: Basque (http://www.transifex.com/projects/p/django/language/"
 "eu/)\n"
 "MIME-Version: 1.0\n"
@@ -28,37 +27,41 @@ msgid "Metadata"
 msgstr "Metada"
 
 #: admin.py:55
-#, python-format
-msgid "%d comment was successfully flagged"
-msgid_plural "%d comments were successfully flagged"
-msgstr[0] "iruzkin %d ondo markatu da"
-msgstr[1] "%d iruzkin ondo markatu dira"
+msgid "flagged"
+msgid_plural "flagged"
+msgstr[0] "markaduna"
+msgstr[1] "markadunak"
 
-#: admin.py:57
+#: admin.py:56
 msgid "Flag selected comments"
 msgstr "Markatu aukeratutako iruzkinak"
 
-#: admin.py:61
-#, python-format
-msgid "%d comment was successfully approved"
-msgid_plural "%d comments were successfully approved"
-msgstr[0] "iruzkin %d ondo onartu da"
-msgstr[1] "%d iruzkin ondo onartu dira"
+#: admin.py:60
+msgid "approved"
+msgid_plural "approved"
+msgstr[0] "onartua"
+msgstr[1] "onartuak"
 
-#: admin.py:63
+#: admin.py:61
 msgid "Approve selected comments"
 msgstr "Onartu aukeratutako iruzkinak"
 
-#: admin.py:67
-#, python-format
-msgid "%d comment was successfully removed"
-msgid_plural "%d comments were successfully removed"
-msgstr[0] "iruzkin %d ondo ezabatu da"
-msgstr[1] "%d iruzkin ondo ezabatu dira"
+#: admin.py:65
+msgid "removed"
+msgid_plural "removed"
+msgstr[0] "ezabatua"
+msgstr[1] "ezabatuak"
 
-#: admin.py:69
+#: admin.py:66
 msgid "Remove selected comments"
 msgstr "Ezabatu aukeratutako iruzkinak"
+
+#: admin.py:78
+#, python-format
+msgid "1 comment was successfully %(action)s."
+msgid_plural "%(count)s comments were successfully %(action)s."
+msgstr[0] ""
+msgstr[1] "%(count)s iruzkin ondo %(action)s dira."
 
 #: feeds.py:14
 #, python-format
@@ -289,11 +292,9 @@ msgstr "Aurreikusi zure iruzkina"
 
 #: templates/comments/preview.html:11
 msgid "Please correct the error below"
-msgstr "Mesedez zuzendu azpiko erroreak"
-
-#: templates/comments/preview.html:11
-msgid "Please correct the errors below"
-msgstr "Mesedez zuzendu azpiko erroreak"
+msgid_plural "Please correct the errors below"
+msgstr[0] "Mesedez zuzendu azpiko errorea"
+msgstr[1] "Mesedez zuzendu azpiko erroreak"
 
 #: templates/comments/preview.html:16
 msgid "Post your comment"

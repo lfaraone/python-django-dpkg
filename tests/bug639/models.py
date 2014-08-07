@@ -1,3 +1,4 @@
+import os
 import tempfile
 
 from django.core.files.storage import FileSystemStorage
@@ -5,8 +6,9 @@ from django.db import models
 from django.forms import ModelForm
 
 
-temp_storage_dir = tempfile.mkdtemp()
+temp_storage_dir = tempfile.mkdtemp(dir=os.environ['DJANGO_TEST_TEMP_DIR'])
 temp_storage = FileSystemStorage(temp_storage_dir)
+
 
 class Photo(models.Model):
     title = models.CharField(max_length=30)
@@ -21,6 +23,7 @@ class Photo(models.Model):
     def save(self, force_insert=False, force_update=False):
         super(Photo, self).save(force_insert, force_update)
         self._savecount += 1
+
 
 class PhotoForm(ModelForm):
     class Meta:

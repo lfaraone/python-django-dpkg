@@ -5,8 +5,9 @@ from django.db import models
 from django.contrib.gis.db.backends.base import SpatialRefSysMixin
 from django.utils.encoding import python_2_unicode_compatible
 
+
 @python_2_unicode_compatible
-class GeometryColumns(models.Model):
+class PostGISGeometryColumns(models.Model):
     """
     The 'geometry_columns' table from the PostGIS. See the PostGIS
     documentation at Ch. 4.2.2.
@@ -26,16 +27,16 @@ class GeometryColumns(models.Model):
     @classmethod
     def table_name_col(cls):
         """
-        Returns the name of the metadata column used to store the
-        the feature table name.
+        Returns the name of the metadata column used to store the feature table
+        name.
         """
         return 'f_table_name'
 
     @classmethod
     def geom_col_name(cls):
         """
-        Returns the name of the metadata column used to store the
-        the feature geometry column.
+        Returns the name of the metadata column used to store the feature
+        geometry column.
         """
         return 'f_geometry_column'
 
@@ -44,7 +45,8 @@ class GeometryColumns(models.Model):
                (self.f_table_name, self.f_geometry_column,
                 self.coord_dimension, self.type, self.srid)
 
-class SpatialRefSys(models.Model, SpatialRefSysMixin):
+
+class PostGISSpatialRefSys(models.Model, SpatialRefSysMixin):
     """
     The 'spatial_ref_sys' table from PostGIS. See the PostGIS
     documentaiton at Ch. 4.2.1.

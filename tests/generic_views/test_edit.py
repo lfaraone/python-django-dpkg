@@ -1,15 +1,16 @@
-from __future__ import absolute_import
+from __future__ import unicode_literals
 
 import warnings
+from unittest import expectedFailure
 
 from django.core.exceptions import ImproperlyConfigured
 from django.core.urlresolvers import reverse
 from django import forms
 from django.test import TestCase
-from django.utils.unittest import expectedFailure
 from django.test.client import RequestFactory
+from django.utils.deprecation import RemovedInDjango18Warning
 from django.views.generic.base import View
-from django.views.generic.edit import FormMixin, CreateView
+from django.views.generic.edit import FormMixin, ModelFormMixin, CreateView
 
 from . import views
 from .models import Artist, Author
@@ -54,6 +55,12 @@ class ModelFormMixinTests(TestCase):
     def test_get_form(self):
         form_class = views.AuthorGetQuerySetFormView().get_form_class()
         self.assertEqual(form_class._meta.model, Author)
+
+    def test_get_form_checks_for_object(self):
+        mixin = ModelFormMixin()
+        mixin.request = RequestFactory().get('/')
+        self.assertEqual({'initial': {}, 'prefix': None},
+                         mixin.get_form_kwargs())
 
 
 class CreateViewTests(TestCase):
@@ -122,15 +129,15 @@ class CreateViewTests(TestCase):
 
     def test_create_without_redirect(self):
         try:
-            res = self.client.post('/edit/authors/create/naive/',
-                            {'name': 'Randall Munroe', 'slug': 'randall-munroe'})
+            self.client.post('/edit/authors/create/naive/',
+                {'name': 'Randall Munroe', 'slug': 'randall-munroe'})
             self.fail('Should raise exception -- No redirect URL provided, and no get_absolute_url provided')
         except ImproperlyConfigured:
             pass
 
     def test_create_restricted(self):
         res = self.client.post('/edit/authors/create/restricted/',
-                        {'name': 'Randall Munroe', 'slug': 'randall-munroe'})
+            {'name': 'Randall Munroe', 'slug': 'randall-munroe'})
         self.assertEqual(res.status_code, 302)
         self.assertRedirects(res, 'http://testserver/accounts/login/?next=/edit/authors/create/restricted/')
 
@@ -146,7 +153,7 @@ class CreateViewTests(TestCase):
     def test_create_view_all_fields(self):
 
         with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always", PendingDeprecationWarning)
+            warnings.simplefilter("always", RemovedInDjango18Warning)
 
             class MyCreateView(CreateView):
                 model = Author
@@ -156,11 +163,10 @@ class CreateViewTests(TestCase):
                              ['name', 'slug'])
         self.assertEqual(len(w), 0)
 
-
     def test_create_view_without_explicit_fields(self):
 
         with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always", PendingDeprecationWarning)
+            warnings.simplefilter("always", RemovedInDjango18Warning)
 
             class MyCreateView(CreateView):
                 model = Author
@@ -171,7 +177,7 @@ class CreateViewTests(TestCase):
                              ['name', 'slug'])
 
         # but with a warning:
-        self.assertEqual(w[0].category, PendingDeprecationWarning)
+        self.assertEqual(w[0].category, RemovedInDjango18Warning)
 
 
 class UpdateViewTests(TestCase):
@@ -279,16 +285,15 @@ class UpdateViewTests(TestCase):
         self.assertQuerysetEqual(Author.objects.all(), ['<Author: Randall Munroe (author of xkcd)>'])
 
     def test_update_without_redirect(self):
-        try:
-            a = Author.objects.create(
-                name='Randall Munroe',
-                slug='randall-munroe',
-            )
-            res = self.client.post('/edit/author/%d/update/naive/' % a.pk,
+        a = Author.objects.create(
+            name='Randall Munroe',
+            slug='randall-munroe',
+        )
+        # Should raise exception -- No redirect URL provided, and no
+        # get_absolute_url provided
+        with self.assertRaises(ImproperlyConfigured):
+            self.client.post('/edit/author/%d/update/naive/' % a.pk,
                             {'name': 'Randall Munroe (author of xkcd)', 'slug': 'randall-munroe'})
-            self.fail('Should raise exception -- No redirect URL provided, and no get_absolute_url provided')
-        except ImproperlyConfigured:
-            pass
 
     def test_update_get_object(self):
         a = Author.objects.create(
@@ -366,13 +371,11 @@ class DeleteViewTests(TestCase):
         self.assertQuerysetEqual(Author.objects.all(), [])
 
     def test_delete_without_redirect(self):
-        try:
-            a = Author.objects.create(
-                name='Randall Munroe',
-                slug='randall-munroe',
-            )
-            res = self.client.post('/edit/author/%d/delete/naive/' % a.pk)
-            self.fail('Should raise exception -- No redirect URL provided, and no get_absolute_url provided')
-        except ImproperlyConfigured:
-            pass
-
+        a = Author.objects.create(
+            name='Randall Munroe',
+            slug='randall-munroe',
+        )
+        # Should raise exception -- No redirect URL provided, and no
+        # get_absolute_url provided
+        with self.assertRaises(ImproperlyConfigured):
+            self.client.post('/edit/author/%d/delete/naive/' % a.pk)

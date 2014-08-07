@@ -4,13 +4,11 @@ gets called *again* for each FileField. This test will fail if calling a
 ModelForm's save() method causes Model.save() to be called more than once.
 """
 
-from __future__ import absolute_import
-
 import os
 import shutil
+import unittest
 
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.utils import unittest
 from django.utils._os import upath
 
 from .models import Photo, PhotoForm, temp_storage_dir
@@ -18,7 +16,7 @@ from .models import Photo, PhotoForm, temp_storage_dir
 
 class Bug639Test(unittest.TestCase):
 
-    def testBug639(self):
+    def test_bug_639(self):
         """
         Simulate a file upload and check how many times Model.save() gets
         called.

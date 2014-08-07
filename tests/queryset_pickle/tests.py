@@ -1,9 +1,8 @@
-from __future__ import absolute_import
+from __future__ import unicode_literals
 
 import pickle
 import datetime
 
-from django.db import models
 from django.test import TestCase
 
 from .models import Group, Event, Happening, Container, M2MModel
@@ -11,7 +10,7 @@ from .models import Group, Event, Happening, Container, M2MModel
 
 class PickleabilityTestCase(TestCase):
     def setUp(self):
-        Happening.objects.create() # make sure the defaults are working (#20158)
+        Happening.objects.create()  # make sure the defaults are working (#20158)
 
     def assert_pickles(self, qs):
         self.assertEqual(list(pickle.loads(pickle.dumps(qs))), list(qs))
@@ -51,6 +50,9 @@ class PickleabilityTestCase(TestCase):
         self.assertEqual(original.__class__, unpickled.__class__)
         self.assertEqual(original.args, unpickled.args)
 
+    def test_manager_pickle(self):
+        pickle.loads(pickle.dumps(Happening.objects))
+
     def test_model_pickle(self):
         """
         Test that a model not defined on module level is pickleable.
@@ -83,13 +85,17 @@ class PickleabilityTestCase(TestCase):
     def test_model_pickle_dynamic(self):
         class Meta:
             proxy = True
-        dynclass = type("DynamicEventSubclass", (Event, ),
+        dynclass = type(str("DynamicEventSubclass"), (Event, ),
                         {'Meta': Meta, '__module__': Event.__module__})
         original = dynclass(pk=1)
         dumped = pickle.dumps(original)
         reloaded = pickle.loads(dumped)
         self.assertEqual(original, reloaded)
         self.assertIs(reloaded.__class__, dynclass)
+
+    def test_specialized_queryset(self):
+        self.assert_pickles(Happening.objects.values('name'))
+        self.assert_pickles(Happening.objects.values('name').dates('when', 'year'))
 
     def test_pickle_prefetch_related_idempotence(self):
         g = Group.objects.create(name='foo')
