@@ -13,8 +13,8 @@ class RevisionableModel(models.Model):
     def __unicode__(self):
         return u"%s (%s, %s)" % (self.title, self.id, self.base.id)
 
-    def save(self):
-        super(RevisionableModel, self).save()
+    def save(self, force_insert=False, force_update=False):
+        super(RevisionableModel, self).save(force_insert, force_update)
         if not self.base:
             self.base = self
             super(RevisionableModel, self).save()
@@ -97,5 +97,14 @@ True
 # present because of the extra() call.
 >>> Order.objects.extra(where=["username=%s"], params=["fred"], tables=["auth_user"]).order_by('created_by')
 []
+
+# Regression test for #8819: Fields in the extra(select=...) list should be
+# available to extra(order_by=...).
+>>> User.objects.filter(pk=u.id).extra(select={'extra_field': 1}).distinct()
+[<User: fred>]
+>>> User.objects.filter(pk=u.id).extra(select={'extra_field': 1}, order_by=['extra_field'])
+[<User: fred>]
+>>> User.objects.filter(pk=u.id).extra(select={'extra_field': 1}, order_by=['extra_field']).distinct()
+[<User: fred>]
 
 """}

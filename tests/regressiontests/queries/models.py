@@ -220,6 +220,13 @@ class Join(models.Model):
     a = models.ForeignKey(LeafA)
     b = models.ForeignKey(LeafB)
 
+class ReservedName(models.Model):
+    name = models.CharField(max_length=20)
+    order = models.IntegerField()
+
+    def __unicode__(self):
+        return self.name
+
 __test__ = {'API_TESTS':"""
 >>> t1 = Tag.objects.create(name='t1')
 >>> t2 = Tag.objects.create(name='t2', parent=t1)
@@ -230,6 +237,11 @@ __test__ = {'API_TESTS':"""
 >>> n1 = Note.objects.create(note='n1', misc='foo')
 >>> n2 = Note.objects.create(note='n2', misc='bar')
 >>> n3 = Note.objects.create(note='n3', misc='foo')
+
+>>> ann1 = Annotation.objects.create(name='a1', tag=t1)
+>>> ann1.notes.add(n1)
+>>> ann2 = Annotation.objects.create(name='a2', tag=t4)
+>>> ann2.notes.add(n2, n3)
 
 Create these out of order so that sorting by 'id' will be different to sorting
 by 'info'. Helps detect some problems later.
@@ -835,8 +847,6 @@ unpickling.
 True
 
 Bug #7277
->>> ann1 = Annotation.objects.create(name='a1', tag=t1)
->>> ann1.notes.add(n1)
 >>> n1.annotation_set.filter(Q(tag=t5) | Q(tag__children=t5) | Q(tag__children__children=t5))
 [<Annotation: a1>]
 
@@ -900,6 +910,48 @@ Bug #8283 -- Checking that applying filters after a disjunction works correctly.
 Pickling of DateQuerySets used to fail
 >>> qs = Item.objects.dates('created', 'month')
 >>> _ = pickle.loads(pickle.dumps(qs))
+
+Bug #8683 -- raise proper error when a DateQuerySet gets passed a wrong type of field
+>>> Item.objects.dates('name', 'month')
+Traceback (most recent call last):
+...
+AssertionError: 'name' isn't a DateField.
+
+Bug #8597: regression tests for case-insensitive comparisons
+>>> _ = Item.objects.create(name="a_b", created=datetime.datetime.now(), creator=a2, note=n1)
+>>> _ = Item.objects.create(name="x%y", created=datetime.datetime.now(), creator=a2, note=n1)
+>>> Item.objects.filter(name__iexact="A_b")
+[<Item: a_b>]
+>>> Item.objects.filter(name__iexact="x%Y")
+[<Item: x%y>]
+>>> Item.objects.filter(name__istartswith="A_b")
+[<Item: a_b>]
+>>> Item.objects.filter(name__iendswith="A_b")
+[<Item: a_b>]
+
+Bug #7302: reserved names are appropriately escaped
+>>> _ = ReservedName.objects.create(name='a',order=42)
+>>> _ = ReservedName.objects.create(name='b',order=37)
+>>> ReservedName.objects.all().order_by('order')
+[<ReservedName: b>, <ReservedName: a>]
+>>> ReservedName.objects.extra(select={'stuff':'name'}, order_by=('order','stuff'))
+[<ReservedName: b>, <ReservedName: a>]
+
+Bug #8439 -- complex combinations of conjunctions, disjunctions and nullable
+relations.
+>>> Author.objects.filter(Q(item__note__extrainfo=e2)|Q(report=r1, name='xyz'))
+[<Author: a2>]
+>>> Author.objects.filter(Q(report=r1, name='xyz')|Q(item__note__extrainfo=e2))
+[<Author: a2>]
+>>> Annotation.objects.filter(Q(tag__parent=t1)|Q(notes__note='n1', name='a1'))
+[<Annotation: a1>]
+>>> xx = ExtraInfo.objects.create(info='xx', note=n3)
+>>> Note.objects.filter(Q(extrainfo__author=a1)|Q(extrainfo=xx))
+[<Note: n1>, <Note: n3>]
+>>> xx.delete()
+>>> q = Note.objects.filter(Q(extrainfo__author=a1)|Q(extrainfo=xx)).query
+>>> len([x[2] for x in q.alias_map.values() if x[2] == q.LOUTER and q.alias_refcount[x[1]]])
+1
 
 """}
 

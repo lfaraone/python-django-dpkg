@@ -27,6 +27,12 @@ ARTICLE_STATUS = (
     (3, 'Live'),
 )
 
+ARTICLE_STATUS_CHAR = (
+    ('d', 'Draft'),
+    ('p', 'Pending'),
+    ('l', 'Live'),
+)
+
 class Category(models.Model):
     name = models.CharField(max_length=20)
     slug = models.SlugField(max_length=20)
@@ -49,7 +55,7 @@ class Article(models.Model):
     writer = models.ForeignKey(Writer)
     article = models.TextField()
     categories = models.ManyToManyField(Category, blank=True)
-    status = models.IntegerField(choices=ARTICLE_STATUS, blank=True, null=True)
+    status = models.PositiveIntegerField(choices=ARTICLE_STATUS, blank=True, null=True)
 
     def save(self):
         import datetime
@@ -69,8 +75,16 @@ class ImprovedArticleWithParentLink(models.Model):
 class BetterWriter(Writer):
     pass
 
+class WriterProfile(models.Model):
+    writer = models.OneToOneField(Writer, primary_key=True)
+    age = models.PositiveIntegerField()
+
+    def __unicode__(self):
+        return "%s is %s" % (self.writer, self.age)
+
+from django.contrib.localflavor.us.models import PhoneNumberField
 class PhoneNumber(models.Model):
-    phone = models.PhoneNumberField()
+    phone = PhoneNumberField()
     description = models.CharField(max_length=20)
 
     def __unicode__(self):
@@ -98,6 +112,39 @@ class ImageFile(models.Model):
     def __unicode__(self):
         return self.description
 
+class CommaSeparatedInteger(models.Model):
+    field = models.CommaSeparatedIntegerField(max_length=20)
+
+    def __unicode__(self):
+        return self.field
+
+class Product(models.Model):
+    slug = models.SlugField(unique=True)
+
+    def __unicode__(self):
+        return self.slug
+
+class Price(models.Model):
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    quantity = models.PositiveIntegerField()
+
+    def __unicode__(self):
+        return u"%s for %s" % (self.quantity, self.price)
+
+    class Meta:
+        unique_together = (('price', 'quantity'),)
+
+class ArticleStatus(models.Model):
+    status = models.CharField(max_length=2, choices=ARTICLE_STATUS_CHAR, blank=True, null=True)
+
+class Inventory(models.Model):
+   barcode = models.PositiveIntegerField(unique=True)
+   parent = models.ForeignKey('self', to_field='barcode', blank=True, null=True)
+   name = models.CharField(blank=False, max_length=20)
+
+   def __unicode__(self):
+      return self.name
+      
 __test__ = {'API_TESTS': """
 >>> from django import forms
 >>> from django.forms.models import ModelForm, model_to_dict
@@ -805,7 +852,41 @@ ValidationError: [u'Select a valid choice. 4 is not one of the available choices
 >>> bw = BetterWriter(name=u'Joe Better')
 >>> bw.save()
 >>> sorted(model_to_dict(bw).keys())
-['id', 'name', 'writer_ptr_id']
+['id', 'name', 'writer_ptr']
+
+>>> class WriterProfileForm(ModelForm):
+...     class Meta:
+...         model = WriterProfile
+>>> form = WriterProfileForm()
+>>> print form.as_p()
+<p><label for="id_writer">Writer:</label> <select name="writer" id="id_writer">
+<option value="" selected="selected">---------</option>
+<option value="1">Mike Royko</option>
+<option value="2">Bob Woodward</option>
+<option value="3">Carl Bernstein</option>
+<option value="4">Joe Better</option>
+</select></p>
+<p><label for="id_age">Age:</label> <input type="text" name="age" id="id_age" /></p>
+
+>>> data = {
+...     'writer': u'2',
+...     'age': u'65',
+... }
+>>> form = WriterProfileForm(data)
+>>> instance = form.save()
+>>> instance
+<WriterProfile: Bob Woodward is 65>
+
+>>> form = WriterProfileForm(instance=instance)
+>>> print form.as_p()
+<p><label for="id_writer">Writer:</label> <select name="writer" id="id_writer">
+<option value="">---------</option>
+<option value="1">Mike Royko</option>
+<option value="2" selected="selected">Bob Woodward</option>
+<option value="3">Carl Bernstein</option>
+<option value="4">Joe Better</option>
+</select></p>
+<p><label for="id_age">Age:</label> <input type="text" name="age" value="65" id="id_age" /></p>
 
 # PhoneNumberField ############################################################
 
@@ -949,7 +1030,7 @@ True
 <class 'django.core.files.uploadedfile.SimpleUploadedFile'>
 >>> instance = f.save()
 >>> instance.image
-<ImageFieldFile: tests/test.png>
+<...FieldFile: tests/test.png>
 
 # Delete the current file since this is not done by Django.
 >>> instance.image.delete()
@@ -961,7 +1042,7 @@ True
 <class 'django.core.files.uploadedfile.SimpleUploadedFile'>
 >>> instance = f.save()
 >>> instance.image
-<ImageFieldFile: tests/test.png>
+<...FieldFile: tests/test.png>
 
 # Edit an instance that already has the image defined in the model. This will not
 # save the image again, but leave it exactly as it is.
@@ -970,10 +1051,10 @@ True
 >>> f.is_valid()
 True
 >>> f.cleaned_data['image']
-<ImageFieldFile: tests/test.png>
+<...FieldFile: tests/test.png>
 >>> instance = f.save()
 >>> instance.image
-<ImageFieldFile: tests/test.png>
+<...FieldFile: tests/test.png>
 
 # Delete the current image since this is not done by Django.
 
@@ -986,7 +1067,7 @@ True
 True
 >>> instance = f.save()
 >>> instance.image
-<ImageFieldFile: tests/test2.png>
+<...FieldFile: tests/test2.png>
 
 # Delete the current file since this is not done by Django.
 >>> instance.image.delete()
@@ -997,7 +1078,7 @@ True
 True
 >>> instance = f.save()
 >>> instance.image
-<ImageFieldFile: tests/test2.png>
+<...FieldFile: tests/test2.png>
 
 # Delete the current file since this is not done by Django.
 >>> instance.image.delete()
@@ -1011,14 +1092,14 @@ True
 True
 >>> instance = f.save()
 >>> instance.image
-<ImageFieldFile: None>
+<...FieldFile: None>
 
 >>> f = ImageFileForm(data={'description': u'And a final one'}, files={'image': SimpleUploadedFile('test3.png', image_data)}, instance=instance)
 >>> f.is_valid()
 True
 >>> instance = f.save()
 >>> instance.image
-<ImageFieldFile: tests/test3.png>
+<...FieldFile: tests/test3.png>
 
 # Delete the current file since this is not done by Django.
 >>> instance.image.delete()
@@ -1029,7 +1110,7 @@ True
 True
 >>> instance = f.save()
 >>> instance.image
-<ImageFieldFile: tests/test3.png>
+<...FieldFile: tests/test3.png>
 >>> instance.delete()
 
 # Media on a ModelForm ########################################################
@@ -1050,4 +1131,124 @@ True
 <link href="/some/form/css" type="text/css" media="all" rel="stylesheet" />
 <script type="text/javascript" src="/some/form/javascript"></script>
 
+>>> class CommaSeparatedIntegerForm(ModelForm):
+...    class Meta:
+...        model = CommaSeparatedInteger
+
+>>> f = CommaSeparatedIntegerForm().fields['field']
+>>> f.clean('1,2,3')
+u'1,2,3'
+>>> f.clean('1a,2')
+Traceback (most recent call last):
+...
+ValidationError: [u'Enter only digits separated by commas.']
+>>> f.clean(',,,,')
+u',,,,'
+>>> f.clean('1.2')
+Traceback (most recent call last):
+...
+ValidationError: [u'Enter only digits separated by commas.']
+>>> f.clean('1,a,2')
+Traceback (most recent call last):
+...
+ValidationError: [u'Enter only digits separated by commas.']
+>>> f.clean('1,,2')
+u'1,,2'
+>>> f.clean('1')
+u'1'
+
+# unique/unique_together validation
+
+>>> class ProductForm(ModelForm):
+...     class Meta:
+...         model = Product
+>>> form = ProductForm({'slug': 'teddy-bear-blue'})
+>>> form.is_valid()
+True
+>>> obj = form.save()
+>>> obj
+<Product: teddy-bear-blue>
+>>> form = ProductForm({'slug': 'teddy-bear-blue'})
+>>> form.is_valid()
+False
+>>> form._errors
+{'slug': [u'Product with this Slug already exists.']}
+>>> form = ProductForm({'slug': 'teddy-bear-blue'}, instance=obj)
+>>> form.is_valid()
+True
+
+# ModelForm test of unique_together constraint
+>>> class PriceForm(ModelForm):
+...     class Meta:
+...         model = Price
+>>> form = PriceForm({'price': '6.00', 'quantity': '1'})
+>>> form.is_valid()
+True
+>>> form.save()
+<Price: 1 for 6.00>
+>>> form = PriceForm({'price': '6.00', 'quantity': '1'})
+>>> form.is_valid()
+False
+>>> form._errors
+{'__all__': [u'Price with this Price and Quantity already exists.']}
+
+>>> class PriceForm(ModelForm):
+...     class Meta:
+...         model = Price
+...         exclude = ('quantity',)
+>>> form = PriceForm({'price': '6.00'})
+>>> form.is_valid()
+True
+
+# Choices on CharField and IntegerField
+>>> class ArticleForm(ModelForm):
+...     class Meta:
+...         model = Article
+>>> f = ArticleForm()
+>>> f.fields['status'].clean('42')
+Traceback (most recent call last):
+...
+ValidationError: [u'Select a valid choice. 42 is not one of the available choices.']
+
+>>> class ArticleStatusForm(ModelForm):
+...     class Meta:
+...         model = ArticleStatus
+>>> f = ArticleStatusForm()
+>>> f.fields['status'].clean('z')
+Traceback (most recent call last):
+...
+ValidationError: [u'Select a valid choice. z is not one of the available choices.']
+
+# Foreign keys which use to_field #############################################
+
+>>> apple = Inventory.objects.create(barcode=86, name='Apple')
+>>> pear = Inventory.objects.create(barcode=22, name='Pear')
+>>> core = Inventory.objects.create(barcode=87, name='Core', parent=apple)
+
+>>> field = ModelChoiceField(Inventory.objects.all(), to_field_name='barcode')
+>>> for choice in field.choices:
+...     print choice
+(u'', u'---------')
+(86, u'Apple')
+(22, u'Pear')
+(87, u'Core')
+
+>>> class InventoryForm(ModelForm):
+...     class Meta:
+...         model = Inventory
+>>> form = InventoryForm(instance=core)
+>>> print form['parent']
+<select name="parent" id="id_parent">
+<option value="">---------</option>
+<option value="86" selected="selected">Apple</option>
+<option value="22">Pear</option>
+<option value="87">Core</option>
+</select>
+
+>>> data = model_to_dict(core)
+>>> data['parent'] = '22'
+>>> form = InventoryForm(data=data, instance=core)
+>>> core = form.save()
+>>> core.parent
+<Inventory: Pear>
 """}

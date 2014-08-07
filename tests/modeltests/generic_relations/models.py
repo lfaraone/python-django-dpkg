@@ -22,10 +22,13 @@ class TaggedItem(models.Model):
     content_object = generic.GenericForeignKey()
 
     class Meta:
-        ordering = ["tag"]
+        ordering = ["tag", "-object_id"]
 
     def __unicode__(self):
         return self.tag
+
+class ValuableTaggedItem(TaggedItem):
+    value = models.PositiveIntegerField()
 
 class Comparison(models.Model):
     """
@@ -131,8 +134,12 @@ __test__ = {'API_TESTS':"""
 [<TaggedItem: clearish>]
 
 # Queries across generic relations respect the content types. Even though there are two TaggedItems with a tag of "fatty", this query only pulls out the one with the content type related to Animals.
+>>> Animal.objects.order_by('common_name')
+[<Animal: Lion>, <Animal: Platypus>]
 >>> Animal.objects.filter(tags__tag='fatty')
 [<Animal: Platypus>]
+>>> Animal.objects.exclude(tags__tag='fatty')
+[<Animal: Lion>]
 
 # If you delete an object with an explicit Generic relation, the related
 # objects are deleted when the source object is deleted.
@@ -200,6 +207,12 @@ __test__ = {'API_TESTS':"""
 >>> Comparison.objects.all()
 [<Comparison: tiger is stronger than None>]
 
+# GenericForeignKey should work with subclasses (see #8309)
+>>> quartz = Mineral.objects.create(name="Quartz", hardness=7)
+>>> valuedtag = ValuableTaggedItem(content_object=quartz, tag="shiny", value=10)
+>>> valuedtag.save()
+>>> valuedtag.content_object
+<Mineral: Quartz>
 
 # GenericInlineFormSet tests ##################################################
 

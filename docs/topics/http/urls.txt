@@ -220,7 +220,7 @@ The remaining arguments should be tuples in this format::
 url
 ---
 
-**New in Django development version**
+.. versionadded:: 1.0
 
 You can use the ``url()`` function, instead of a tuple, as an argument to
 ``patterns()``. This is convenient if you want to specify a name without the
@@ -382,7 +382,7 @@ number of other URLconfs::
     urlpatterns = patterns('',
         (r'^weblog/',        include('django_website.apps.blog.urls.blog')),
         (r'^documentation/', include('django_website.apps.docs.urls.docs')),
-        (r'^comments/',      include('django.contrib.comments.urls.comments')),
+        (r'^comments/',      include('django.contrib.comments.urls')),
     )
 
 Note that the regular expressions in this example don't have a ``$``
@@ -532,7 +532,7 @@ the view prefix (as explained in "The view prefix" above) will have no effect.
 Naming URL patterns
 ===================
 
-**New in Django development version**
+.. versionadded:: 1.0
 
 It's fairly common to use the same view function in multiple URL patterns in
 your URLconf. For example, these two URL patterns both point to the ``archive``
@@ -611,6 +611,13 @@ arguments to use in the URL matching. For example::
         return HttpResponseRedirect(reverse('arch-summary', args=[1945]))
 
 .. _URL pattern name: `Naming URL patterns`_
+
+The ``reverse()`` function can reverse a large variety of regular expression
+patterns for URLs, but not every possible one. The main restriction at the
+moment is that the pattern cannot contain alternative choices using the
+vertical bar (``"|"``) character. You can quite happily use such patterns for
+matching against incoming URLs and sending them off to views, but you cannot
+reverse such patterns.
 
 permalink()
 -----------
