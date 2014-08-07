@@ -254,13 +254,13 @@ class MigrationAutodetector(object):
                                     # If we can't find the other app, we add a first/last dependency,
                                     # but only if we've already been through once and checked everything
                                     if chop_mode:
-                                        # If the app already exists, we add __latest__, as we don't know which
-                                        # migration contains the target field.
+                                        # If the app already exists, we add a dependency on the last migration,
+                                        # as we don't know which migration contains the target field.
                                         # If it's not yet migrated or has no migrations, we use __first__
-                                        if graph and not graph.root_nodes(dep[0]):
-                                            operation_dependencies.add((dep[0], "__first__"))
+                                        if graph and graph.leaf_nodes(dep[0]):
+                                            operation_dependencies.add(graph.leaf_nodes(dep[0])[0])
                                         else:
-                                            operation_dependencies.add((dep[0], "__latest__"))
+                                            operation_dependencies.add((dep[0], "__first__"))
                                     else:
                                         deps_satisfied = False
                     if deps_satisfied:
@@ -341,6 +341,13 @@ class MigrationAutodetector(object):
             return (
                 isinstance(operation, operations.DeleteModel) and
                 operation.name.lower() == dependency[1].lower()
+            )
+        # Field being altered
+        elif dependency[2] is not None and dependency[3] == "alter":
+            return (
+                isinstance(operation, operations.AlterField) and
+                operation.model_name.lower() == dependency[1].lower() and
+                operation.name.lower() == dependency[2].lower()
             )
         # order_with_respect_to being unset for a field
         elif dependency[2] is not None and dependency[3] == "order_wrt_unset":
@@ -631,7 +638,7 @@ class MigrationAutodetector(object):
                     )
                 )
             # Finally, remove the model.
-            # This depends on both the removal of all incoming fields
+            # This depends on both the removal/alteration of all incoming fields
             # and the removal of all its own related fields, and if it's
             # a through model the field that references it.
             dependencies = []
@@ -641,6 +648,12 @@ class MigrationAutodetector(object):
                     related_object.model._meta.object_name,
                     related_object.field.name,
                     False,
+                ))
+                dependencies.append((
+                    related_object.model._meta.app_label,
+                    related_object.model._meta.object_name,
+                    related_object.field.name,
+                    "alter",
                 ))
             for related_object in model._meta.get_all_related_many_to_many_objects():
                 dependencies.append((
@@ -795,13 +808,13 @@ class MigrationAutodetector(object):
             if old_model_state.options.get(option_name) is None:
                 old_value = None
             else:
-                old_value = [
-                    [
+                old_value = set([
+                    tuple(
                         self.renamed_fields.get((app_label, model_name, n), n)
                         for n in unique
-                    ]
+                    )
                     for unique in old_model_state.options[option_name]
-                ]
+                ])
             if old_value != new_model_state.options.get(option_name):
                 self.add_operation(
                     app_label,
