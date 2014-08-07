@@ -109,15 +109,16 @@ class BaseHandler(object):
         except exceptions.PermissionDenied:
             return http.HttpResponseForbidden('<h1>Permission denied</h1>')
         except SystemExit:
-            pass # See http://code.djangoproject.com/ticket/1023
+            # Allow sys.exit() to actually exit. See tickets #1023 and #4701
+            raise
         except: # Handle everything else, including SuspiciousOperation, etc.
+            # Get the exception info now, in case another exception is thrown later.
+            exc_info = sys.exc_info()
+            receivers = dispatcher.send(signal=signals.got_request_exception, request=request)
             if settings.DEBUG:
                 from django.views import debug
-                return debug.technical_500_response(request, *sys.exc_info())
+                return debug.technical_500_response(request, *exc_info)
             else:
-                # Get the exception info now, in case another exception is thrown later.
-                exc_info = sys.exc_info()
-                receivers = dispatcher.send(signal=signals.got_request_exception, request=request)
                 # When DEBUG is False, send an error message to the admins.
                 subject = 'Error (%s IP): %s' % ((request.META.get('REMOTE_ADDR') in settings.INTERNAL_IPS and 'internal' or 'EXTERNAL'), request.path)
                 try:

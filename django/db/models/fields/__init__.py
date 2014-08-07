@@ -228,7 +228,11 @@ class Field(object):
                 value = int(value)
             except ValueError:
                 raise ValueError("The __year lookup type requires an integer argument")
-            return ['%s-01-01 00:00:00' % value, '%s-12-31 23:59:59.999999' % value]
+            if settings.DATABASE_ENGINE == 'sqlite3':
+                first = '%s-01-01'
+            else:
+                first = '%s-01-01 00:00:00'
+            return [first % value, '%s-12-31 23:59:59.999999' % value]
         raise TypeError("Field has invalid lookup: %s" % lookup_type)
 
     def has_default(self):
@@ -447,6 +451,9 @@ class BooleanField(Field):
         kwargs['blank'] = True
         Field.__init__(self, *args, **kwargs)
 
+    def get_internal_type(self):
+        return "BooleanField"
+
     def to_python(self, value):
         if value in (True, False): return value
         if value in ('t', 'True', '1'): return True
@@ -464,6 +471,9 @@ class BooleanField(Field):
 class CharField(Field):
     def get_manipulator_field_objs(self):
         return [oldforms.TextField]
+
+    def get_internal_type(self):
+        return "CharField"
 
     def to_python(self, value):
         if isinstance(value, basestring):
@@ -494,6 +504,9 @@ class DateField(Field):
             kwargs['editable'] = False
             kwargs['blank'] = True
         Field.__init__(self, verbose_name, name, **kwargs)
+
+    def get_internal_type(self):
+        return "DateField"
 
     def to_python(self, value):
         if value is None:
@@ -564,6 +577,9 @@ class DateField(Field):
         return super(DateField, self).formfield(**defaults)
 
 class DateTimeField(DateField):
+    def get_internal_type(self):
+        return "DateTimeField"
+
     def to_python(self, value):
         if value is None:
             return value
@@ -634,6 +650,9 @@ class DecimalField(Field):
         self.max_digits, self.decimal_places = max_digits, decimal_places
         Field.__init__(self, verbose_name, name, **kwargs)
 
+    def get_internal_type(self):
+        return "DecimalField"
+
     def to_python(self, value):
         if value is None:
             return value
@@ -693,9 +712,6 @@ class EmailField(CharField):
         kwargs['max_length'] = kwargs.get('max_length', 75)
         CharField.__init__(self, *args, **kwargs)
 
-    def get_internal_type(self):
-        return "CharField"
-
     def get_manipulator_field_objs(self):
         return [oldforms.EmailField]
 
@@ -712,6 +728,9 @@ class FileField(Field):
         self.upload_to = upload_to
         kwargs['max_length'] = kwargs.get('max_length', 100)
         Field.__init__(self, verbose_name, name, **kwargs)
+
+    def get_internal_type(self):
+        return "FileField"
 
     def get_db_prep_save(self, value):
         "Returns field's value prepared for saving into a database."
@@ -822,11 +841,17 @@ class FilePathField(Field):
     def get_manipulator_field_objs(self):
         return [curry(oldforms.FilePathField, path=self.path, match=self.match, recursive=self.recursive)]
 
+    def get_internal_type(self):
+        return "FilePathField"
+
 class FloatField(Field):
     empty_strings_allowed = False
 
     def get_manipulator_field_objs(self):
         return [oldforms.FloatField]
+
+    def get_internal_type(self):
+        return "FloatField"
 
     def formfield(self, **kwargs):
         defaults = {'form_class': forms.FloatField}
@@ -850,6 +875,9 @@ class ImageField(FileField):
         if not self.height_field:
             setattr(cls, 'get_%s_height' % self.name, curry(cls._get_FIELD_height, field=self))
 
+    def get_internal_type(self):
+        return "ImageField"
+
     def save_file(self, new_data, new_object, original_object, change, rel, save=True):
         FileField.save_file(self, new_data, new_object, original_object, change, rel, save)
         # If the image has height and/or width field(s) and they haven't
@@ -872,6 +900,9 @@ class IntegerField(Field):
     def get_manipulator_field_objs(self):
         return [oldforms.IntegerField]
 
+    def get_internal_type(self):
+        return "IntegerField"
+
     def formfield(self, **kwargs):
         defaults = {'form_class': forms.IntegerField}
         defaults.update(kwargs)
@@ -886,6 +917,9 @@ class IPAddressField(Field):
     def get_manipulator_field_objs(self):
         return [oldforms.IPAddressField]
 
+    def get_internal_type(self):
+        return "IPAddressField"
+
     def validate(self, field_data, all_data):
         validators.isValidIPAddress4(field_data, None)
 
@@ -899,6 +933,9 @@ class NullBooleanField(Field):
     def __init__(self, *args, **kwargs):
         kwargs['null'] = True
         Field.__init__(self, *args, **kwargs)
+
+    def get_internal_type(self):
+        return "NullBooleanField"
 
     def to_python(self, value):
         if value in (None, True, False): return value
@@ -919,6 +956,9 @@ class PhoneNumberField(IntegerField):
     def get_manipulator_field_objs(self):
         return [oldforms.PhoneNumberField]
 
+    def get_internal_type(self):
+        return "PhoneNumberField"
+
     def validate(self, field_data, all_data):
         validators.isValidPhone(field_data, all_data)
 
@@ -932,6 +972,9 @@ class PositiveIntegerField(IntegerField):
     def get_manipulator_field_objs(self):
         return [oldforms.PositiveIntegerField]
 
+    def get_internal_type(self):
+        return "PositiveIntegerField"
+
     def formfield(self, **kwargs):
         defaults = {'min_value': 0}
         defaults.update(kwargs)
@@ -940,6 +983,9 @@ class PositiveIntegerField(IntegerField):
 class PositiveSmallIntegerField(IntegerField):
     def get_manipulator_field_objs(self):
         return [oldforms.PositiveSmallIntegerField]
+
+    def get_internal_type(self):
+        return "PositiveSmallIntegerField"
 
     def formfield(self, **kwargs):
         defaults = {'min_value': 0}
@@ -955,13 +1001,22 @@ class SlugField(CharField):
             kwargs['db_index'] = True
         super(SlugField, self).__init__(*args, **kwargs)
 
+    def get_internal_type(self):
+        return "SlugField"
+
 class SmallIntegerField(IntegerField):
     def get_manipulator_field_objs(self):
         return [oldforms.SmallIntegerField]
 
+    def get_internal_type(self):
+        return "SmallIntegerField"
+
 class TextField(Field):
     def get_manipulator_field_objs(self):
         return [oldforms.LargeTextField]
+
+    def get_internal_type(self):
+        return "TextField"
 
     def formfield(self, **kwargs):
         defaults = {'widget': forms.Textarea}
@@ -975,6 +1030,9 @@ class TimeField(Field):
         if auto_now or auto_now_add:
             kwargs['editable'] = False
         Field.__init__(self, verbose_name, name, **kwargs)
+
+    def get_internal_type(self):
+        return "TimeField"
 
     def get_db_prep_lookup(self, lookup_type, value):
         if settings.DATABASE_ENGINE == 'oracle':
@@ -1040,9 +1098,6 @@ class URLField(CharField):
     def get_manipulator_field_objs(self):
         return [oldforms.URLField]
 
-    def get_internal_type(self):
-        return "CharField"
-
     def formfield(self, **kwargs):
         defaults = {'form_class': forms.URLField, 'verify_exists': self.verify_exists}
         defaults.update(kwargs)
@@ -1051,6 +1106,9 @@ class URLField(CharField):
 class USStateField(Field):
     def get_manipulator_field_objs(self):
         return [oldforms.USStateField]
+
+    def get_internal_type(self):
+        return "USStateField"
 
     def formfield(self, **kwargs):
         from django.contrib.localflavor.us.forms import USStateSelect
@@ -1063,9 +1121,6 @@ class XMLField(TextField):
         self.schema_path = schema_path
         Field.__init__(self, verbose_name, name, **kwargs)
 
-    def get_internal_type(self):
-        return "TextField"
-
     def get_manipulator_field_objs(self):
         return [curry(oldforms.XMLLargeTextField, schema_path=self.schema_path)]
 
@@ -1075,9 +1130,6 @@ class OrderingField(IntegerField):
         self.wrt = with_respect_to
         kwargs['null'] = True
         IntegerField.__init__(self, **kwargs )
-
-    def get_internal_type(self):
-        return "IntegerField"
 
     def get_manipulator_fields(self, opts, manipulator, change, name_prefix='', rel=False, follow=True):
         return [oldforms.HiddenField(name_prefix + self.name)]
