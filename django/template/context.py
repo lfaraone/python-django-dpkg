@@ -1,4 +1,3 @@
-from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.utils.importlib import import_module
 
@@ -10,10 +9,11 @@ class ContextPopException(Exception):
 
 class Context(object):
     "A stack container for variable context"
-    def __init__(self, dict_=None, autoescape=True):
+    def __init__(self, dict_=None, autoescape=True, current_app=None):
         dict_ = dict_ or {}
         self.dicts = [dict_]
         self.autoescape = autoescape
+        self.current_app = current_app
 
     def __repr__(self):
         return repr(self.dicts)
@@ -71,6 +71,7 @@ class Context(object):
 # This is a function rather than module-level procedural code because we only
 # want it to execute if somebody uses RequestContext.
 def get_standard_processors():
+    from django.conf import settings
     global _standard_context_processors
     if _standard_context_processors is None:
         processors = []
@@ -96,8 +97,8 @@ class RequestContext(Context):
     Additional processors can be specified as a list of callables
     using the "processors" keyword argument.
     """
-    def __init__(self, request, dict=None, processors=None):
-        Context.__init__(self, dict)
+    def __init__(self, request, dict=None, processors=None, current_app=None):
+        Context.__init__(self, dict, current_app=current_app)
         if processors is None:
             processors = ()
         else:

@@ -22,11 +22,14 @@ class GenericSite(object):
     name = 'my site'
 
 def get_root_path():
-    from django.contrib import admin
     try:
-        return urlresolvers.reverse(admin.site.root, args=[''])
+        return urlresolvers.reverse('admin:index')
     except urlresolvers.NoReverseMatch:
-        return getattr(settings, "ADMIN_SITE_ROOT_URL", "/admin/")
+        from django.contrib import admin
+        try:
+            return urlresolvers.reverse(admin.site.root, args=[''])
+        except urlresolvers.NoReverseMatch:
+            return getattr(settings, "ADMIN_SITE_ROOT_URL", "/admin/")
 
 def doc_index(request):
     if not utils.docutils_is_available:
@@ -129,7 +132,7 @@ def view_index(request):
             site_obj = GenericSite()
         for (func, regex) in view_functions:
             views.append({
-                'name': func.__name__,
+                'name': getattr(func, '__name__', func.__class__.__name__),
                 'module': func.__module__,
                 'site_id': settings_mod.SITE_ID,
                 'site': site_obj,
@@ -179,7 +182,7 @@ model_index = staff_member_required(model_index)
 def model_detail(request, app_label, model_name):
     if not utils.docutils_is_available:
         return missing_docutils_page(request)
-        
+
     # Get the model class.
     try:
         app_mod = models.get_app(app_label)
@@ -214,6 +217,22 @@ def model_detail(request, app_label, model_name):
             'help_text': field.help_text,
         })
 
+    # Gather many-to-many fields.
+    for field in opts.many_to_many:
+        data_type = related_object_name = field.rel.to.__name__
+        app_label = field.rel.to._meta.app_label
+        verbose = _("related `%(app_label)s.%(object_name)s` objects") % {'app_label': app_label, 'object_name': data_type}
+        fields.append({
+            'name': "%s.all" % field.name,
+            "data_type": 'List',
+            'verbose': utils.parse_rst(_("all %s") % verbose , 'model', _('model:') + opts.module_name),
+        })
+        fields.append({
+            'name'      : "%s.count" % field.name,
+            'data_type' : 'Integer',
+            'verbose'   : utils.parse_rst(_("number of %s") % verbose , 'model', _('model:') + opts.module_name),
+        })
+
     # Gather model methods.
     for func_name, func in model.__dict__.items():
         if (inspect.isfunction(func) and len(inspect.getargspec(func)[0]) == 1):
@@ -233,7 +252,7 @@ def model_detail(request, app_label, model_name):
             })
 
     # Gather related objects
-    for rel in opts.get_all_related_objects():
+    for rel in opts.get_all_related_objects() + opts.get_all_related_many_to_many_objects():
         verbose = _("related `%(app_label)s.%(object_name)s` objects") % {'app_label': rel.opts.app_label, 'object_name': rel.opts.object_name}
         accessor = rel.get_accessor_name()
         fields.append({
@@ -264,7 +283,7 @@ def template_detail(request, template):
         else:
             site_obj = GenericSite()
         for dir in settings_mod.TEMPLATE_DIRS:
-            template_file = os.path.join(dir, "%s.html" % template)
+            template_file = os.path.join(dir, template)
             templates.append({
                 'file': template_file,
                 'exists': os.path.exists(template_file),

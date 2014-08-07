@@ -17,7 +17,7 @@ checkbox = forms.CheckboxInput({'class': 'action-select'}, lambda value: False)
 
 class AdminForm(object):
     def __init__(self, form, fieldsets, prepopulated_fields):
-        self.form, self.fieldsets = form, fieldsets
+        self.form, self.fieldsets = form, normalize_fieldsets(fieldsets)
         self.prepopulated_fields = [{
             'field': form[field_name],
             'dependencies': [form[f] for f in dependencies]
@@ -137,7 +137,7 @@ class InlineAdminForm(AdminForm):
         self.formset = formset
         self.original = original
         if original is not None:
-            self.original.content_type_id = ContentType.objects.get_for_model(original).pk
+            self.original_content_type_id = ContentType.objects.get_for_model(original).pk
         self.show_url = original and hasattr(original, 'get_absolute_url')
         super(InlineAdminForm, self).__init__(form, fieldsets, prepopulated_fields)
 
@@ -145,9 +145,20 @@ class InlineAdminForm(AdminForm):
         for name, options in self.fieldsets:
             yield InlineFieldset(self.formset, self.form, name, **options)
 
+    def has_auto_field(self):
+        if self.form._meta.model._meta.has_auto_field:
+            return True
+        # Also search any parents for an auto field.
+        for parent in self.form._meta.model._meta.get_parent_list():
+            if parent._meta.has_auto_field:
+                return True
+        return False
+
     def field_count(self):
         # tabular.html uses this function for colspan value.
-        num_of_fields = 1 # always has at least one field
+        num_of_fields = 0
+        if self.has_auto_field():
+            num_of_fields += 1
         num_of_fields += len(self.fieldsets[0][1]["fields"])
         if self.formset.can_order:
             num_of_fields += 1
@@ -196,3 +207,25 @@ class AdminErrorList(forms.util.ErrorList):
                 self.extend(inline_formset.non_form_errors())
                 for errors_in_inline_form in inline_formset.errors:
                     self.extend(errors_in_inline_form.values())
+
+def normalize_fieldsets(fieldsets):
+    """
+    Make sure the keys in fieldset dictionaries are strings. Returns the
+    normalized data.
+    """
+    result = []
+    for name, options in fieldsets:
+        result.append((name, normalize_dictionary(options)))
+    return result
+
+def normalize_dictionary(data_dict):
+    """
+    Converts all the keys in "data_dict" to strings. The keys must be
+    convertible using str().
+    """
+    for key, value in data_dict.items():
+        if not isinstance(key, str):
+            del data_dict[key]
+            data_dict[str(key)] = value
+    return data_dict
+

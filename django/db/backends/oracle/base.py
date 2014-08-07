@@ -14,6 +14,10 @@ except ImportError:
 
 # Oracle takes client-side character set encoding from the environment.
 os.environ['NLS_LANG'] = '.UTF8'
+# This prevents unicode from getting mangled by getting encoded into the
+# potentially non-unicode database character set.
+os.environ['ORA_NCHAR_LITERAL_REPLACE'] = 'TRUE'
+
 try:
     import cx_Oracle as Database
 except ImportError, e:
@@ -21,6 +25,7 @@ except ImportError, e:
     raise ImproperlyConfigured("Error loading cx_Oracle module: %s" % e)
 
 from django.db.backends import *
+from django.db.backends.signals import connection_created
 from django.db.backends.oracle import query
 from django.db.backends.oracle.client import DatabaseClient
 from django.db.backends.oracle.creation import DatabaseCreation
@@ -212,12 +217,13 @@ WHEN (new.%(col_name)s IS NULL)
                     # continue to loop
                     break
             for f in model._meta.many_to_many:
-                table_name = self.quote_name(f.m2m_db_table())
-                sequence_name = get_sequence_name(f.m2m_db_table())
-                column_name = self.quote_name('id')
-                output.append(query % {'sequence': sequence_name,
-                                       'table': table_name,
-                                       'column': column_name})
+                if not f.rel.through:
+                    table_name = self.quote_name(f.m2m_db_table())
+                    sequence_name = get_sequence_name(f.m2m_db_table())
+                    column_name = self.quote_name('id')
+                    output.append(query % {'sequence': sequence_name,
+                                           'table': table_name,
+                                           'column': column_name})
         return output
 
     def start_transaction_sql(self):
@@ -325,6 +331,7 @@ class DatabaseWrapper(BaseDatabaseWrapper):
                 # Django docs specify cx_Oracle version 4.3.1 or higher, but
                 # stmtcachesize is available only in 4.3.2 and up.
                 pass
+            connection_created.send(sender=self.__class__)
         if not cursor:
             cursor = FormatStylePlaceholderCursor(self.connection)
         return cursor
@@ -338,7 +345,7 @@ class OracleParam(object):
     """
     Wrapper object for formatting parameters for Oracle. If the string
     representation of the value is large enough (greater than 4000 characters)
-    the input size needs to be set as NCLOB. Alternatively, if the parameter
+    the input size needs to be set as CLOB. Alternatively, if the parameter
     has an `input_size` attribute, then the value of the `input_size` attribute
     will be used instead. Otherwise, no input size will be set for the
     parameter when executing the query.
@@ -353,8 +360,8 @@ class OracleParam(object):
             # If parameter has `input_size` attribute, use that.
             self.input_size = param.input_size
         elif isinstance(param, basestring) and len(param) > 4000:
-            # Mark any string param greater than 4000 characters as an NCLOB.
-            self.input_size = Database.NCLOB
+            # Mark any string param greater than 4000 characters as a CLOB.
+            self.input_size = Database.CLOB
         else:
             self.input_size = None
 

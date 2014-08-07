@@ -108,7 +108,7 @@ class DatabaseCreation(BaseDatabaseCreation):
                     print "Tests cancelled."
                     sys.exit(1)
 
-        settings.DATABASE_USER = self.connection.settings_dict["DATABASE_USER"] = TEST_DATABASE_USER
+        settings.TEST_DATABASE_USER = settings.DATABASE_USER = self.connection.settings_dict["DATABASE_USER"] = TEST_DATABASE_USER
         settings.DATABASE_PASSWORD = self.connection.settings_dict["DATABASE_PASSWORD"] = TEST_DATABASE_PASSWD
 
         return settings.DATABASE_NAME
@@ -244,8 +244,8 @@ class DatabaseCreation(BaseDatabaseCreation):
             raise
         return name
 
-    def _test_database_user(self, ettings):
-        name = TEST_DATABASE_PREFIX + settings.DATABASE_NAME
+    def _test_database_user(self, settings):
+        name = TEST_DATABASE_PREFIX + settings.DATABASE_USER
         try:
             if settings.TEST_DATABASE_USER:
                 name = settings.TEST_DATABASE_USER

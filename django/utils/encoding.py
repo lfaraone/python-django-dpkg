@@ -1,6 +1,8 @@
 import types
 import urllib
+import locale
 import datetime
+import codecs
 
 from django.utils.functional import Promise
 
@@ -41,6 +43,19 @@ def smart_unicode(s, encoding='utf-8', strings_only=False, errors='strict'):
         return s
     return force_unicode(s, encoding, strings_only, errors)
 
+def is_protected_type(obj):
+    """Determine if the object instance is of a protected type.
+
+    Objects of protected types are preserved as-is when passed to
+    force_unicode(strings_only=True).
+    """
+    return isinstance(obj, (
+        types.NoneType,
+        int, long,
+        datetime.datetime, datetime.date, datetime.time,
+        float, Decimal)
+    )
+
 def force_unicode(s, encoding='utf-8', strings_only=False, errors='strict'):
     """
     Similar to smart_unicode, except that lazy instances are resolved to
@@ -48,7 +63,7 @@ def force_unicode(s, encoding='utf-8', strings_only=False, errors='strict'):
 
     If strings_only is True, don't convert (some) non-string-like objects.
     """
-    if strings_only and isinstance(s, (types.NoneType, int, long, datetime.datetime, datetime.date, datetime.time, float, Decimal)):
+    if strings_only and is_protected_type(s):
         return s
     try:
         if not isinstance(s, basestring,):
@@ -123,3 +138,12 @@ def iri_to_uri(iri):
         return iri
     return urllib.quote(smart_str(iri), safe='/#%[]=:;$&()+,!?*')
 
+
+# The encoding of the default system locale but falls back to the
+# given fallback encoding if the encoding is unsupported by python or could
+# not be determined.  See tickets #10335 and #5846
+try:
+    DEFAULT_LOCALE_ENCODING = locale.getdefaultlocale()[1] or 'ascii'
+    codecs.lookup(DEFAULT_LOCALE_ENCODING)
+except:
+    DEFAULT_LOCALE_ENCODING = 'ascii'

@@ -1,5 +1,5 @@
 from django.db import connection
-from django.db.models.fields import Field
+from django.db.models.fields import Field, FieldDoesNotExist
 from django.db.models.sql.constants import LOOKUP_SEP
 from django.db.models.sql.expressions import SQLEvaluator
 from django.db.models.sql.where import WhereNode
@@ -15,7 +15,7 @@ class GeoAnnotation(object):
     """
     def __init__(self, field, value, where):
         self.geodetic = field.geodetic
-        self.geom_type = field._geom
+        self.geom_type = field.geom_type
         self.value = value
         self.where = tuple(where)
 
@@ -35,9 +35,9 @@ class GeoWhereNode(WhereNode):
             return super(WhereNode, self).add(data, connector)
 
         obj, lookup_type, value = data
-        alias, col, field = obj.alias, obj.col, obj.field
+        col, field = obj.col, obj.field
 
-        if not hasattr(field, "_geom"):
+        if not hasattr(field, "geom_type"):
             # Not a geographic field, so call `WhereNode.add`.
             return super(GeoWhereNode, self).add(data, connector)
         else:
@@ -50,7 +50,7 @@ class GeoWhereNode(WhereNode):
                 # Get the SRID of the geometry field that the expression was meant 
                 # to operate on -- it's needed to determine whether transformation 
                 # SQL is necessary.
-                srid = geo_fld._srid
+                srid = geo_fld.srid
 
                 # Getting the quoted representation of the geometry column that
                 # the expression is operating on.
@@ -58,8 +58,8 @@ class GeoWhereNode(WhereNode):
 
                 # If it's in a different SRID, we'll need to wrap in 
                 # transformation SQL.
-                if not srid is None and srid != field._srid and SpatialBackend.transform:
-                    placeholder = '%s(%%s, %s)' % (SpatialBackend.transform, field._srid)
+                if not srid is None and srid != field.srid and SpatialBackend.transform:
+                    placeholder = '%s(%%s, %s)' % (SpatialBackend.transform, field.srid)
                 else:
                     placeholder = '%s'
 
@@ -76,17 +76,18 @@ class GeoWhereNode(WhereNode):
             # the `get_geo_where_clause` to construct the appropriate
             # spatial SQL when `make_atom` is called.
             annotation = GeoAnnotation(field, value, where)
-            return super(WhereNode, self).add((obj, lookup_type, annotation, params), connector)
+            return super(WhereNode, self).add(((obj.alias, col, field.db_type()), lookup_type, annotation, params), connector)
 
     def make_atom(self, child, qn):
-        lvalue, lookup_type, value_annot, params = child
+        obj, lookup_type, value_annot, params = child
 
         if isinstance(value_annot, GeoAnnotation):
             if lookup_type in SpatialBackend.gis_terms:
                 # Getting the geographic where clause; substitution parameters
                 # will be populated in the GeoFieldSQL object returned by the
                 # GeometryField.
-                gwc = get_geo_where_clause(lvalue.alias, lvalue.col, lookup_type, value_annot)
+                alias, col, db_type = obj
+                gwc = get_geo_where_clause(alias, col, lookup_type, value_annot)
                 return gwc % value_annot.where, params
             else:
                 raise TypeError('Invalid lookup type: %r' % lookup_type)

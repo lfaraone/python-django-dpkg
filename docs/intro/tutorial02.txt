@@ -86,7 +86,9 @@ Enter the admin site
 ====================
 
 Now, try logging in. (You created a superuser account in the first part of this
-tutorial, remember?) You should see the Django admin index page:
+tutorial, remember?  If you didn't create one or forgot the password you can
+:ref:`create another one <topics-auth-creating-superusers>`.) You should see
+the Django admin index page:
 
 .. image:: _images/admin02t.png
    :alt: Django admin index page
@@ -170,14 +172,14 @@ with the timestamp and username of the person who made the change:
 Customize the admin form
 ========================
 
-Take a few minutes to marvel at all the code you didn't have to write. When you
-call ``admin.site.register(Poll)``, Django just lets you edit the object and
-"guess" at how to display it within the admin. Often you'll want to control how
-the admin looks and works. You'll do this by telling Django about the options
+Take a few minutes to marvel at all the code you didn't have to write. By
+registering the Poll model with ``admin.site.register(Poll)``, Django was able
+to construct a default form representation. Often, you'll want to customize how
+the admin form looks and works. You'll do this by telling Django the options
 you want when you register the object.
 
-Let's see how this works by reordering the fields on the edit form. Replace the
-``admin.site.register(Poll)`` line with::
+Let's see how this works by re-ordering the fields on the edit form. Replace
+the ``admin.site.register(Poll)`` line with::
 
     class PollAdmin(admin.ModelAdmin):
         fields = ['pub_date', 'question']
@@ -236,8 +238,8 @@ the admin page doesn't display choices.
 
 Yet.
 
-There are two ways to solve this problem. The first register ``Choice`` with the
-admin just as we did with ``Poll``. That's easy::
+There are two ways to solve this problem. The first is to register ``Choice``
+with the admin just as we did with ``Poll``. That's easy::
 
     from mysite.polls.models import Choice
 
@@ -344,7 +346,7 @@ case of the ``was_published_today`` header, because sorting by the output of
 an arbitrary method is not supported. Also note that the column header for
 ``was_published_today`` is, by default, the name of the method (with
 underscores replaced with spaces). But you can change that by giving that
-method a ``short_description`` attribute::
+method (in ``models.py``) a ``short_description`` attribute::
 
     def was_published_today(self):
         return self.pub_date.date() == datetime.date.today()

@@ -445,16 +445,17 @@ class TokenParser(object):
             self.pointer = i
             return s
 
+# This only matches constant *strings* (things in quotes or marked for
+# translation). Numbers are treated as variables for implementation reasons
+# (so that they retain their type when passed to filters).
 constant_string = r"""
 (?:%(i18n_open)s%(strdq)s%(i18n_close)s|
 %(i18n_open)s%(strsq)s%(i18n_close)s|
 %(strdq)s|
-%(strsq)s)|
-%(num)s
+%(strsq)s)
 """ % {
     'strdq': r'"[^"\\]*(?:\\.[^"\\]*)*"', # double-quoted string
     'strsq': r"'[^'\\]*(?:\\.[^'\\]*)*'", # single-quoted string
-    'num': r'[-+\.]?\d[\d\.e]*', # numeric constant
     'i18n_open' : re.escape("_("),
     'i18n_close' : re.escape(")"),
     }
@@ -462,24 +463,24 @@ constant_string = constant_string.replace("\n", "")
 
 filter_raw_string = r"""
 ^(?P<constant>%(constant)s)|
-^(?P<var>[%(var_chars)s]+)|
+^(?P<var>[%(var_chars)s]+|%(num)s)|
  (?:%(filter_sep)s
      (?P<filter_name>\w+)
          (?:%(arg_sep)s
              (?:
               (?P<constant_arg>%(constant)s)|
-              (?P<var_arg>[%(var_chars)s]+)
+              (?P<var_arg>[%(var_chars)s]+|%(num)s)
              )
          )?
  )""" % {
     'constant': constant_string,
+    'num': r'[-+\.]?\d[\d\.e]*',
     'var_chars': "\w\." ,
     'filter_sep': re.escape(FILTER_SEPARATOR),
     'arg_sep': re.escape(FILTER_ARGUMENT_SEPARATOR),
   }
 
-filter_raw_string = filter_raw_string.replace("\n", "").replace(" ", "")
-filter_re = re.compile(filter_raw_string, re.UNICODE)
+filter_re = re.compile(filter_raw_string, re.UNICODE|re.VERBOSE)
 
 class FilterExpression(object):
     r"""
@@ -800,6 +801,18 @@ class TextNode(Node):
 
     def render(self, context):
         return self.s
+    
+def _render_value_in_context(value, context):
+    """
+    Converts any value to a string to become part of a rendered template. This
+    means escaping, if required, and conversion to a unicode object. If value
+    is a string, it is expected to have already been translated.
+    """
+    value = force_unicode(value)
+    if (context.autoescape and not isinstance(value, SafeData)) or isinstance(value, EscapeData):
+        return escape(value)
+    else:
+        return value
 
 class VariableNode(Node):
     def __init__(self, filter_expression):
@@ -810,15 +823,12 @@ class VariableNode(Node):
 
     def render(self, context):
         try:
-            output = force_unicode(self.filter_expression.resolve(context))
+            output = self.filter_expression.resolve(context)
         except UnicodeDecodeError:
             # Unicode conversion can fail sometimes for reasons out of our
             # control (e.g. exception rendering). In that case, we fail quietly.
             return ''
-        if (context.autoescape and not isinstance(output, SafeData)) or isinstance(output, EscapeData):
-            return force_unicode(escape(output))
-        else:
-            return force_unicode(output)
+        return _render_value_in_context(output, context)
 
 def generic_tag_compiler(params, defaults, name, node_class, parser, token):
     "Returns a template.Node subclass."

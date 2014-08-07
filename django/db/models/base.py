@@ -116,6 +116,8 @@ class ModelBase(type):
                     new_class._meta.local_many_to_many):
                 raise FieldError("Proxy model '%s' contains model fields."
                         % name)
+            while base._meta.proxy:
+                base = base._meta.proxy_for_model
             new_class._meta.setup_proxy(base)
 
         # Do the appropriate setup for any model parents.
@@ -123,6 +125,7 @@ class ModelBase(type):
                 if isinstance(f, OneToOneField)])
 
         for base in parents:
+            original_base = base
             if not hasattr(base, '_meta'):
                 # Things without _meta aren't functional models, so they're
                 # uninteresting parents.
@@ -167,7 +170,7 @@ class ModelBase(type):
             # Proxy models inherit the non-abstract managers from their base,
             # unless they have redefined any of them.
             if is_proxy:
-                new_class.copy_managers(base._meta.concrete_managers)
+                new_class.copy_managers(original_base._meta.concrete_managers)
 
             # Inherit virtual fields (like GenericForeignKey) from the parent
             # class
@@ -362,9 +365,8 @@ class Model(object):
                     # DeferredAttribute classes, so we only need to do this
                     # once.
                     obj = self.__class__.__dict__[field.attname]
-                    pk_val = obj.pk_value
                     model = obj.model_ref()
-        return (model_unpickle, (model, pk_val, defers), data)
+        return (model_unpickle, (model, defers), data)
 
     def _get_pk_val(self, meta=None):
         if not meta:
@@ -409,29 +411,37 @@ class Model(object):
 
     save.alters_data = True
 
-    def save_base(self, raw=False, cls=None, force_insert=False,
-            force_update=False):
+    def save_base(self, raw=False, cls=None, origin=None,
+            force_insert=False, force_update=False):
         """
         Does the heavy-lifting involved in saving. Subclasses shouldn't need to
         override this method. It's separate from save() in order to hide the
         need for overrides of save() to pass around internal-only parameters
-        ('raw' and 'cls').
+        ('raw', 'cls', and 'origin').
         """
         assert not (force_insert and force_update)
-        if not cls:
+        if cls is None:
             cls = self.__class__
-            meta = self._meta
-            signal = True
-            signals.pre_save.send(sender=self.__class__, instance=self, raw=raw)
+            meta = cls._meta
+            if not meta.proxy:
+                origin = cls
         else:
             meta = cls._meta
-            signal = False
+
+        if origin:
+            signals.pre_save.send(sender=origin, instance=self, raw=raw)
 
         # If we are in a raw save, save the object exactly as presented.
         # That means that we don't try to be smart about saving attributes
         # that might have come from the parent class - we just save the
         # attributes we have been given to the class we have been given.
-        if not raw:
+        # We also go through this process to defer the save of proxy objects
+        # to their actual underlying model.
+        if not raw or meta.proxy:
+            if meta.proxy:
+                org = cls
+            else:
+                org = None
             for parent, field in meta.parents.items():
                 # At this point, parent's primary key field may be unknown
                 # (for example, from administration form which doesn't fill
@@ -439,7 +449,8 @@ class Model(object):
                 if field and getattr(self, parent._meta.pk.attname) is None and getattr(self, field.attname) is not None:
                     setattr(self, parent._meta.pk.attname, getattr(self, field.attname))
 
-                self.save_base(cls=parent)
+                self.save_base(cls=parent, origin=org)
+
                 if field:
                     setattr(self, field.attname, self._get_pk_val(parent._meta))
             if meta.proxy:
@@ -490,8 +501,8 @@ class Model(object):
                     setattr(self, meta.pk.attname, result)
             transaction.commit_unless_managed()
 
-        if signal:
-            signals.post_save.send(sender=self.__class__, instance=self,
+        if origin:
+            signals.post_save.send(sender=origin, instance=self,
                 created=(not record_exists), raw=raw)
 
     save_base.alters_data = True
@@ -536,7 +547,7 @@ class Model(object):
         # traversing to the most remote parent classes -- those with no parents
         # themselves -- and then adding those instances to the collection. That
         # will include all the child instances down to "self".
-        parent_stack = self._meta.parents.values()
+        parent_stack = [p for p in self._meta.parents.values() if p is not None]
         while parent_stack:
             link = parent_stack.pop()
             parent_obj = getattr(self, link.name)
@@ -635,12 +646,12 @@ def get_absolute_url(opts, func, self, *args, **kwargs):
 class Empty(object):
     pass
 
-def model_unpickle(model, pk_val, attrs):
+def model_unpickle(model, attrs):
     """
     Used to unpickle Model subclasses with deferred fields.
     """
     from django.db.models.query_utils import deferred_class_factory
-    cls = deferred_class_factory(model, pk_val, attrs)
+    cls = deferred_class_factory(model, attrs)
     return cls.__new__(cls)
 model_unpickle.__safe_for_unpickle__ = True
 

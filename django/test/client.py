@@ -2,6 +2,7 @@ import urllib
 from urlparse import urlparse, urlunparse, urlsplit
 import sys
 import os
+import re
 try:
     from cStringIO import StringIO
 except ImportError:
@@ -25,7 +26,7 @@ from django.test.utils import ContextList
 
 BOUNDARY = 'BoUnDaRyStRiNg'
 MULTIPART_CONTENT = 'multipart/form-data; boundary=%s' % BOUNDARY
-
+CONTENT_TYPE_RE = re.compile('.*; charset=([\w\d-]+);?')
 
 class FakePayload(object):
     """
@@ -290,7 +291,13 @@ class Client(object):
         if content_type is MULTIPART_CONTENT:
             post_data = encode_multipart(BOUNDARY, data)
         else:
-            post_data = data
+            # Encode the content so that the byte representation is correct.
+            match = CONTENT_TYPE_RE.match(content_type)
+            if match:
+                charset = match.group(1)
+            else:
+                charset = settings.DEFAULT_CHARSET
+            post_data = smart_str(data, encoding=charset)
 
         parsed = urlparse(path)
         r = {
@@ -431,12 +438,14 @@ class Client(object):
 
     def logout(self):
         """
-        Removes the authenticated user's cookies.
+        Removes the authenticated user's cookies and session object.
 
         Causes the authenticated user to be logged out.
         """
         session = import_module(settings.SESSION_ENGINE).SessionStore()
-        session.delete(session_key=self.cookies[settings.SESSION_COOKIE_NAME].value)
+        session_cookie = self.cookies.get(settings.SESSION_COOKIE_NAME)
+        if session_cookie:
+            session.delete(session_key=session_cookie.value)
         self.cookies = SimpleCookie()
 
     def _handle_redirects(self, response):

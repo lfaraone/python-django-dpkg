@@ -205,6 +205,15 @@ class BaseForm(StrAndUnicode):
         """
         return self.errors.get(NON_FIELD_ERRORS, self.error_class())
 
+    def _raw_value(self, fieldname):
+        """
+        Returns the raw_value for a particular field name. This is just a
+        convenient wrapper around widget.value_from_datadict.
+        """
+        field = self.fields[fieldname]
+        prefix = self.add_prefix(fieldname)
+        return field.widget.value_from_datadict(self.data, self.files, prefix)
+
     def full_clean(self):
         """
         Cleans all of self.data and populates self._errors and
@@ -371,7 +380,10 @@ class BoundField(StrAndUnicode):
             if callable(data):
                 data = data()
         else:
-            data = self.data
+            if isinstance(self.field, FileField) and self.data is None:
+                data = self.form.initial.get(self.name, self.field.initial)
+            else:
+                data = self.data
         if not only_initial:
             name = self.html_name
         else:

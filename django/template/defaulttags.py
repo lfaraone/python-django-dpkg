@@ -125,6 +125,7 @@ class ForNode(Node):
             values = list(values)
         len_values = len(values)
         if len_values < 1:
+            context.pop()
             return self.nodelist_empty.render(context)
         nodelist = NodeList()
         if self.is_reversed:
@@ -186,10 +187,7 @@ class IfChangedNode(Node):
         if compare_to != self._last_seen:
             firstloop = (self._last_seen == None)
             self._last_seen = compare_to
-            context.push()
-            context['ifchanged'] = {'firstloop': firstloop}
             content = self.nodelist_true.render(context)
-            context.pop()
             return content
         elif self.nodelist_false:
             return self.nodelist_false.render(context)
@@ -369,15 +367,22 @@ class URLNode(Node):
         # {% url ... as var %} construct in which cause return nothing.
         url = ''
         try:
-            url = reverse(self.view_name, args=args, kwargs=kwargs)
-        except NoReverseMatch:
-            project_name = settings.SETTINGS_MODULE.split('.')[0]
-            try:
-                url = reverse(project_name + '.' + self.view_name,
-                              args=args, kwargs=kwargs)
-            except NoReverseMatch:
+            url = reverse(self.view_name, args=args, kwargs=kwargs, current_app=context.current_app)
+        except NoReverseMatch, e:
+            if settings.SETTINGS_MODULE:
+                project_name = settings.SETTINGS_MODULE.split('.')[0]
+                try:
+                    url = reverse(project_name + '.' + self.view_name,
+                              args=args, kwargs=kwargs, current_app=context.current_app)
+                except NoReverseMatch:
+                    if self.asvar is None:
+                        # Re-raise the original exception, not the one with
+                        # the path relative to the project. This makes a
+                        # better error message.
+                        raise e
+            else:
                 if self.asvar is None:
-                    raise
+                    raise e
 
         if self.asvar:
             context[self.asvar] = url
@@ -395,12 +400,15 @@ class WidthRatioNode(Node):
         try:
             value = self.val_expr.resolve(context)
             maxvalue = self.max_expr.resolve(context)
+            max_width = int(self.max_width.resolve(context))
         except VariableDoesNotExist:
             return ''
+        except ValueError:
+            raise TemplateSyntaxError("widthratio final argument must be an number")
         try:
             value = float(value)
             maxvalue = float(maxvalue)
-            ratio = (value / maxvalue) * int(self.max_width)
+            ratio = (value / maxvalue) * max_width
         except (ValueError, ZeroDivisionError):
             return ''
         return str(int(round(ratio)))
@@ -556,7 +564,7 @@ do_filter = register.tag("filter", do_filter)
 #@register.tag
 def firstof(parser, token):
     """
-    Outputs the first variable passed that is not False.
+    Outputs the first variable passed that is not False, without escaping.
 
     Outputs nothing if all the passed variables are False.
 
@@ -567,11 +575,11 @@ def firstof(parser, token):
     This is equivalent to::
 
         {% if var1 %}
-            {{ var1 }}
+            {{ var1|safe }}
         {% else %}{% if var2 %}
-            {{ var2 }}
+            {{ var2|safe }}
         {% else %}{% if var3 %}
-            {{ var3 }}
+            {{ var3|safe }}
         {% endif %}{% endif %}{% endif %}
 
     but obviously much cleaner!
@@ -580,6 +588,12 @@ def firstof(parser, token):
     passed variables are False::
 
         {% firstof var1 var2 var3 "fallback value" %}
+
+    If you want to escape the output, use a filter tag::
+
+        {% filter force_escape %}
+            {% firstof var1 var2 var3 "fallback value" %}
+	{% endfilter %}
 
     """
     bits = token.split_contents()[1:]
@@ -972,7 +986,7 @@ def regroup(parser, token):
     that ``grouper``.  In this case, ``grouper`` would be ``Male``, ``Female``
     and ``Unknown``, and ``list`` is the list of people with those genders.
 
-    Note that `{% regroup %}`` does not work when the list to be grouped is not
+    Note that ``{% regroup %}`` does not work when the list to be grouped is not
     sorted by the key you are grouping by!  This means that if your list of
     people was not sorted by gender, you'd need to make sure it is sorted
     before using it, i.e.::
@@ -1092,7 +1106,7 @@ def url(parser, token):
 
     The URL will look like ``/clients/client/123/``.
     """
-    bits = token.contents.split(' ')
+    bits = token.split_contents()
     if len(bits) < 2:
         raise TemplateSyntaxError("'%s' takes at least one argument"
                                   " (path to a view)" % bits[0])
@@ -1128,7 +1142,7 @@ def widthratio(parser, token):
 
         <img src='bar.gif' height='10' width='{% widthratio this_value max_value 100 %}' />
 
-    Above, if ``this_value`` is 175 and ``max_value`` is 200, the the image in
+    Above, if ``this_value`` is 175 and ``max_value`` is 200, the image in
     the above example will be 88 pixels wide (because 175/200 = .875;
     .875 * 100 = 87.5 which is rounded up to 88).
     """
@@ -1136,12 +1150,10 @@ def widthratio(parser, token):
     if len(bits) != 4:
         raise TemplateSyntaxError("widthratio takes three arguments")
     tag, this_value_expr, max_value_expr, max_width = bits
-    try:
-        max_width = int(max_width)
-    except ValueError:
-        raise TemplateSyntaxError("widthratio final argument must be an integer")
+
     return WidthRatioNode(parser.compile_filter(this_value_expr),
-                          parser.compile_filter(max_value_expr), max_width)
+                          parser.compile_filter(max_value_expr),
+                          parser.compile_filter(max_width))
 widthratio = register.tag(widthratio)
 
 #@register.tag

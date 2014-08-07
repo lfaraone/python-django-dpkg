@@ -75,7 +75,7 @@ class Media(StrAndUnicode):
     def __getitem__(self, name):
         "Returns a Media object that only contains media of the given type"
         if name in MEDIA_TYPES:
-            return Media(**{name: getattr(self, '_' + name)})
+            return Media(**{str(name): getattr(self, '_' + name)})
         raise KeyError('Unknown media type "%s"' % name)
 
     def add_js(self, data):
@@ -294,13 +294,20 @@ class DateInput(Input):
         if format:
             self.format = format
 
-    def render(self, name, value, attrs=None):
+    def _format_value(self, value):
         if value is None:
-            value = ''
+            return ''
         elif hasattr(value, 'strftime'):
             value = datetime_safe.new_date(value)
-            value = value.strftime(self.format)
+            return value.strftime(self.format)
+        return value
+
+    def render(self, name, value, attrs=None):
+        value = self._format_value(value)
         return super(DateInput, self).render(name, value, attrs)
+
+    def _has_changed(self, initial, data):
+        return super(DateInput, self)._has_changed(self._format_value(initial), data)
 
 class DateTimeInput(Input):
     input_type = 'text'
@@ -311,13 +318,20 @@ class DateTimeInput(Input):
         if format:
             self.format = format
 
-    def render(self, name, value, attrs=None):
+    def _format_value(self, value):
         if value is None:
-            value = ''
+            return ''
         elif hasattr(value, 'strftime'):
             value = datetime_safe.new_datetime(value)
-            value = value.strftime(self.format)
+            return value.strftime(self.format)
+        return value
+
+    def render(self, name, value, attrs=None):
+        value = self._format_value(value)
         return super(DateTimeInput, self).render(name, value, attrs)
+
+    def _has_changed(self, initial, data):
+        return super(DateTimeInput, self)._has_changed(self._format_value(initial), data)
 
 class TimeInput(Input):
     input_type = 'text'
@@ -328,12 +342,19 @@ class TimeInput(Input):
         if format:
             self.format = format
 
-    def render(self, name, value, attrs=None):
+    def _format_value(self, value):
         if value is None:
-            value = ''
+            return ''
         elif hasattr(value, 'strftime'):
-            value = value.strftime(self.format)
+            return value.strftime(self.format)
+        return value
+
+    def render(self, name, value, attrs=None):
+        value = self._format_value(value)
         return super(TimeInput, self).render(name, value, attrs)
+
+    def _has_changed(self, initial, data):
+        return super(TimeInput, self)._has_changed(self._format_value(initial), data)
 
 class CheckboxInput(Widget):
     def __init__(self, attrs=None, check_test=bool):
@@ -422,7 +443,12 @@ class NullBooleanSelect(Select):
 
     def value_from_datadict(self, data, files, name):
         value = data.get(name, None)
-        return {u'2': True, u'3': False, True: True, False: False}.get(value, None)
+        return {u'2': True,
+                True: True,
+                'True': True,
+                u'3': False,
+                'False': False,
+                False: False}.get(value, None)
 
     def _has_changed(self, initial, data):
         # Sometimes data or initial could be None or u'' which should be the

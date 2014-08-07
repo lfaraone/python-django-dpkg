@@ -1,8 +1,8 @@
 .. _topics-db-models:
 
-==============
-Writing models
-==============
+======
+Models
+======
 
 .. module:: django.db.models
 
@@ -165,12 +165,37 @@ ones:
         A choices list looks like this::
 
             YEAR_IN_SCHOOL_CHOICES = (
-                ('FR', 'Freshman'),
-                ('SO', 'Sophomore'),
-                ('JR', 'Junior'),
-                ('SR', 'Senior'),
-                ('GR', 'Graduate'),
+                (u'FR', u'Freshman'),
+                (u'SO', u'Sophomore'),
+                (u'JR', u'Junior'),
+                (u'SR', u'Senior'),
+                (u'GR', u'Graduate'),
             )
+
+        The first element in each tuple is the value that will be stored in the
+        database, the second element will be displayed by the admin interface,
+        or in a ModelChoiceField. Given an instance of a model object, the
+        display value for a choices field can be accessed using the
+        ``get_FOO_display`` method. For example::
+
+            from django.db import models
+
+            class Person(models.Model):
+                GENDER_CHOICES = (
+                    (u'M', u'Male'),
+                    (u'F', u'Female'),
+                )
+                name = models.CharField(max_length=60)
+                gender = models.CharField(max_length=2, choices=GENDER_CHOICES)
+
+        ::
+
+            >>> p = Person(name="Fred Flinstone", gender="M")
+            >>> p.save()
+            >>> p.gender
+            u'M'
+            >>> p.get_gender_display()
+            u'Male'
 
     :attr:`~Field.default`
         The default value for the field. This can be a value or a callable
@@ -482,7 +507,7 @@ many-to-many relationships, you can query using the attributes of the
 many-to-many-related model::
 
     # Find all the groups with a member whose name starts with 'Paul'
-    >>> Groups.objects.filter(members__name__startswith='Paul')
+    >>> Group.objects.filter(members__name__startswith='Paul')
     [<Group: The Beatles>]
 
 As you are using an intermediate model, you can also query on its attributes::
@@ -727,37 +752,8 @@ Executing custom SQL
 --------------------
 
 Another common pattern is writing custom SQL statements in model methods and
-module-level methods. The object :class:`django.db.connection
-<django.db.backends.DatabaseWrapper>` represents the current database
-connection. To use it, call :meth:`connection.cursor()
-<django.db.backends.DatabaseWrapper.cursor>` to get a cursor object. Then, call
-``cursor.execute(sql, [params])`` to execute the SQL and
-:meth:`cursor.fetchone() <django.db.backends.CursorWrapper.fetchone>` or
-:meth:`cursor.fetchall() <django.db.backends.CursorWrapper.fetchall>` to return
-the resulting rows. For example::
-
-    def my_custom_sql(self):
-        from django.db import connection
-        cursor = connection.cursor()
-        cursor.execute("SELECT foo FROM bar WHERE baz = %s", [self.baz])
-        row = cursor.fetchone()
-        return row
-
-:class:`connection <django.db.backends.DatabaseWrapper>` and :class:`cursor
-<django.db.backends.CursorWrapper>` mostly implement the standard Python
-DB-API -- see :pep:`249` -- with the addition of Django's :ref:`transaction
-handling <topics-db-transactions>`. If you're not familiar with the Python
-DB-API, note that the SQL statement in :meth:`cursor.execute()
-<django.db.backends.CursorWrapper.execute>` uses placeholders, ``"%s"``, rather
-than adding parameters directly within the SQL. If you use this technique, the
-underlying database library will automatically add quotes and escaping to your
-parameter(s) as necessary. (Also note that Django expects the ``"%s"``
-placeholder, *not* the ``"?"`` placeholder, which is used by the SQLite Python
-bindings. This is for the sake of consistency and sanity.)
-
-A final note: If all you want to do is a custom ``WHERE`` clause, you can use
-the :meth:`~QuerySet.extra` lookup method, which lets you add custom SQL to a
-query.
+module-level methods. For more details on using raw SQL, see the documentation
+on :ref:`using raw SQL<topics-db-sql>`.
 
 .. _model-inheritance:
 
@@ -871,7 +867,7 @@ that the field is used in. Since each class has a different name, each related
 name will end up being different. For example::
 
     class Base(models.Model):
-        m2m = models.ManyToMany(OtherModel, related_name="%(class)s_related")
+        m2m = models.ManyToManyField(OtherModel, related_name="%(class)s_related")
 
         class Meta:
             abstract = True
@@ -1019,10 +1015,11 @@ ordering or the default manager in the proxy, without having to alter the
 original.
 
 Proxy models are declared like normal models. You tell Django that it's a
-proxy model by setting the :attr:`~django.db.models.Options.proxy` attribute to of the ``Meta`` class to ``True``.
+proxy model by setting the :attr:`~django.db.models.Options.proxy` attribute of
+the ``Meta`` class to ``True``.
 
 For example, suppose you want to add a method to the standard ``User`` model
-that will make be used in your templates. You can do it like this::
+that will be used in your templates. You can do it like this::
 
     from django.contrib.auth.models import User
 
@@ -1104,7 +1101,7 @@ manager <custom-managers-and-inheritance>` documentation: create a base class
 containing the new managers and inherit that after the primary base class::
 
     # Create an abstract class for the new manager.
-    class ExtraManagers:
+    class ExtraManagers(models.Model):
         secondary = NewManager()
 
         class Meta:

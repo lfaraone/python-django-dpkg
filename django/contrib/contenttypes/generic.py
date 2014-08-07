@@ -203,7 +203,7 @@ class ReverseGenericRelatedObjectsDescriptor(object):
             join_table = qn(self.field.m2m_db_table()),
             source_col_name = qn(self.field.m2m_column_name()),
             target_col_name = qn(self.field.m2m_reverse_name()),
-            content_type = ContentType.objects.get_for_model(self.field.model),
+            content_type = ContentType.objects.get_for_model(instance),
             content_type_field_name = self.field.content_type_field_name,
             object_id_field_name = self.field.object_id_field_name
         )
@@ -253,6 +253,8 @@ def create_generic_related_manager(superclass):
 
         def add(self, *objs):
             for obj in objs:
+                if not isinstance(obj, self.model):
+                    raise TypeError, "'%s' instance expected" % self.model._meta.object_name
                 setattr(obj, self.content_type_field_name, self.content_type)
                 setattr(obj, self.object_id_field_name, self.pk_val)
                 obj.save()
@@ -283,6 +285,7 @@ class GenericRel(ManyToManyRel):
         self.limit_choices_to = limit_choices_to or {}
         self.symmetrical = symmetrical
         self.multiple = True
+        self.through = None
 
 class BaseGenericInlineFormSet(BaseModelFormSet):
     """
@@ -314,7 +317,7 @@ class BaseGenericInlineFormSet(BaseModelFormSet):
     def get_queryset(self):
         # Avoid a circular import.
         from django.contrib.contenttypes.models import ContentType
-        if self.instance is None:
+        if self.instance is None or self.instance.pk is None:
             return self.model._default_manager.none()
         return self.model._default_manager.filter(**{
             self.ct_field.name: ContentType.objects.get_for_model(self.instance),
@@ -353,6 +356,7 @@ def generic_inlineformset_factory(model, form=ModelForm,
         raise Exception("fk_name '%s' is not a ForeignKey to ContentType" % ct_field)
     fk_field = opts.get_field(fk_field) # let the exception propagate
     if exclude is not None:
+        exclude = list(exclude)
         exclude.extend([ct_field.name, fk_field.name])
     else:
         exclude = [ct_field.name, fk_field.name]
@@ -385,6 +389,8 @@ class GenericInlineModelAdmin(InlineModelAdmin):
             "can_delete": True,
             "can_order": False,
             "fields": fields,
+            "max_num": self.max_num,
+            "exclude": self.exclude
         }
         return generic_inlineformset_factory(self.model, **defaults)
 
