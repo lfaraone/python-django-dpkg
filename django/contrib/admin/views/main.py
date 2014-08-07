@@ -5,10 +5,10 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.views.decorators.cache import never_cache
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ImproperlyConfigured, ObjectDoesNotExist, PermissionDenied
-from django.core.paginator import ObjectPaginator, InvalidPage
+from django.core.paginator import QuerySetPaginator, InvalidPage
 from django.shortcuts import get_object_or_404, render_to_response
 from django.db import models
-from django.db.models.query import handle_legacy_orderlist, QuerySet
+from django.db.models.query import QuerySet
 from django.http import Http404, HttpResponse, HttpResponseRedirect
 from django.utils.html import escape
 from django.utils.text import capfirst, get_text_list
@@ -611,11 +611,11 @@ class ChangeList(object):
         return mark_safe('?' + '&amp;'.join([u'%s=%s' % (k, v) for k, v in p.items()]).replace(' ', '%20'))
 
     def get_results(self, request):
-        paginator = ObjectPaginator(self.query_set, self.lookup_opts.admin.list_per_page)
+        paginator = QuerySetPaginator(self.query_set, self.lookup_opts.admin.list_per_page)
 
         # Get the number of objects, with admin filters applied.
         try:
-            result_count = paginator.hits
+            result_count = paginator.count
         # Naked except! Because we don't have any other way of validating
         # "params". They might be invalid if the keyword arguments are
         # incorrect, or if the values are not in the correct type (which would
@@ -627,7 +627,7 @@ class ChangeList(object):
         # Perform a slight optimization: Check to see whether any filters were
         # given. If not, use paginator.hits to calculate the number of objects,
         # because we've already done paginator.hits and the value is cached.
-        if isinstance(self.query_set._filters, models.Q) and not self.query_set._filters.kwargs:
+        if not self.query_set.query.where:
             full_result_count = result_count
         else:
             full_result_count = self.manager.count()
@@ -640,7 +640,7 @@ class ChangeList(object):
             result_list = list(self.query_set)
         else:
             try:
-                result_list = paginator.get_page(self.page_num)
+                result_list = paginator.page(self.page_num+1).object_list
             except InvalidPage:
                 result_list = ()
 
@@ -653,14 +653,11 @@ class ChangeList(object):
 
     def get_ordering(self):
         lookup_opts, params = self.lookup_opts, self.params
-        # For ordering, first check the "ordering" parameter in the admin options,
-        # then check the object's default ordering. If neither of those exist,
-        # order descending by ID by default. Finally, look for manually-specified
-        # ordering from the query string.
+        # For ordering, first check the "ordering" parameter in the admin
+        # options, then check the object's default ordering. If neither of
+        # those exist, order descending by ID by default. Finally, look for
+        # manually-specified ordering from the query string.
         ordering = lookup_opts.admin.ordering or lookup_opts.ordering or ['-' + lookup_opts.pk.name]
-
-        # Normalize it to new-style ordering.
-        ordering = handle_legacy_orderlist(ordering)
 
         if ordering[0].startswith('-'):
             order_field, order_type = ordering[0][1:], 'desc'
@@ -719,24 +716,9 @@ class ChangeList(object):
                         qs = qs.select_related()
                         break
 
-        # Calculate lookup_order_field.
-        # If the order-by field is a field with a relationship, order by the
-        # value in the related table.
-        lookup_order_field = self.order_field
-        try:
-            f = self.lookup_opts.get_field(self.order_field, many_to_many=False)
-        except models.FieldDoesNotExist:
-            pass
-        else:
-            if isinstance(f.rel, models.OneToOneRel):
-                # For OneToOneFields, don't try to order by the related object's ordering criteria.
-                pass
-            elif isinstance(f.rel, models.ManyToOneRel):
-                rel_ordering = f.rel.to._meta.ordering and f.rel.to._meta.ordering[0] or f.rel.to._meta.pk.column
-                lookup_order_field = '%s.%s' % (f.rel.to._meta.db_table, rel_ordering)
-
         # Set ordering.
-        qs = qs.order_by((self.order_type == 'desc' and '-' or '') + lookup_order_field)
+        if self.order_field:
+            qs = qs.order_by('%s%s' % ((self.order_type == 'desc' and '-' or ''), self.order_field))
 
         # Apply keyword searches.
         def construct_search(field_name):
@@ -753,8 +735,7 @@ class ChangeList(object):
             for bit in self.query.split():
                 or_queries = [models.Q(**{construct_search(field_name): bit}) for field_name in self.lookup_opts.admin.search_fields]
                 other_qs = QuerySet(self.model)
-                if qs._select_related:
-                    other_qs = other_qs.select_related()
+                other_qs.dup_select_related(qs)
                 other_qs = other_qs.filter(reduce(operator.or_, or_queries))
                 qs = qs & other_qs
 

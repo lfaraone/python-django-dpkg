@@ -17,7 +17,8 @@ except ImportError, e:
 version = Database.version_info
 if (version < (1,2,1) or (version[:3] == (1, 2, 1) and
         (len(version) < 5 or version[3] != 'final' or version[4] < 2))):
-    raise ImportError("MySQLdb-1.2.1p2 or newer is required; you have %s" % Database.__version__)
+    from django.core.exceptions import ImproperlyConfigured
+    raise ImproperlyConfigured("MySQLdb-1.2.1p2 or newer is required; you have %s" % Database.__version__)
 
 from MySQLdb.converters import conversions
 from MySQLdb.constants import FIELD_TYPE
@@ -61,6 +62,8 @@ server_version_re = re.compile(r'(\d{1,2})\.(\d{1,2})\.(\d{1,2})')
 class DatabaseFeatures(BaseDatabaseFeatures):
     autoindexes_primary_keys = False
     inline_fk_references = False
+    empty_fetchmany_value = ()
+    update_can_self_select = False
 
 class DatabaseOperations(BaseDatabaseOperations):
     def date_extract_sql(self, lookup_type, field_name):
@@ -92,6 +95,10 @@ class DatabaseOperations(BaseDatabaseOperations):
         if offset and offset != 0:
             sql += "%s," % offset
         return sql + str(limit)
+
+    def no_limit_value(self):
+        # 2**64 - 1, as recommended by the MySQL documentation
+        return 18446744073709551615L
 
     def quote_name(self, name):
         if name.startswith("`") and name.endswith("`"):
