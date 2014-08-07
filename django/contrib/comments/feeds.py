@@ -11,7 +11,7 @@ class LatestFreeCommentsFeed(Feed):
     def title(self):
         if not hasattr(self, '_site'):
             self._site = Site.objects.get_current()
-        return u"%s comments" % self._site.name
+        return "%s comments" % self._site.name
 
     def link(self):
         if not hasattr(self, '_site'):
@@ -21,21 +21,18 @@ class LatestFreeCommentsFeed(Feed):
     def description(self):
         if not hasattr(self, '_site'):
             self._site = Site.objects.get_current()
-        return u"Latest comments on %s" % self._site.name
-
-    def get_query_set(self):
-        return self.comments_class.objects.filter(site__pk=settings.SITE_ID, is_public=True)
+        return "Latest comments on %s" % self._site.name
 
     def items(self):
-        return self.get_query_set()[:40]
+        return self.comments_class.objects.filter(site__pk=settings.SITE_ID, is_public=True)[:40]
 
 class LatestCommentsFeed(LatestFreeCommentsFeed):
     """Feed of latest free comments on the current site"""
 
     comments_class = Comment
 
-    def get_query_set(self):
-        qs = super(LatestCommentsFeed, self).get_query_set()
+    def items(self):
+        qs = LatestFreeCommentsFeed.items(self)
         qs = qs.filter(is_removed=False)
         if settings.COMMENTS_BANNED_USERS_GROUP:
             where = ['user_id NOT IN (SELECT user_id FROM auth_users_group WHERE group_id = %s)']

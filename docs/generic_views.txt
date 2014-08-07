@@ -40,11 +40,11 @@ simple weblog app that drives the blog on djangoproject.com::
     }
 
     urlpatterns = patterns('django.views.generic.date_based',
-       (r'^(?P<year>\d{4})/(?P<month>[a-z]{3})/(?P<day>\w{1,2})/(?P<slug>[-\w]+)/$', 'object_detail', info_dict),
+       (r'^(?P<year>\d{4})/(?P<month>[a-z]{3})/(?P<day>\w{1,2})/(?P<slug>[-\w]+)/$', 'object_detail', dict(info_dict, slug_field='slug')),
        (r'^(?P<year>\d{4})/(?P<month>[a-z]{3})/(?P<day>\w{1,2})/$',               'archive_day',   info_dict),
        (r'^(?P<year>\d{4})/(?P<month>[a-z]{3})/$',                                'archive_month', info_dict),
        (r'^(?P<year>\d{4})/$',                                                    'archive_year',  info_dict),
-       (r'^$',                                                                    'archive_index', info_dict),
+       (r'^/?$',                                                                  'archive_index', info_dict),
     )
 
 As you can see, this URLconf defines a few options in ``info_dict``.
@@ -71,7 +71,7 @@ are first evaluated, so if you want to pass in a QuerySet via
 ``extra_context`` that is always fresh you need to wrap it in a function or
 lambda that returns the QuerySet.
 
-.. _database API docs: ../db-api/
+.. _database API docs: ../db_api/
 
 "Simple" generic views
 ======================
@@ -98,9 +98,6 @@ which is a dictionary of the parameters captured in the URL.
       context. By default, this is an empty dictionary. If a value in the
       dictionary is callable, the generic view will call it
       just before rendering the template.
-
-    * ``mimetype``: The MIME type to use for the resulting document. Defaults
-      to the value of the ``DEFAULT_CONTENT_TYPE`` setting.
 
 **Example:**
 
@@ -201,10 +198,6 @@ a date in the *future* are not included unless you set ``allow_future`` to
       specified in ``date_field`` is greater than the current date/time. By
       default, this is ``False``.
 
-    * **New in Django development version:** ``template_object_name``:
-      Designates the name of the template variable to use in the template
-      context. By default, this is ``'latest'``.
-
 **Template name:**
 
 If ``template_name`` isn't specified, this view will use the template
@@ -225,17 +218,11 @@ In addition to ``extra_context``, the template's context will be:
       years that have objects available according to ``queryset``. These are
       ordered in reverse. This is equivalent to
       ``queryset.dates(date_field, 'year')[::-1]``.
-
     * ``latest``: The ``num_latest`` objects in the system, ordered descending
       by ``date_field``. For example, if ``num_latest`` is ``10``, then
       ``latest`` will be a list of the latest 10 objects in ``queryset``.
 
-      **New in Django development version:** This variable's name depends on
-      the ``template_object_name`` parameter, which is ``'latest'`` by default.
-      If ``template_object_name`` is ``'foo'``, this variable's name will be
-      ``foo``.
-
-.. _RequestContext docs: ../templates_python/#subclassing-context-requestcontext
+.. _RequestContext docs: ../templates_python/#subclassing-context-djangocontext
 
 ``django.views.generic.date_based.archive_year``
 ------------------------------------------------
@@ -613,7 +600,7 @@ future, the view will throw a 404 error by default, unless you set
 
       Otherwise, ``slug`` should be the slug of the given object, and
       ``slug_field`` should be the name of the slug field in the ``QuerySet``'s
-      model. By default, ``slug_field`` is ``'slug'``.
+      model.
 
 **Optional arguments:**
 
@@ -698,11 +685,9 @@ A page representing a list of objects.
     * ``paginate_by``: An integer specifying how many objects should be
       displayed per page. If this is given, the view will paginate objects with
       ``paginate_by`` objects per page. The view will expect either a ``page``
-      query string parameter (via ``GET``) or a ``page`` variable specified in
-      the URLconf. See `Notes on pagination`_ below.
-
-    * ``page``: The current page number, as an integer. This is 1-based. 
-      See `Notes on pagination`_ below.
+      query string parameter (via ``GET``) containing a 1-based page
+      number, or a ``page`` variable specified in the URLconf. See
+      "Notes on pagination" below.
 
     * ``template_name``: The full name of a template to use in rendering the
       page. This lets you override the default template name (see below).
@@ -766,19 +751,16 @@ If the results are paginated, the context will contain these extra variables:
 
     * ``previous``: The previous page number, as an integer. This is 1-based.
 
-    * ``last_on_page``: The number of the
+    * `last_on_page`: The number of the
       last result on the current page. This is 1-based.
 
-    * ``first_on_page``: The number of the
+    * `first_on_page`: The number of the
       first result on the current page. This is 1-based.
 
     * ``pages``: The total number of pages, as an integer.
 
     * ``hits``: The total number of objects across *all* pages, not just this
       page.
-
-    * **New in Django development version:** ``page_range``: A list of the 
-      page numbers that are available. This is 1-based.
 
 Notes on pagination
 ~~~~~~~~~~~~~~~~~~~
@@ -792,29 +774,12 @@ specify the page number in the URL in one of two ways:
         (r'^objects/page(?P<page>[0-9]+)/$', 'object_list', dict(info_dict))
 
     * Pass the page number via the ``page`` query-string parameter. For
-      example, a URL would look like this::
+      example, a URL would look like this:
 
         /objects/?page=3
 
-    * To loop over all the available page numbers, use the ``page_range`` 
-      variable. You can iterate over the list provided by ``page_range`` 
-      to create a link to every page of results.
-
-These values and lists are is 1-based, not 0-based, so the first page would be
-represented as page ``1``. 
-
-**New in Django development version:** 
-
-As a special case, you are also permitted to use 
-``last`` as a value for ``page``::
-
-    /objects/?page=last
-
-This allows you to access the final page of results without first having to 
-determine how many pages there are.
-
-Note that ``page`` *must* be either a valid page number or the value ``last``;
-any other value for ``page`` will result in a 404 error.
+In both cases, ``page`` is 1-based, not 0-based, so the first page would be
+represented as page ``1``.
 
 ``django.views.generic.list_detail.object_detail``
 --------------------------------------------------
@@ -836,7 +801,7 @@ A page representing an individual object.
 
       Otherwise, ``slug`` should be the slug of the given object, and
       ``slug_field`` should be the name of the slug field in the ``QuerySet``'s
-      model. By default, ``slug_field`` is ``'slug'``.
+      model.
 
 **Optional arguments:**
 
@@ -980,7 +945,7 @@ object. This uses the automatic manipulators that come with Django models.
 
       Otherwise, ``slug`` should be the slug of the given object, and
       ``slug_field`` should be the name of the slug field in the ``QuerySet``'s
-      model. By default, ``slug_field`` is ``'slug'``.
+      model.
 
 **Optional arguments:**
 
@@ -1065,7 +1030,7 @@ contain a form that POSTs to the same URL.
 
       Otherwise, ``slug`` should be the slug of the given object, and
       ``slug_field`` should be the name of the slug field in the ``QuerySet``'s
-      model. By default, ``slug_field`` is ``'slug'``.
+      model.
 
     * ``post_delete_redirect``: A URL to which the view will redirect after
       deleting the object.

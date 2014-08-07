@@ -1,5 +1,5 @@
 """
-FastCGI (or SCGI, or AJP1.3 ...) server that implements the WSGI protocol.
+FastCGI server that implements the WSGI protocol.
 
 Uses the flup python package: http://www.saddi.com/software/flup/
 
@@ -17,15 +17,16 @@ import sys, os
 __version__ = "0.1"
 __all__ = ["runfastcgi"]
 
-FASTCGI_HELP = r"""
-  Run this project as a fastcgi (or some other protocol supported
-  by flup) application. To do this, the flup package from
-  http://www.saddi.com/software/flup/ is required.
+FASTCGI_HELP = r"""runfcgi:
+  Run this project as a fastcgi application. To do this, the
+  flup package from http://www.saddi.com/software/flup/ is
+  required.
 
-   runfcgi [options] [fcgi settings]
+Usage:
+   django-admin.py runfcgi --settings=yourproject.settings [fcgi settings]
+   manage.py runfcgi [fcgi settings]
 
 Optional Fcgi settings: (setting=value)
-  protocol=PROTOCOL    fcgi, scgi, ajp, ... (default fcgi)
   host=HOSTNAME        hostname to listen on..
   port=PORTNUM         port to listen on.
   socket=FILE          UNIX socket to listen on.
@@ -44,8 +45,8 @@ Examples:
   (for webservers which spawn your processes for you)
     $ manage.py runfcgi method=threaded
 
-  Run a scgi server on a TCP host/port
-    $ manage.py runfcgi protocol=scgi method=prefork host=127.0.0.1 port=8025
+  Run a fastcgi server on a TCP host/port
+    $ manage.py runfcgi method=prefork host=127.0.0.1 port=8025
 
   Run a fastcgi server on a UNIX domain socket (posix platforms only)
     $ manage.py runfcgi method=prefork socket=/tmp/fcgi.sock
@@ -57,7 +58,6 @@ Examples:
 """
 
 FASTCGI_OPTIONS = {
-    'protocol': 'fcgi',
     'host': None,
     'port': None,
     'socket': None,
@@ -100,17 +100,16 @@ def runfastcgi(argset=[], **kwargs):
         print >> sys.stderr, "  installed flup, then make sure you have it in your PYTHONPATH."
         return False
 
-    flup_module = 'server.' + options['protocol']
-
     if options['method'] in ('prefork', 'fork'):
+        from flup.server.fcgi_fork import WSGIServer
         wsgi_opts = {
             'maxSpare': int(options["maxspare"]),
             'minSpare': int(options["minspare"]),
             'maxChildren': int(options["maxchildren"]),
             'maxRequests': int(options["maxrequests"]), 
         }
-        flup_module += '_fork'
     elif options['method'] in ('thread', 'threaded'):
+        from flup.server.fcgi import WSGIServer
         wsgi_opts = {
             'maxSpare': int(options["maxspare"]),
             'minSpare': int(options["minspare"]),
@@ -120,12 +119,6 @@ def runfastcgi(argset=[], **kwargs):
         return fastcgi_help("ERROR: Implementation must be one of prefork or thread.")
 
     wsgi_opts['debug'] = False # Turn off flup tracebacks
-
-    try:
-        WSGIServer = getattr(__import__('flup.' + flup_module, '', '', flup_module), 'WSGIServer')
-    except:
-        print "Can't import flup." + flup_module
-        return False
 
     # Prep up and go
     from django.core.handlers.wsgi import WSGIHandler

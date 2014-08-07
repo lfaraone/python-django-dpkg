@@ -18,10 +18,8 @@ class Serializer(PythonSerializer):
     Convert a queryset to YAML.
     """
     def end_serialization(self):
-        self.options.pop('stream', None)
-        self.options.pop('fields', None)
         yaml.dump(self.objects, self.stream, **self.options)
-
+        
     def getvalue(self):
         return self.stream.getvalue()
 
@@ -35,4 +33,4 @@ def Deserializer(stream_or_string, **options):
         stream = stream_or_string
     for obj in PythonDeserializer(yaml.load(stream)):
         yield obj
-
+        

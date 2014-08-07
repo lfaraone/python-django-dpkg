@@ -21,8 +21,8 @@ A companion to this document is the `official repository of model examples`_.
 (In the Django source distribution, these examples are in the
 ``tests/modeltests`` directory.)
 
-.. _Database API reference: ../db-api/
-.. _official repository of model examples: ../models/
+.. _Database API reference: http://www.djangoproject.com/documentation/db_api/
+.. _official repository of model examples: http://www.djangoproject.com/documentation/models/
 
 Quick example
 =============
@@ -33,8 +33,8 @@ This example model defines a ``Person``, which has a ``first_name`` and
     from django.db import models
 
     class Person(models.Model):
-        first_name = models.CharField(max_length=30)
-        last_name = models.CharField(max_length=30)
+        first_name = models.CharField(maxlength=30)
+        last_name = models.CharField(maxlength=30)
 
 ``first_name`` and ``last_name`` are *fields* of the model. Each field is
 specified as a class attribute, and each attribute maps to a database column.
@@ -57,7 +57,7 @@ Some technical notes:
       syntax, but it's worth noting Django uses SQL tailored to the database
       backend specified in your `settings file`_.
 
-.. _settings file: ../settings/
+.. _settings file: http://www.djangoproject.com/documentation/settings/
 
 Fields
 ======
@@ -69,13 +69,13 @@ attributes.
 Example::
 
     class Musician(models.Model):
-        first_name = models.CharField(max_length=50)
-        last_name = models.CharField(max_length=50)
-        instrument = models.CharField(max_length=100)
+        first_name = models.CharField(maxlength=50)
+        last_name = models.CharField(maxlength=50)
+        instrument = models.CharField(maxlength=100)
 
     class Album(models.Model):
         artist = models.ForeignKey(Musician)
-        name = models.CharField(max_length=100)
+        name = models.CharField(maxlength=100)
         release_date = models.DateField()
         num_stars = models.IntegerField()
 
@@ -142,18 +142,14 @@ For large amounts of text, use ``TextField``.
 
 The admin represents this as an ``<input type="text">`` (a single-line input).
 
-``CharField`` has an extra required argument, ``max_length``, the maximum length
-(in characters) of the field. The max_length is enforced at the database level
+``CharField`` has an extra required argument, ``maxlength``, the maximum length
+(in characters) of the field. The maxlength is enforced at the database level
 and in Django's validation.
 
-Django veterans: Note that the argument is now called ``max_length`` to
-provide consistency throughout Django. There is full legacy support for
-the old ``maxlength`` argument, but ``max_length`` is preferred.
-	
 ``CommaSeparatedIntegerField``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-A field of integers separated by commas. As in ``CharField``, the ``max_length``
+A field of integers separated by commas. As in ``CharField``, the ``maxlength``
 argument is required.
 
 ``DateField``
@@ -178,8 +174,7 @@ A date field. Has a few extra optional arguments:
     ======================  ===================================================
 
 The admin represents this as an ``<input type="text">`` with a JavaScript
-calendar, and a shortcut for "Today."  The JavaScript calendar will always start
-the week on a Sunday.
+calendar and a shortcut for "Today."
 
 ``DateTimeField``
 ~~~~~~~~~~~~~~~~~
@@ -189,64 +184,24 @@ A date and time field. Takes the same extra options as ``DateField``.
 The admin represents this as two ``<input type="text">`` fields, with
 JavaScript shortcuts.
 
-``DecimalField``
-~~~~~~~~~~~~~~~~
-
-**New in Django development version**
-
-A fixed-precision decimal number, represented in Python by a ``Decimal`` instance.
-Has two **required** arguments:
-
-    ======================  ===================================================
-    Argument                Description
-    ======================  ===================================================
-    ``max_digits``          The maximum number of digits allowed in the number.
-
-    ``decimal_places``      The number of decimal places to store with the
-                            number.
-    ======================  ===================================================
-
-For example, to store numbers up to 999 with a resolution of 2 decimal places,
-you'd use::
-
-    models.DecimalField(..., max_digits=5, decimal_places=2)
-
-And to store numbers up to approximately one billion with a resolution of 10
-decimal places::
-
-    models.DecimalField(..., max_digits=19, decimal_places=10)
-
-The admin represents this as an ``<input type="text">`` (a single-line input).
-
 ``EmailField``
 ~~~~~~~~~~~~~~
 
 A ``CharField`` that checks that the value is a valid e-mail address.
-
-In Django 0.96, this doesn't accept ``max_length``; its ``max_length`` is
-automatically set to 75. In the Django development version, ``max_length`` is
-set to 75 by default, but you can specify it to override default behavior.
+This doesn't accept ``maxlength``; its ``maxlength`` is automatically set to
+75.
 
 ``FileField``
 ~~~~~~~~~~~~~
 
-A file-upload field. Has one **required** argument:
+A file-upload field.
 
-    ======================  ===================================================
-    Argument                Description
-    ======================  ===================================================
-    ``upload_to``           A local filesystem path that will be appended to
-                            your ``MEDIA_ROOT`` setting to determine the
-                            output of the ``get_<fieldname>_url()`` helper
-                            function.
-    ======================  ===================================================
+Has an extra required argument, ``upload_to``, a local filesystem path to
+which files should be upload. This path may contain `strftime formatting`_,
+which will be replaced by the date/time of the file upload (so that
+uploaded files don't fill up the given directory).
 
-This path may contain `strftime formatting`_, which will be replaced by the
-date/time of the file upload (so that uploaded files don't fill up the given
-directory).
-
-The admin represents this field as an ``<input type="file">`` (a file-upload
-widget).
+The admin represents this as an ``<input type="file">`` (a file-upload widget).
 
 Using a ``FileField`` or an ``ImageField`` (see below) in a model takes a few
 steps:
@@ -276,13 +231,6 @@ For example, say your ``MEDIA_ROOT`` is set to ``'/home/media'``, and
 upload a file on Jan. 15, 2007, it will be saved in the directory
 ``/home/media/photos/2007/01/15``.
 
-If you want to retrieve the upload file's on-disk filename, or a URL that
-refers to that file, or the file's size, you can use the
-``get_FOO_filename()``, ``get_FOO_url()`` and ``get_FOO_size()`` methods.
-They are all documented here__.
-
-__ ../db-api/#get-foo-filename
-
 Note that whenever you deal with uploaded files, you should pay close attention
 to where you're uploading them and what type of files they are, to avoid
 security holes. *Validate all uploaded files* so that you're sure the files are
@@ -298,7 +246,7 @@ visiting its URL on your site. Don't allow that.
 
 A field whose choices are limited to the filenames in a certain directory
 on the filesystem. Has three special arguments, of which the first is
-**required**:
+required:
 
     ======================  ===================================================
     Argument                Description
@@ -311,7 +259,7 @@ on the filesystem. Has three special arguments, of which the first is
                             ``FilePathField`` will use to filter filenames.
                             Note that the regex will be applied to the
                             base filename, not the full path. Example:
-                            ``"foo.*\.txt$"``, which will match a file called
+                            ``"foo.*\.txt^"``, which will match a file called
                             ``foo23.txt`` but not ``bar.txt`` or ``foo23.gif``.
 
     ``recursive``           Optional. Either ``True`` or ``False``. Default is
@@ -333,33 +281,40 @@ because the ``match`` applies to the base filename (``foo.gif`` and
 ``FloatField``
 ~~~~~~~~~~~~~~
 
-**Changed in Django development version**
+A floating-point number. Has two **required** arguments:
 
-A floating-point number represented in Python by a ``float`` instance.
+    ======================  ===================================================
+    Argument                Description
+    ======================  ===================================================
+    ``max_digits``          The maximum number of digits allowed in the number.
+
+    ``decimal_places``      The number of decimal places to store with the
+                            number.
+    ======================  ===================================================
+
+For example, to store numbers up to 999 with a resolution of 2 decimal places,
+you'd use::
+
+    models.FloatField(..., max_digits=5, decimal_places=2)
+
+And to store numbers up to approximately one billion with a resolution of 10
+decimal places::
+
+    models.FloatField(..., max_digits=19, decimal_places=10)
 
 The admin represents this as an ``<input type="text">`` (a single-line input).
-
-**NOTE:** The semantics of ``FloatField`` have changed in the Django
-development version. See the `Django 0.96 documentation`_ for the old behavior.
-
-.. _Django 0.96 documentation: http://www.djangoproject.com/documentation/0.96/model-api/#floatfield
 
 ``ImageField``
 ~~~~~~~~~~~~~~
 
-Like `FileField`_, but validates that the uploaded object is a valid
+Like ``FileField``, but validates that the uploaded object is a valid
 image. Has two extra optional arguments, ``height_field`` and
 ``width_field``, which, if set, will be auto-populated with the height and
 width of the image each time a model instance is saved.
 
-In addition to the special ``get_FOO_*`` methods that are available for
-``FileField``, an ``ImageField`` also has ``get_FOO_height()`` and
-``get_FOO_width()`` methods. These are documented elsewhere_.
-
 Requires the `Python Imaging Library`_.
 
 .. _Python Imaging Library: http://www.pythonware.com/products/pil/
-.. _elsewhere: ../db-api/#get-foo-height-and-get-foo-width
 
 ``IntegerField``
 ~~~~~~~~~~~~~~~~
@@ -407,7 +362,7 @@ Like a ``PositiveIntegerField``, but only allows values under a certain
 containing only letters, numbers, underscores or hyphens. They're generally
 used in URLs.
 
-Like a CharField, you can specify ``max_length``. If ``max_length`` is
+Like a CharField, you can specify ``maxlength``. If ``maxlength`` is
 not specified, Django will use a default length of 50.
 
 Implies ``db_index=True``.
@@ -418,8 +373,7 @@ form::
 
     models.SlugField(prepopulate_from=("pre_name", "name"))
 
-``prepopulate_from`` doesn't accept DateTimeFields, ForeignKeys nor
-ManyToManyFields.
+``prepopulate_from`` doesn't accept DateTimeFields.
 
 The admin represents ``SlugField`` as an ``<input type="text">`` (a
 single-line input).
@@ -455,11 +409,6 @@ and doesn't give a 404 response).
 
 The admin represents this as an ``<input type="text">`` (a single-line input).
 
-``URLField`` takes an optional argument, ``max_length``, the maximum length (in
-characters) of the field. The maximum length is enforced at the database level and
-in Django's validation. If you don't specify ``max_length``, a default of 200
-is used.
-
 ``USStateField``
 ~~~~~~~~~~~~~~~~
 
@@ -488,10 +437,8 @@ If ``True``, Django will store empty values as ``NULL`` in the database.
 Default is ``False``.
 
 Note that empty string values will always get stored as empty strings, not
-as ``NULL``. Only use ``null=True`` for non-string fields such as integers,
-booleans and dates. For both types of fields, you will also need to set
-``blank=True`` if you wish to permit empty values in forms, as the ``null``
-parameter only affects database storage (see blank_, below).
+as ``NULL`` -- so use ``null=True`` for non-string fields such as integers,
+booleans and dates.
 
 Avoid using ``null`` on string-based fields such as ``CharField`` and
 ``TextField`` unless you have an excellent reason. If a string-based field
@@ -500,15 +447,10 @@ has ``null=True``, that means it has two possible values for "no data":
 possible values for "no data;" Django convention is to use the empty
 string, not ``NULL``.
 
-.. note::
-    When using the Oracle database backend, the ``null=True`` option will
-    be coerced for string-based fields that can blank, and the value
-    ``NULL`` will be stored to denote the empty string.
-
 ``blank``
 ~~~~~~~~~
 
-If ``True``, the field is allowed to be blank. Default is ``False``.
+If ``True``, the field is allowed to be blank.
 
 Note that this is different than ``null``. ``null`` is purely
 database-related, whereas ``blank`` is validation-related. If a field has
@@ -544,7 +486,7 @@ The choices list can be defined either as part of your model class::
             ('M', 'Male'),
             ('F', 'Female'),
         )
-        gender = models.CharField(max_length=1, choices=GENDER_CHOICES)
+        gender = models.CharField(maxlength=1, choices=GENDER_CHOICES)
 
 or outside your model class altogether::
 
@@ -553,13 +495,13 @@ or outside your model class altogether::
         ('F', 'Female'),
     )
     class Foo(models.Model):
-        gender = models.CharField(max_length=1, choices=GENDER_CHOICES)
+        gender = models.CharField(maxlength=1, choices=GENDER_CHOICES)
 
 For each model field that has ``choices`` set, Django will add a method to
 retrieve the human-readable name for the field's current value. See
 `get_FOO_display`_ in the database API documentation.
 
-.. _get_FOO_display: ../db-api/#get-foo-display
+.. _get_FOO_display: ../db_api/#get-foo-display
 
 Finally, note that choices can be any iterable object -- not necessarily a
 list or tuple. This lets you construct choices dynamically. But if you find
@@ -599,16 +541,6 @@ scenes.
 If ``True``, ``django-admin.py sqlindexes`` will output a ``CREATE INDEX``
 statement for this field.
 
-``db_tablespace``
-~~~~~~~~~~~~~~~~~
-
-**New in Django development version**
-
-The name of the database tablespace to use for this field's index, if
-indeed this field is indexed. The default is the ``db_tablespace`` of
-the model, if any. If the backend doesn't support tablespaces, this
-option is ignored.
-
 ``default``
 ~~~~~~~~~~~
 
@@ -627,12 +559,6 @@ classes. Default is ``True``.
 Extra "help" text to be displayed under the field on the object's admin
 form. It's useful for documentation even if your object doesn't have an
 admin form.
-
-Note that this value is *not* HTML-escaped when it's displayed in the admin
-interface. This lets you include HTML in ``help_text`` if you so desire. For
-example::
-
-	help_text="Please use the following format: <em>YYYY-MM-DD</em>."
 
 ``primary_key``
 ~~~~~~~~~~~~~~~
@@ -700,7 +626,7 @@ that takes the parameters ``field_data, all_data`` and raises
 
 Django comes with quite a few validators. They're in ``django.core.validators``.
 
-.. _validator docs: ../forms/#validators
+.. _validator docs: http://www.djangoproject.com/documentation/forms/#validators
 
 Verbose field names
 -------------------
@@ -712,11 +638,11 @@ it using the field's attribute name, converting underscores to spaces.
 
 In this example, the verbose name is ``"Person's first name"``::
 
-    first_name = models.CharField("Person's first name", max_length=30)
+    first_name = models.CharField("Person's first name", maxlength=30)
 
 In this example, the verbose name is ``"first name"``::
 
-    first_name = models.CharField(max_length=30)
+    first_name = models.CharField(maxlength=30)
 
 ``ForeignKey``, ``ManyToManyField`` and ``OneToOneField`` require the first
 argument to be a model class, so use the ``verbose_name`` keyword argument::
@@ -741,7 +667,7 @@ Many-to-one relationships
 To define a many-to-one relationship, use ``ForeignKey``. You use it just like
 any other ``Field`` type: by including it as a class attribute of your model.
 
-``ForeignKey`` requires a positional argument: the class to which the model is
+``ForeignKey`` requires a positional argument: The class to which the model is
 related.
 
 For example, if a ``Car`` model has a ``Manufacturer`` -- that is, a
@@ -789,7 +715,7 @@ You can, of course, call the field whatever you want. For example::
 
 See the `Many-to-one relationship model example`_ for a full example.
 
-.. _Many-to-one relationship model example: ../models/many_to_one/
+.. _Many-to-one relationship model example: http://www.djangoproject.com/documentation/models/many_to_one/
 
 ``ForeignKey`` fields take a number of extra arguments for defining how the
 relationship should work. All are optional:
@@ -808,10 +734,10 @@ relationship should work. All are optional:
     ``limit_choices_to``     A dictionary of lookup arguments and values (see
                              the `Database API reference`_) that limit the
                              available admin choices for this object. Use this
-                             with functions from the Python ``datetime`` module
-                             to limit choices of objects by date. For example::
+                             with ``models.LazyDate`` to limit choices of objects
+                             by date. For example::
 
-                                limit_choices_to = {'pub_date__lte': datetime.now}
+                                limit_choices_to = {'pub_date__lte': models.LazyDate()}
 
                              only allows the choice of related objects with a
                              ``pub_date`` before the current date/time to be
@@ -866,8 +792,8 @@ relationship should work. All are optional:
                              the related object.
     =======================  ============================================================
 
-.. _`Database API reference`: ../db-api/
-.. _related objects documentation: ../db-api/#related-objects
+.. _`Database API reference`: http://www.djangoproject.com/documentation/db_api/
+.. _related objects documentation: http://www.djangoproject.com/documentation/db_api/#related-objects
 
 Many-to-many relationships
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -876,7 +802,7 @@ To define a many-to-many relationship, use ``ManyToManyField``. You use it just
 like any other ``Field`` type: by including it as a class attribute of your
 model.
 
-``ManyToManyField`` requires a positional argument: the class to which the
+``ManyToManyField`` requires a positional argument: The class to which the
 model is related.
 
 For example, if a ``Pizza`` has multiple ``Topping`` objects -- that is, a
@@ -916,7 +842,7 @@ set up above, the ``Pizza`` admin form would let users select the toppings.
 
 See the `Many-to-many relationship model example`_ for a full example.
 
-.. _Many-to-many relationship model example: ../models/many_to_many/
+.. _Many-to-many relationship model example: http://www.djangoproject.com/documentation/models/many_to_many/
 
 ``ManyToManyField`` objects take a number of extra arguments for defining how
 the relationship should work. All are optional:
@@ -973,7 +899,7 @@ model.
 This is most useful on the primary key of an object when that object "extends"
 another object in some way.
 
-``OneToOneField`` requires a positional argument: the class to which the
+``OneToOneField`` requires a positional argument: The class to which the
 model is related.
 
 For example, if you're building a database of "places", you would build pretty
@@ -993,116 +919,7 @@ as a read-only field when you edit an object in the admin interface:
 
 See the `One-to-one relationship model example`_ for a full example.
 
-.. _One-to-one relationship model example: ../models/one_to_one/
-
-Custom field types
-------------------
-
-**New in Django development version**
-
-Django's built-in field types don't cover every possible database column type --
-only the common types, such as ``VARCHAR`` and ``INTEGER``. For more obscure
-column types, such as geographic polygons or even user-created types such as
-`PostgreSQL custom types`_, you can define your own Django ``Field`` subclasses.
-
-.. _PostgreSQL custom types: http://www.postgresql.org/docs/8.2/interactive/sql-createtype.html
-
-.. admonition:: Experimental territory
-
-    This is an area of Django that traditionally has not been documented, but
-    we're starting to include bits of documentation, one feature at a time.
-    Please forgive the sparseness of this section.
-
-    If you like living on the edge and are comfortable with the risk of
-    unstable, undocumented APIs, see the code for the core ``Field`` class
-    in ``django/db/models/fields/__init__.py`` -- but if/when the innards
-    change, don't say we didn't warn you.
-
-To create a custom field type, simply subclass ``django.db.models.Field``.
-Here is an incomplete list of the methods you should implement:
-
-``db_type()``
-~~~~~~~~~~~~~
-
-Returns the database column data type for the ``Field``, taking into account
-the current ``DATABASE_ENGINE`` setting.
-
-Say you've created a PostgreSQL custom type called ``mytype``. You can use this
-field with Django by subclassing ``Field`` and implementing the ``db_type()``
-method, like so::
-
-    from django.db import models
-
-    class MytypeField(models.Field):
-        def db_type(self):
-            return 'mytype'
-
-Once you have ``MytypeField``, you can use it in any model, just like any other
-``Field`` type::
-
-    class Person(models.Model):
-        name = models.CharField(max_length=80)
-        gender = models.CharField(max_length=1)
-        something_else = MytypeField()
-
-If you aim to build a database-agnostic application, you should account for
-differences in database column types. For example, the date/time column type
-in PostgreSQL is called ``timestamp``, while the same column in MySQL is called
-``datetime``. The simplest way to handle this in a ``db_type()`` method is to
-import the Django settings module and check the ``DATABASE_ENGINE`` setting.
-For example::
-
-    class MyDateField(models.Field):
-        def db_type(self):
-            from django.conf import settings
-            if settings.DATABASE_ENGINE == 'mysql':
-                return 'datetime'
-            else:
-                return 'timestamp'
-
-The ``db_type()`` method is only called by Django when the framework constructs
-the ``CREATE TABLE`` statements for your application -- that is, when you first
-create your tables. It's not called at any other time, so it can afford to
-execute slightly complex code, such as the ``DATABASE_ENGINE`` check in the
-above example.
-
-Some database column types accept parameters, such as ``CHAR(25)``, where the
-parameter ``25`` represents the maximum column length. In cases like these,
-it's more flexible if the parameter is specified in the model rather than being
-hard-coded in the ``db_type()`` method. For example, it wouldn't make much
-sense to have a ``CharMaxlength25Field``, shown here::
-
-    # This is a silly example of hard-coded parameters.
-    class CharMaxlength25Field(models.Field):
-        def db_type(self):
-            return 'char(25)'
-
-    # In the model:
-    class MyModel(models.Model):
-        # ...
-        my_field = CharMaxlength25Field()
-
-The better way of doing this would be to make the parameter specifiable at run
-time -- i.e., when the class is instantiated. To do that, just implement
-``__init__()``, like so::
-
-    # This is a much more flexible example.
-    class BetterCharField(models.Field):
-        def __init__(self, max_length, *args, **kwargs):
-            self.max_length = max_length
-            super(BetterCharField, self).__init__(*args, **kwargs)
-
-        def db_type(self):
-            return 'char(%s)' % self.max_length
-
-    # In the model:
-    class MyModel(models.Model):
-        # ...
-        my_field = BetterCharField(25)
-
-Note that if you implement ``__init__()`` on a ``Field`` subclass, it's
-important to call ``Field.__init__()`` -- i.e., the parent class'
-``__init__()`` method.
+.. _One-to-one relationship model example: http://www.djangoproject.com/documentation/models/one_to_one/
 
 Meta options
 ============
@@ -1110,7 +927,7 @@ Meta options
 Give your model metadata by using an inner ``class Meta``, like so::
 
     class Foo(models.Model):
-        bar = models.CharField(max_length=30)
+        bar = models.CharField(maxlength=30)
 
         class Meta:
             # ...
@@ -1134,14 +951,6 @@ If your database table name is an SQL reserved word, or contains characters
 that aren't allowed in Python variable names -- notably, the hyphen --
 that's OK. Django quotes column and table names behind the scenes.
 
-``db_tablespace``
------------------
-
-**New in Django development version**
-
-The name of the database tablespace to use for the model. If the backend
-doesn't support tablespaces, this option is ignored.
-
 ``get_latest_by``
 -----------------
 
@@ -1154,7 +963,7 @@ Example::
 
 See the `docs for latest()`_ for more.
 
-.. _docs for latest(): ../db-api/#latest-field-name-none
+.. _docs for latest(): http://www.djangoproject.com/documentation/db_api/#latest-field-name-none
 
 ``order_with_respect_to``
 -------------------------
@@ -1200,7 +1009,7 @@ See `Specifying ordering`_ for more examples.
 Note that, regardless of how many fields are in ``ordering``, the admin
 site uses only the first field.
 
-.. _Specifying ordering: ../models/ordering/
+.. _Specifying ordering: http://www.djangoproject.com/documentation/models/ordering/
 
 ``permissions``
 ---------------
@@ -1226,13 +1035,6 @@ This is a list of lists of fields that must be unique when considered
 together. It's used in the Django admin and is enforced at the database
 level (i.e., the appropriate ``UNIQUE`` statements are included in the
 ``CREATE TABLE`` statement).
-
-**New in Django development version**
-
-For convenience, unique_together can be a single list when dealing
-with a single set of fields::
-
-	unique_together = ("driver", "restaurant")
 
 ``verbose_name``
 ----------------
@@ -1284,17 +1086,6 @@ won't add the automatic ``id`` column.
 
 Each model requires exactly one field to have ``primary_key=True``.
 
-The ``pk`` property
--------------------
-**New in Django development version**
-
-Regardless of whether you define a primary key field yourself, or let Django
-supply one for you, each model will have a property called ``pk``. It behaves
-like a normal attribute on the model, but is actually an alias for whichever
-attribute is the primary key field for the model. You can read and set this
-value, just as you would for any other attribute, and it will update the
-correct field in the model.
-
 Admin options
 =============
 
@@ -1302,8 +1093,8 @@ If you want your model to be visible to Django's admin site, give your model an
 inner ``"class Admin"``, like so::
 
     class Person(models.Model):
-        first_name = models.CharField(max_length=30)
-        last_name = models.CharField(max_length=30)
+        first_name = models.CharField(maxlength=30)
+        last_name = models.CharField(maxlength=30)
 
         class Admin:
             # Admin options go here
@@ -1443,8 +1234,8 @@ that displays the ``__str__()`` representation of each object.
 
 A few special cases to note about ``list_display``:
 
-    * If the field is a ``ForeignKey``, Django will display the
-      ``__unicode__()`` of the related object.
+    * If the field is a ``ForeignKey``, Django will display the ``__str__()``
+      of the related object.
 
     * ``ManyToManyField`` fields aren't supported, because that would entail
       executing a separate SQL statement for each row in the table. If you
@@ -1462,7 +1253,7 @@ A few special cases to note about ``list_display``:
       Here's a full example model::
 
           class Person(models.Model):
-              name = models.CharField(max_length=50)
+              name = models.CharField(maxlength=50)
               birthday = models.DateField()
 
               class Admin:
@@ -1479,9 +1270,9 @@ A few special cases to note about ``list_display``:
       Here's a full example model::
 
           class Person(models.Model):
-              first_name = models.CharField(max_length=50)
-              last_name = models.CharField(max_length=50)
-              color_code = models.CharField(max_length=6)
+              first_name = models.CharField(maxlength=50)
+              last_name = models.CharField(maxlength=50)
+              color_code = models.CharField(maxlength=6)
 
               class Admin:
                   list_display = ('first_name', 'last_name', 'colored_name')
@@ -1497,7 +1288,7 @@ A few special cases to note about ``list_display``:
       Here's a full example model::
 
           class Person(models.Model):
-              first_name = models.CharField(max_length=50)
+              first_name = models.CharField(maxlength=50)
               birthday = models.DateField()
 
               class Admin:
@@ -1508,25 +1299,24 @@ A few special cases to note about ``list_display``:
               born_in_fifties.boolean = True
 
 
-    * The ``__str__()`` and ``__unicode__()`` methods are just as valid in
-      ``list_display`` as any other model method, so it's perfectly OK to do
-      this::
+    * The ``__str__()`` method is just as valid in ``list_display`` as any
+      other model method, so it's perfectly OK to do this::
 
-          list_display = ('__unicode__', 'some_other_field')
+          list_display = ('__str__', 'some_other_field')
 
     * Usually, elements of ``list_display`` that aren't actual database fields
       can't be used in sorting (because Django does all the sorting at the
       database level).
-
+      
       However, if an element of ``list_display`` represents a certain database
       field, you can indicate this fact by setting the ``admin_order_field``
       attribute of the item.
-
+      
       For example::
-
+      
         class Person(models.Model):
-            first_name = models.CharField(max_length=50)
-            color_code = models.CharField(max_length=6)
+            first_name = models.CharField(maxlength=50)
+            color_code = models.CharField(maxlength=6)
 
             class Admin:
                 list_display = ('first_name', 'colored_first_name')
@@ -1535,7 +1325,7 @@ A few special cases to note about ``list_display``:
                 return '<span style="color: #%s;">%s</span>' % (self.color_code, self.first_name)
             colored_first_name.allow_tags = True
             colored_first_name.admin_order_field = 'first_name'
-
+    
       The above will tell Django to order by the ``first_name`` field when
       trying to sort by ``colored_first_name`` in the admin.
 
@@ -1571,8 +1361,8 @@ Finally, note that in order to use ``list_display_links``, you must define
 
 Set ``list_filter`` to activate filters in the right sidebar of the change list
 page of the admin. This should be a list of field names, and each specified
-field should be either a ``BooleanField``, ``CharField``, ``DateField``, 
-``DateTimeField``, ``IntegerField`` or ``ForeignKey``. 
+field should be either a ``BooleanField``, ``DateField``, ``DateTimeField``
+or ``ForeignKey``.
 
 This example, taken from the ``django.contrib.auth.models.User`` model, shows
 how both ``list_display`` and ``list_filter`` work::
@@ -1607,7 +1397,7 @@ if one of the ``list_display`` fields is a ``ForeignKey``.
 
 For more on ``select_related()``, see `the select_related() docs`_.
 
-.. _the select_related() docs: ../db-api/#select-related
+.. _the select_related() docs: http://www.djangoproject.com/documentation/db_api/#select-related
 
 ``ordering``
 ------------
@@ -1694,7 +1484,7 @@ with an operator:
         AND (first_name ILIKE 'lennon' OR last_name ILIKE 'lennon')
 
     Note that the query input is split by spaces, so, following this example,
-    it's currently not possible to search for all records in which
+    it's not currently not possible to search for all records in which
     ``first_name`` is exactly ``'john winston'`` (containing a space).
 
 ``@``
@@ -1712,7 +1502,7 @@ The way ``Manager`` classes work is documented in the `Retrieving objects`_
 section of the database API docs, but this section specifically touches on
 model options that customize ``Manager`` behavior.
 
-.. _Retrieving objects: ../db-api/#retrieving-objects
+.. _Retrieving objects: http://www.djangoproject.com/documentation/db_api/#retrieving-objects
 
 Manager names
 -------------
@@ -1776,13 +1566,13 @@ returns a list of all ``OpinionPoll`` objects, each with an extra
             return result_list
 
     class OpinionPoll(models.Model):
-        question = models.CharField(max_length=200)
+        question = models.CharField(maxlength=200)
         poll_date = models.DateField()
         objects = PollManager()
 
     class Response(models.Model):
         poll = models.ForeignKey(Poll)
-        person_name = models.CharField(max_length=50)
+        person_name = models.CharField(maxlength=50)
         response = models.TextField()
 
 With this example, you'd use ``OpinionPoll.objects.with_counts()`` to return
@@ -1798,8 +1588,8 @@ A ``Manager``'s base ``QuerySet`` returns all objects in the system. For
 example, using this model::
 
     class Book(models.Model):
-        title = models.CharField(max_length=100)
-        author = models.CharField(max_length=50)
+        title = models.CharField(maxlength=100)
+        author = models.CharField(maxlength=50)
 
 ...the statement ``Book.objects.all()`` will return all books in the database.
 
@@ -1817,8 +1607,8 @@ all objects, and one that returns only the books by Roald Dahl::
 
     # Then hook it into the Book model explicitly.
     class Book(models.Model):
-        title = models.CharField(max_length=100)
-        author = models.CharField(max_length=50)
+        title = models.CharField(maxlength=100)
+        author = models.CharField(maxlength=50)
 
         objects = models.Manager() # The default manager.
         dahl_objects = DahlBookManager() # The Dahl-specific manager.
@@ -1851,9 +1641,9 @@ For example::
             return super(FemaleManager, self).get_query_set().filter(sex='F')
 
     class Person(models.Model):
-        first_name = models.CharField(max_length=50)
-        last_name = models.CharField(max_length=50)
-        sex = models.CharField(max_length=1, choices=(('M', 'Male'), ('F', 'Female')))
+        first_name = models.CharField(maxlength=50)
+        last_name = models.CharField(maxlength=50)
+        sex = models.CharField(maxlength=1, choices=(('M', 'Male'), ('F', 'Female')))
         people = models.Manager()
         men = MaleManager()
         women = FemaleManager()
@@ -1883,11 +1673,11 @@ model.
 For example, this model has a few custom methods::
 
     class Person(models.Model):
-        first_name = models.CharField(max_length=50)
-        last_name = models.CharField(max_length=50)
+        first_name = models.CharField(maxlength=50)
+        last_name = models.CharField(maxlength=50)
         birth_date = models.DateField()
-        address = models.CharField(max_length=100)
-        city = models.CharField(max_length=50)
+        address = models.CharField(maxlength=100)
+        city = models.CharField(maxlength=50)
         state = models.USStateField() # Yes, this is America-centric...
 
         def baby_boomer_status(self):
@@ -1918,47 +1708,20 @@ A few object methods have special meaning:
 -----------
 
 ``__str__()`` is a Python "magic method" that defines what should be returned
-if you call ``str()`` on the object. Django uses ``str(obj)`` (or the related
-function, ``unicode(obj)`` -- see below) in a number of places, most notably
-as the value displayed to render an object in the Django admin site and as the
-value inserted into a template when it displays an object. Thus, you should
-always return a nice, human-readable string for the object's ``__str__``.
-Although this isn't required, it's strongly encouraged (see the description of
-``__unicode__``, below, before putting ``__str__`` methods everywhere).
+if you call ``str()`` on the object. Django uses ``str(obj)`` in a number of
+places, most notably as the value displayed to render an object in the Django
+admin site and as the value inserted into a template when it displays an
+object. Thus, you should always return a nice, human-readable string for the
+object's ``__str__``. Although this isn't required, it's strongly encouraged.
 
 For example::
 
     class Person(models.Model):
-        first_name = models.CharField(max_length=50)
-        last_name = models.CharField(max_length=50)
+        first_name = models.CharField(maxlength=50)
+        last_name = models.CharField(maxlength=50)
 
         def __str__(self):
-            # Note use of django.utils.encoding.smart_str() here because
-            # first_name and last_name will be unicode strings.
-            return smart_str('%s %s' % (self.first_name, self.last_name))
-
-``__unicode__``
----------------
-
-The ``__unicode__()`` method is called whenever you call ``unicode()`` on an
-object. Since Django's database backends will return Unicode strings in your
-model's attributes, you would normally want to write a ``__unicode__()``
-method for your model. The example in the previous section could be written
-more simply as::
-
-    class Person(models.Model):
-        first_name = models.CharField(max_length=50)
-        last_name = models.CharField(max_length=50)
-
-        def __unicode__(self):
-            return u'%s %s' % (self.first_name, self.last_name)
-
-If you define a ``__unicode__()`` method on your model and not a ``__str__()``
-method, Django will automatically provide you with a ``__str__()`` that calls
-``__unicode()__`` and then converts the result correctly to a UTF-8 encoded
-string object. This is recommended development practice: define only
-``__unicode__()`` and let Django take care of the conversion to string objects
-when required.
+            return '%s %s' % (self.first_name, self.last_name)
 
 ``get_absolute_url``
 --------------------
@@ -1974,11 +1737,9 @@ Django uses this in its admin interface. If an object defines
 link that will jump you directly to the object's public view, according to
 ``get_absolute_url()``.
 
-Also, a couple of other bits of Django, such as the `syndication feed framework`_,
+Also, a couple of other bits of Django, such as the syndication-feed framework,
 use ``get_absolute_url()`` as a convenience to reward people who've defined the
 method.
-
-.. _syndication feed framework: ../syndication_feeds/
 
 It's good practice to use ``get_absolute_url()`` in templates, instead of
 hard-coding your objects' URLs. For example, this template code is bad::
@@ -1989,17 +1750,6 @@ But this template code is good::
 
     <a href="{{ object.get_absolute_url }}">{{ object.name }}</a>
 
-.. note::
-    The string you return from ``get_absolute_url()`` must contain only ASCII
-    characters (required by the URI spec, `RFC 2396`_) that have been
-    URL-encoded, if necessary. Code and templates using ``get_absolute_url()``
-    should be able to use the result directly without needing to do any
-    further processing. You may wish to use the
-    ``django.utils.encoding.iri_to_uri()`` function to help with this if you
-    are using unicode strings a lot.
-
-.. _RFC 2396: http://www.ietf.org/rfc/rfc2396.txt
-
 The ``permalink`` decorator
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -2008,37 +1758,15 @@ slightly violates the DRY principle: the URL for this object is defined both
 in the URLConf file and in the model.
 
 You can further decouple your models from the URLconf using the ``permalink``
-decorator. This decorator is passed the view function, a list of positional
-parameters and (optionally) a dictionary of named parameters. Django then
-works out the correct full URL path using the URLconf, substituting the
-parameters you have given into the URL. For example, if your URLconf
-contained a line such as::
-
-    (r'^people/(\d+)/$', 'people.views.details'),
-
-...your model could have a ``get_absolute_url`` method that looked like this::
+decorator. This decorator is passed the view function and any parameters you
+would use for accessing this instance directly. Django then works out the
+correct full URL path using the URLconf. For example::
 
     from django.db.models import permalink
 
     def get_absolute_url(self):
-        return ('people.views.details', [str(self.id)])
+        return ('people.views.details', str(self.id))
     get_absolute_url = permalink(get_absolute_url)
-
-Similarly, if you had a URLconf entry that looked like::
-
-    (r'/archive/(?P<year>\d{4})/(?P<month>\d{1,2})/(?P<day>\d{1,2})/$', archive_view)
-
-...you could reference this using ``permalink()`` as follows::
-
-    def get_absolute_url(self):
-        return ('archive_view', (), {
-            'year': self.created.year,
-            'month': self.created.month,
-            'day': self.created.day})
-    get_absolute_url = permalink(get_absolute_url)
-
-Notice that we specify an empty sequence for the second parameter in this case,
-because we only want to pass keyword parameters, not positional ones.
 
 In this way, you're tying the model's absolute URL to the view that is used
 to display it, without repeating the URL information anywhere. You can still
@@ -2061,23 +1789,21 @@ rows. Example::
         row = cursor.fetchone()
         return row
 
-``connection`` and ``cursor`` mostly implement the standard `Python DB-API`_
-(except when it comes to `transaction handling`_). If you're not familiar with
-the Python DB-API, note that the SQL statement in ``cursor.execute()`` uses
-placeholders, ``"%s"``, rather than adding parameters directly within the SQL.
-If you use this technique, the underlying database library will automatically
-add quotes and escaping to your parameter(s) as necessary. (Also note that
-Django expects the ``"%s"`` placeholder, *not* the ``"?"`` placeholder, which is
-used by the SQLite Python bindings. This is for the sake of consistency and
-sanity.)
+``connection`` and ``cursor`` simply use the standard `Python DB-API`_. If
+you're not familiar with the Python DB-API, note that the SQL statement in
+``cursor.execute()`` uses placeholders, ``"%s"``, rather than adding parameters
+directly within the SQL. If you use this technique, the underlying database
+library will automatically add quotes and escaping to your parameter(s) as
+necessary. (Also note that Django expects the ``"%s"`` placeholder, *not* the
+``"?"`` placeholder, which is used by the SQLite Python bindings. This is for
+the sake of consistency and sanity.)
 
 A final note: If all you want to do is a custom ``WHERE`` clause, you can just
-use the ``where``, ``tables`` and ``params`` arguments to the standard lookup
+just the ``where``, ``tables`` and ``params`` arguments to the standard lookup
 API. See `Other lookup options`_.
 
 .. _Python DB-API: http://www.python.org/peps/pep-0249.html
-.. _Other lookup options: ../db-api/#extra-select-none-where-none-params-none-tables-none
-.. _transaction handling: ../transactions/
+.. _Other lookup options: http://www.djangoproject.com/documentation/db_api/#extra-params-select-where-tables
 
 Overriding default model methods
 --------------------------------
@@ -2090,7 +1816,7 @@ A classic use-case for overriding the built-in methods is if you want something
 to happen whenever you save an object. For example::
 
     class Blog(models.Model):
-        name = models.CharField(max_length=100)
+        name = models.CharField(maxlength=100)
         tagline = models.TextField()
 
         def save(self):
@@ -2101,7 +1827,7 @@ to happen whenever you save an object. For example::
 You can also prevent saving::
 
     class Blog(models.Model):
-        name = models.CharField(max_length=100)
+        name = models.CharField(maxlength=100)
         tagline = models.TextField()
 
         def save(self):
@@ -2110,7 +1836,7 @@ You can also prevent saving::
             else:
                 super(Blog, self).save() # Call the "real" save() method.
 
-.. _database API docs: ../db-api/
+.. _database API docs: http://www.djangoproject.com/documentation/db_api/
 
 Models across files
 ===================
@@ -2167,7 +1893,7 @@ Each SQL file, if given, is expected to contain valid SQL. The SQL files are
 piped directly into the database after all of the models' table-creation
 statements have been executed.
 
-The SQL files are read by the ``sqlcustom``, ``sqlreset``, ``sqlall`` and
+The SQL files are read by the ``sqlinitialdata``, ``sqlreset``, ``sqlall`` and
 ``reset`` commands in ``manage.py``. Refer to the `manage.py documentation`_
 for more information.
 
@@ -2176,7 +1902,7 @@ order in which they're executed. The only thing you can assume is that, by the
 time your custom data files are executed, all the database tables already will
 have been created.
 
-.. _`manage.py documentation`: ../django-admin/#sqlcustom-appname-appname
+.. _`manage.py documentation`: http://www.djangoproject.com/documentation/django_admin/#sqlinitialdata-appname-appname
 
 Database-backend-specific SQL data
 ----------------------------------

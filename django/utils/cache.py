@@ -17,13 +17,9 @@ A example: i18n middleware would need to distinguish caches by the
 "Accept-language" header.
 """
 
-import md5
-import re
-import time
-from email.Utils import formatdate
+import datetime, md5, re
 from django.conf import settings
 from django.core.cache import cache
-from django.utils.encoding import smart_str
 
 cc_delim_re = re.compile(r'\s*,\s*')
 
@@ -42,15 +38,15 @@ def patch_cache_control(response, **kwargs):
     def dictitem(s):
         t = s.split('=',1)
         if len(t) > 1:
-            return (t[0].lower(), t[1])
+            return (t[0].lower().replace('-', '_'), t[1])
         else:
-            return (t[0].lower(), True)
+            return (t[0].lower().replace('-', '_'), True)
 
     def dictvalue(t):
-        if t[1] is True:
+        if t[1] == True:
             return t[0]
         else:
-            return t[0] + '=' + smart_str(t[1])
+            return t[0] + '=' + str(t[1])
 
     if response.has_header('Cache-Control'):
         cc = cc_delim_re.split(response['Cache-Control'])
@@ -76,19 +72,21 @@ def patch_response_headers(response, cache_timeout=None):
     """
     if cache_timeout is None:
         cache_timeout = settings.CACHE_MIDDLEWARE_SECONDS
-    if cache_timeout < 0:
-        cache_timeout = 0 # Can't have max-age negative
+    now = datetime.datetime.utcnow()
     if not response.has_header('ETag'):
         response['ETag'] = md5.new(response.content).hexdigest()
     if not response.has_header('Last-Modified'):
-        response['Last-Modified'] = formatdate()[:26] + "GMT"
+        response['Last-Modified'] = now.strftime('%a, %d %b %Y %H:%M:%S GMT')
     if not response.has_header('Expires'):
-        response['Expires'] = formatdate(time.time() + cache_timeout)[:26] + "GMT"
+        expires = now + datetime.timedelta(0, cache_timeout)
+        response['Expires'] = expires.strftime('%a, %d %b %Y %H:%M:%S GMT')
+    if cache_timeout < 0:
+        cache_timeout = 0 # Can't have max-age negative
     patch_cache_control(response, max_age=cache_timeout)
 
 def add_never_cache_headers(response):
     """
-    Add headers to a response to indicate that
+    Add headers to a response to indicate that 
     a page should never be cached.
     """
     patch_response_headers(response, cache_timeout=-1)

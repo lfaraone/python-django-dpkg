@@ -2,8 +2,7 @@
 
 from django.template import resolve_variable, Library
 from django.conf import settings
-from django.utils.translation import ugettext, ungettext
-from django.utils.encoding import force_unicode, smart_str, iri_to_uri
+from django.utils.translation import gettext
 import re
 import random as random_module
 
@@ -13,18 +12,29 @@ register = Library()
 # STRING DECORATOR    #
 #######################
 
+def smart_string(obj):
+    # FUTURE: Unicode strings should probably be normalized to a specific
+    # encoding and non-unicode strings should be converted to unicode too.
+#    if isinstance(obj, unicode):
+#        obj = obj.encode(settings.DEFAULT_CHARSET)
+#    else:
+#        obj = unicode(obj, settings.DEFAULT_CHARSET)
+    # FUTURE: Replace dumb string logic below with cool unicode logic above.
+    if not isinstance(obj, basestring):
+        obj = str(obj)
+    return obj
+
 def stringfilter(func):
     """
-    Decorator for filters which should only receive unicode objects. The object
-    passed as the first positional argument will be converted to a unicode
-    object.
+    Decorator for filters which should only receive strings. The object passed
+    as the first positional argument will be converted to a string.
     """
     def _dec(*args, **kwargs):
         if args:
             args = list(args)
-            args[0] = force_unicode(args[0])
+            args[0] = smart_string(args[0])
         return func(*args, **kwargs)
-
+        
     # Include a reference to the real function (used to check original
     # arguments by the template parser).
     _dec._decorated_function = getattr(func, '_decorated_function', func)
@@ -44,7 +54,7 @@ def capfirst(value):
     "Capitalizes the first character of the value"
     return value and value[0].upper() + value[1:]
 capfirst = stringfilter(capfirst)
-
+ 
 def fix_ampersands(value):
     "Replaces ampersands with ``&amp;`` entities"
     from django.utils.html import fix_ampersands
@@ -73,32 +83,27 @@ def floatformat(text, arg=-1):
     try:
         f = float(text)
     except ValueError:
-        return u''
+        return ''
     try:
         d = int(arg)
     except ValueError:
-        return force_unicode(f)
+        return smart_string(f)
     m = f - int(f)
     if not m and d < 0:
-        return u'%d' % int(f)
+        return '%d' % int(f)
     else:
-        formatstr = u'%%.%df' % abs(d)
+        formatstr = '%%.%df' % abs(d)
         return formatstr % f
-
-def iriencode(value):
-    "Escapes an IRI value for use in a URL"
-    return force_unicode(iri_to_uri(value))
-iriencode = stringfilter(iriencode)
 
 def linenumbers(value):
     "Displays text with line numbers"
     from django.utils.html import escape
-    lines = value.split(u'\n')
+    lines = value.split('\n')
     # Find the maximum width of the line count, for use with zero padding string format command
-    width = unicode(len(unicode(len(lines))))
+    width = str(len(str(len(lines))))
     for i, line in enumerate(lines):
-        lines[i] = (u"%0" + width  + u"d. %s") % (i + 1, escape(line))
-    return u'\n'.join(lines)
+        lines[i] = ("%0" + width  + "d. %s") % (i + 1, escape(line))
+    return '\n'.join(lines)
 linenumbers = stringfilter(linenumbers)
 
 def lower(value):
@@ -115,13 +120,8 @@ def make_list(value):
 make_list = stringfilter(make_list)
 
 def slugify(value):
-    """
-    Normalizes string, converts to lowercase, removes non-alpha chars and
-    converts spaces to hyphens.
-    """
-    import unicodedata
-    value = unicodedata.normalize('NFKD', value).encode('ascii', 'ignore')
-    value = unicode(re.sub('[^\w\s-]', '', value).strip().lower())
+    "Converts to lowercase, removes non-alpha chars and converts spaces to hyphens"
+    value = re.sub('[^\w\s-]', '', value).strip().lower()
     return re.sub('[-\s]+', '-', value)
 slugify = stringfilter(slugify)
 
@@ -135,9 +135,9 @@ def stringformat(value, arg):
     of Python string formatting
     """
     try:
-        return (u"%" + unicode(arg)) % value
+        return ("%" + str(arg)) % value
     except (ValueError, TypeError):
-        return u""
+        return ""
 
 def title(value):
     "Converts a string into titlecase"
@@ -155,6 +155,8 @@ def truncatewords(value, arg):
         length = int(arg)
     except ValueError: # invalid literal for int()
         return value # Fail silently.
+    if not isinstance(value, basestring):
+        value = str(value)
     return truncate_words(value, length)
 truncatewords = stringfilter(truncatewords)
 
@@ -169,6 +171,8 @@ def truncatewords_html(value, arg):
         length = int(arg)
     except ValueError: # invalid literal for int()
         return value # Fail silently.
+    if not isinstance(value, basestring):
+        value = str(value)
     return truncate_html_words(value, length)
 truncatewords_html = stringfilter(truncatewords_html)
 
@@ -179,8 +183,10 @@ upper = stringfilter(upper)
 
 def urlencode(value):
     "Escapes a value for use in a URL"
-    from django.utils.http import urlquote
-    return urlquote(value)
+    import urllib
+    if not isinstance(value, basestring):
+        value = str(value)
+    return urllib.quote(value)
 urlencode = stringfilter(urlencode)
 
 def urlize(value):
@@ -240,7 +246,7 @@ center = stringfilter(center)
 
 def cut(value, arg):
     "Removes all values of arg from the given string"
-    return value.replace(arg, u'')
+    return value.replace(arg, '')
 cut = stringfilter(cut)
 
 ###################
@@ -254,31 +260,24 @@ def escape(value):
 escape = stringfilter(escape)
 
 def linebreaks(value):
-    """
-    Replaces line breaks in plain text with appropriate HTML; a single
-    newline becomes an HTML line break (``<br />``) and a new line
-    followed by a blank line becomes a paragraph break (``</p>``).
-    """
+    "Converts newlines into <p> and <br />s"
     from django.utils.html import linebreaks
     return linebreaks(value)
 linebreaks = stringfilter(linebreaks)
 
 def linebreaksbr(value):
-    """
-    Converts all newlines in a piece of plain text to HTML line breaks
-    (``<br />``).
-    """
+    "Converts newlines into <br />s"
     return value.replace('\n', '<br />')
 linebreaksbr = stringfilter(linebreaksbr)
 
 def removetags(value, tags):
     "Removes a space separated list of [X]HTML tags from the output"
     tags = [re.escape(tag) for tag in tags.split()]
-    tags_re = u'(%s)' % u'|'.join(tags)
-    starttag_re = re.compile(ur'<%s(/?>|(\s+[^>]*>))' % tags_re, re.U)
-    endtag_re = re.compile(u'</%s>' % tags_re)
-    value = starttag_re.sub(u'', value)
-    value = endtag_re.sub(u'', value)
+    tags_re = '(%s)' % '|'.join(tags)
+    starttag_re = re.compile(r'<%s(/?>|(\s+[^>]*>))' % tags_re)
+    endtag_re = re.compile('</%s>' % tags_re)
+    value = starttag_re.sub('', value)
+    value = endtag_re.sub('', value)
     return value
 removetags = stringfilter(removetags)
 
@@ -297,7 +296,7 @@ def dictsort(value, arg):
     Takes a list of dicts, returns that list sorted by the property given in
     the argument.
     """
-    decorated = [(resolve_variable(u'var.' + arg, {u'var' : item}), item) for item in value]
+    decorated = [(resolve_variable('var.' + arg, {'var' : item}), item) for item in value]
     decorated.sort()
     return [item[1] for item in decorated]
 
@@ -306,7 +305,7 @@ def dictsortreversed(value, arg):
     Takes a list of dicts, returns that list sorted in reverse order by the
     property given in the argument.
     """
-    decorated = [(resolve_variable(u'var.' + arg, {u'var' : item}), item) for item in value]
+    decorated = [(resolve_variable('var.' + arg, {'var' : item}), item) for item in value]
     decorated.sort()
     decorated.reverse()
     return [item[1] for item in decorated]
@@ -316,12 +315,12 @@ def first(value):
     try:
         return value[0]
     except IndexError:
-        return u''
+        return ''
 
 def join(value, arg):
     "Joins a list with a string, like Python's ``str.join(list)``"
     try:
-        return arg.join(map(force_unicode, value))
+        return arg.join(map(smart_string, value))
     except AttributeError: # fail silently but nicely
         return value
 
@@ -347,7 +346,7 @@ def slice_(value, arg):
     """
     try:
         bits = []
-        for x in arg.split(u':'):
+        for x in arg.split(':'):
             if len(x) == 0:
                 bits.append(None)
             else:
@@ -362,8 +361,8 @@ def unordered_list(value):
     Recursively takes a self-nested list and returns an HTML unordered list --
     WITHOUT opening and closing <ul> tags.
 
-    The list is assumed to be in the proper format. For example, if ``var``
-    contains: ``['States', ['Kansas', ['Lawrence', 'Topeka'], 'Illinois']]``,
+    The list is assumed to be in the proper format. For example, if ``var`` contains
+    ``['States', [['Kansas', [['Lawrence', []], ['Topeka', []]]], ['Illinois', []]]]``,
     then ``{{ var|unordered_list }}`` would return::
 
         <li>States
@@ -378,61 +377,14 @@ def unordered_list(value):
         </ul>
         </li>
     """
-    def convert_old_style_list(list_):
-        """
-        Converts old style lists to the new easier to understand format.
-
-        The old list format looked like:
-            ['Item 1', [['Item 1.1', []], ['Item 1.2', []]]
-
-        And it is converted to:
-            ['Item 1', ['Item 1.1', 'Item 1.2]]
-        """
-        if not isinstance(list_, (tuple, list)) or len(list_) != 2:
-            return list_, False
-        first_item, second_item = list_
-        if second_item == []:
-            return [first_item], True
-        old_style_list = True
-        new_second_item = []
-        for sublist in second_item:
-            item, old_style_list = convert_old_style_list(sublist)
-            if not old_style_list:
-                break
-            new_second_item.extend(item)
-        if old_style_list:
-            second_item = new_second_item
-        return [first_item, second_item], old_style_list
-    def _helper(list_, tabs=1):
-        indent = u'\t' * tabs
-        output = []
-
-        list_length = len(list_)
-        i = 0
-        while i < list_length:
-            title = list_[i]
-            sublist = ''
-            sublist_item = None
-            if isinstance(title, (list, tuple)):
-                sublist_item = title 
-                title = ''
-            elif i < list_length - 1:
-                next_item = list_[i+1]
-                if next_item and isinstance(next_item, (list, tuple)):
-                    # The next item is a sub-list.
-                    sublist_item = next_item
-                    # We've processed the next item now too.
-                    i += 1 
-            if sublist_item:
-                sublist = _helper(sublist_item, tabs+1)
-                sublist = '\n%s<ul>\n%s\n%s</ul>\n%s' % (indent, sublist,
-                                                         indent, indent)
-            output.append('%s<li>%s%s</li>' % (indent, force_unicode(title),
-                                               sublist))
-            i += 1
-        return '\n'.join(output)
-    value, converted = convert_old_style_list(value) 
-    return _helper(value)
+    def _helper(value, tabs):
+        indent = '\t' * tabs
+        if value[1]:
+            return '%s<li>%s\n%s<ul>\n%s\n%s</ul>\n%s</li>' % (indent, value[0], indent,
+                '\n'.join([_helper(v, tabs+1) for v in value[1]]), indent, indent)
+        else:
+            return '%s<li>%s</li>' % (indent, value[0])
+    return _helper(value, 1)
 
 ###################
 # INTEGERS        #
@@ -469,7 +421,7 @@ def date(value, arg=None):
     "Formats a date according to the given format"
     from django.utils.dateformat import format
     if not value:
-        return u''
+        return ''
     if arg is None:
         arg = settings.DATE_FORMAT
     return format(value, arg)
@@ -477,8 +429,8 @@ def date(value, arg=None):
 def time(value, arg=None):
     "Formats a time according to the given format"
     from django.utils.dateformat import time_format
-    if value in (None, u''):
-        return u''
+    if value in (None, ''):
+        return ''
     if arg is None:
         arg = settings.TIME_FORMAT
     return time_format(value, arg)
@@ -487,7 +439,7 @@ def timesince(value, arg=None):
     'Formats a date as the time since that date (i.e. "4 days, 6 hours")'
     from django.utils.timesince import timesince
     if not value:
-        return u''
+        return ''
     if arg:
         return timesince(arg, value)
     return timesince(value)
@@ -497,7 +449,7 @@ def timeuntil(value, arg=None):
     from django.utils.timesince import timesince
     from datetime import datetime
     if not value:
-        return u''
+        return ''
     if arg:
         return timesince(arg, value)
     return timesince(datetime.now(), value)
@@ -536,8 +488,8 @@ def yesno(value, arg=None):
     ==========  ======================  ==================================
     """
     if arg is None:
-        arg = ugettext('yes,no,maybe')
-    bits = arg.split(u',')
+        arg = gettext('yes,no,maybe')
+    bits = arg.split(',')
     if len(bits) < 2:
         return value # Invalid arg.
     try:
@@ -562,28 +514,28 @@ def filesizeformat(bytes):
     try:
         bytes = float(bytes)
     except TypeError:
-        return u"0 bytes"
-
+        return "0 bytes"
+        
     if bytes < 1024:
-        return ungettext("%(size)d byte", "%(size)d bytes", bytes) % {'size': bytes}
+        return "%d byte%s" % (bytes, bytes != 1 and 's' or '')
     if bytes < 1024 * 1024:
-        return ugettext("%.1f KB") % (bytes / 1024)
+        return "%.1f KB" % (bytes / 1024)
     if bytes < 1024 * 1024 * 1024:
-        return ugettext("%.1f MB") % (bytes / (1024 * 1024))
-    return ugettext("%.1f GB") % (bytes / (1024 * 1024 * 1024))
+        return "%.1f MB" % (bytes / (1024 * 1024))
+    return "%.1f GB" % (bytes / (1024 * 1024 * 1024))
 
-def pluralize(value, arg=u's'):
+def pluralize(value, arg='s'):
     """
     Returns a plural suffix if the value is not 1, for '1 vote' vs. '2 votes'
     By default, 's' is used as a suffix; if an argument is provided, that string
     is used instead. If the provided argument contains a comma, the text before
     the comma is used for the singular case.
     """
-    if not u',' in arg:
-        arg = u',' + arg
-    bits = arg.split(u',')
+    if not ',' in arg:
+        arg = ',' + arg
+    bits = arg.split(',')
     if len(bits) > 2:
-        return u''
+        return ''
     singular_suffix, plural_suffix = bits[:2]
 
     try:
@@ -610,7 +562,7 @@ def pprint(value):
     try:
         return pformat(value)
     except Exception, e:
-        return u"Error in formatting: %s" % force_unicode(e, errors="replace")
+        return "Error in formatting:%s" % e
 
 # Syntax: register.filter(name of filter, callback)
 register.filter(add)
@@ -630,7 +582,6 @@ register.filter(first)
 register.filter(fix_ampersands)
 register.filter(floatformat)
 register.filter(get_digit)
-register.filter(iriencode)
 register.filter(join)
 register.filter(length)
 register.filter(length_is)

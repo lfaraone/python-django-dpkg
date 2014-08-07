@@ -5,7 +5,6 @@ from django import template
 from django.template import loader
 from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.contenttypes.models import ContentType
-from django.utils.encoding import smart_str
 import re
 
 register = template.Library()
@@ -26,7 +25,6 @@ class CommentFormNode(template.Node):
         self.is_public = is_public
 
     def render(self, context):
-        from django.conf import settings
         from django.utils.text import normalize_newlines
         import base64
         context.push()
@@ -66,7 +64,6 @@ class CommentFormNode(template.Node):
             if self.rating_options:
                 context['rating_range'], context['rating_choices'] = Comment.objects.get_rating_options(self.rating_options)
             context['hash'] = Comment.objects.get_security_hash(context['options'], context['photo_options'], context['rating_options'], context['target'])
-            context['logout_url'] = settings.LOGOUT_URL
             default_form = loader.get_template(COMMENT_FORM)
         output = default_form.render(context)
         context.pop()
@@ -112,12 +109,12 @@ class CommentListNode(template.Node):
             'site__id__exact': settings.SITE_ID,
         }
         kwargs.update(self.extra_kwargs)
-        comment_list = get_list_function(**kwargs).order_by(self.ordering + 'submit_date').select_related()
         if not self.free and settings.COMMENTS_BANNED_USERS_GROUP:
-            comment_list = comment_list.extra(select={'is_hidden': 'user_id IN (SELECT user_id FROM auth_user_groups WHERE group_id = %s)' % settings.COMMENTS_BANNED_USERS_GROUP})
+            kwargs['select'] = {'is_hidden': 'user_id IN (SELECT user_id FROM auth_user_groups WHERE group_id = %s)' % settings.COMMENTS_BANNED_USERS_GROUP}
+        comment_list = get_list_function(**kwargs).order_by(self.ordering + 'submit_date').select_related()
 
         if not self.free:
-            if 'user' in context and context['user'].is_authenticated():
+            if context.has_key('user') and context['user'].is_authenticated():
                 user_id = context['user'].id
                 context['user_can_moderate_comments'] = Comment.objects.user_is_moderator(context['user'])
             else:
@@ -175,7 +172,6 @@ class DoCommentForm:
             if tokens[4] != 'with':
                 raise template.TemplateSyntaxError, "Fourth argument in %r tag must be 'with'" % tokens[0]
             for option, args in zip(tokens[5::2], tokens[6::2]):
-                option = smart_str(option)
                 if option in ('photos_optional', 'photos_required') and not self.free:
                     # VALIDATION ##############################################
                     option_list = args.split(',')

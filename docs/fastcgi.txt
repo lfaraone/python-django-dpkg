@@ -1,17 +1,11 @@
-===========================================
-How to use Django with FastCGI, SCGI or AJP
-===========================================
+==============================
+How to use Django with FastCGI
+==============================
 
 Although the `current preferred setup`_ for running Django is Apache_ with
-`mod_python`_, many people use shared hosting, on which protocols such as
-FastCGI, SCGI or AJP are the only viable options. In some setups, these protocols
-also allow better security -- and, possibly, better performance -- than mod_python.
-
-.. admonition:: Note
-
-    This document primarily focuses on FastCGI. Other protocols, such as SCGI
-    and AJP, are also supported, through the ``flup`` Python package. See the
-    "Protocols" section below for specifics about SCGI and AJP.
+`mod_python`_, many people use shared hosting, on which FastCGI is the only
+viable option. In some setups, FastCGI also allows better security -- and,
+possibly, better performance -- than mod_python.
 
 Essentially, FastCGI is an efficient way of letting an external application
 serve pages to a Web server. The Web server delegates the incoming Web requests
@@ -46,8 +40,9 @@ Prerequisite: flup
 ==================
 
 Before you can start using FastCGI with Django, you'll need to install flup_,
-which is a Python library for dealing with FastCGI. Version 0.5 or newer should
-work fine.
+which is a Python library for dealing with FastCGI. Make sure to use the latest
+Subversion snapshot of flup, as some users have reported stalled pages with
+older flup versions.
 
 .. _flup: http://www.saddi.com/software/flup/
 
@@ -79,25 +74,9 @@ your ``manage.py`` is), and then run ``manage.py`` with the ``runfcgi`` option::
 If you specify ``help`` as the only option after ``runfcgi``, it'll display a
 list of all the available options.
 
-You'll need to specify either a ``socket``, ``protocol`` or both ``host`` and ``port``.
-Then, when you set up your Web server, you'll just need to point it at the host/port
+You'll need to specify either a ``socket`` or both ``host`` and ``port``. Then,
+when you set up your Web server, you'll just need to point it at the host/port
 or socket you specified when starting the FastCGI server.
-
-Protocols
----------
-
-Django supports all the protocols that flup_ does, namely fastcgi_, `SCGI`_ and
-`AJP1.3`_ (the Apache JServ Protocol, version 1.3). Select your preferred
-protocol by using the ``protocol=<protocol_name>`` option with
-``./manage.py runfcgi`` -- where ``<protocol_name>`` may be one of: ``fcgi``
-(the default), ``scgi`` or ``ajp``. For example::
-
-    ./manage.py runfcgi protocol=scgi
-
-.. _flup: http://www.saddi.com/software/flup/
-.. _fastcgi: http://www.fastcgi.com/
-.. _SCGI: http://python.ca/scgi/protocol.txt
-.. _AJP1.3: http://tomcat.apache.org/connectors-doc/ajp/ajpv13a.html
 
 Examples
 --------
@@ -112,7 +91,7 @@ Running a preforked server on a Unix domain socket::
 
 Run without daemonizing (backgrounding) the process (good for debugging)::
 
-    ./manage.py runfcgi daemonize=false socket=/tmp/mysite.sock maxrequests=1
+    ./manage.py runfcgi daemonize=false socket=/tmp/mysite.sock
 
 Stopping the FastCGI daemon
 ---------------------------
@@ -202,7 +181,7 @@ This is probably the most common case, if you're using Django's admin site::
       DocumentRoot /home/user/public_html
       Alias /media /home/user/python/django/contrib/admin/media
       RewriteEngine On
-      RewriteRule ^/(media.*)$ /$1 [QSA,L,PT]
+      RewriteRule ^/(media.*)$ /$1 [QSA,L]
       RewriteCond %{REQUEST_FILENAME} !-f
       RewriteRule ^/(.*)$ /mysite.fcgi/$1 [QSA,L]
     </VirtualHost>

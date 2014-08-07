@@ -30,13 +30,7 @@ function dismissRelatedLookupPopup(win, chosenId) {
 function showAddAnotherPopup(triggeringLink) {
     var name = triggeringLink.id.replace(/^add_/, '');
     name = name.replace(/\./g, '___');
-    href = triggeringLink.href
-    if (href.indexOf('?') == -1) {
-        href += '?_popup=1';
-    } else {
-        href  += '&_popup=1';
-    }
-    var win = window.open(href, name, 'height=500,width=800,resizable=yes,scrollbars=yes');
+    var win = window.open(triggeringLink.href + '?_popup=1', name, 'height=500,width=800,resizable=yes,scrollbars=yes');
     win.focus();
     return false;
 }

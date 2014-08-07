@@ -54,6 +54,3 @@ class BaseCache(object):
         Returns True if the key is in the cache and has not expired.
         """
         return self.get(key) is not None
-
-    __contains__ = has_key
-

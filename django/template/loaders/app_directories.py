@@ -1,14 +1,9 @@
-"""
-Wrapper for loading templates from "template" directories in INSTALLED_APPS
-packages.
-"""
-
-import os
+# Wrapper for loading templates from "template" directories in installed app packages.
 
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.template import TemplateDoesNotExist
-from django.utils._os import safe_join
+import os
 
 # At compile time, cache the directories to search.
 app_template_dirs = []
@@ -33,19 +28,13 @@ for app in settings.INSTALLED_APPS:
 app_template_dirs = tuple(app_template_dirs)
 
 def get_template_sources(template_name, template_dirs=None):
-    if not template_dirs:
-        template_dirs = app_template_dirs
-    for template_dir in template_dirs:
-        try:
-            yield safe_join(template_dir, template_name)
-        except ValueError:
-            # The joined path was located outside of template_dir.
-            pass
+    for template_dir in app_template_dirs:
+        yield os.path.join(template_dir, template_name)
 
 def load_template_source(template_name, template_dirs=None):
     for filepath in get_template_sources(template_name, template_dirs):
         try:
-            return (open(filepath).read().decode(settings.FILE_CHARSET), filepath)
+            return (open(filepath).read(), filepath)
         except IOError:
             pass
     raise TemplateDoesNotExist, template_name

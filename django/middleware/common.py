@@ -11,8 +11,7 @@ class CommonMiddleware(object):
         - Forbids access to User-Agents in settings.DISALLOWED_USER_AGENTS
 
         - URL rewriting: Based on the APPEND_SLASH and PREPEND_WWW settings,
-          this middleware appends missing slashes and/or prepends missing
-          "www."s.
+          this middleware appends missing slashes and/or prepends missing "www."s.
 
         - ETags: If the USE_ETAGS setting is set, ETags will be calculated from
           the entire page content and Not Modified responses will be returned
@@ -26,20 +25,20 @@ class CommonMiddleware(object):
         """
 
         # Check for denied User-Agents
-        if 'HTTP_USER_AGENT' in request.META:
+        if request.META.has_key('HTTP_USER_AGENT'):
             for user_agent_regex in settings.DISALLOWED_USER_AGENTS:
                 if user_agent_regex.search(request.META['HTTP_USER_AGENT']):
                     return http.HttpResponseForbidden('<h1>Forbidden</h1>')
 
         # Check for a redirect based on settings.APPEND_SLASH and settings.PREPEND_WWW
-        host = request.get_host()
+        host = http.get_host(request)
         old_url = [host, request.path]
         new_url = old_url[:]
         if settings.PREPEND_WWW and old_url[0] and not old_url[0].startswith('www.'):
             new_url[0] = 'www.' + old_url[0]
         # Append a slash if append_slash is set and the URL doesn't have a
         # trailing slash or a file extension.
-        if settings.APPEND_SLASH and (not old_url[1].endswith('/')) and ('.' not in old_url[1].split('/')[-1]):
+        if settings.APPEND_SLASH and (old_url[1][-1] != '/') and ('.' not in old_url[1].split('/')[-1]):
             new_url[1] = new_url[1] + '/'
             if settings.DEBUG and request.method == 'POST':
                 raise RuntimeError, "You called this URL via POST, but the URL doesn't end in a slash and you have APPEND_SLASH set. Django can't redirect to the slash URL while maintaining POST data. Change your form to point to %s%s (note the trailing slash), or set APPEND_SLASH=False in your Django settings." % (new_url[0], new_url[1])
@@ -61,28 +60,21 @@ class CommonMiddleware(object):
             if settings.SEND_BROKEN_LINK_EMAILS:
                 # If the referrer was from an internal link or a non-search-engine site,
                 # send a note to the managers.
-                domain = request.get_host()
+                domain = http.get_host(request)
                 referer = request.META.get('HTTP_REFERER', None)
                 is_internal = _is_internal_request(domain, referer)
                 path = request.get_full_path()
                 if referer and not _is_ignorable_404(path) and (is_internal or '?' not in referer):
                     ua = request.META.get('HTTP_USER_AGENT', '<none>')
-                    ip = request.META.get('REMOTE_ADDR', '<none>')
                     mail_managers("Broken %slink on %s" % ((is_internal and 'INTERNAL ' or ''), domain),
-                        "Referrer: %s\nRequested URL: %s\nUser agent: %s\nIP address: %s\n" \
-                                  % (referer, request.get_full_path(), ua, ip))
+                        "Referrer: %s\nRequested URL: %s\nUser agent: %s\n" % (referer, request.get_full_path(), ua))
                 return response
 
         # Use ETags, if requested.
         if settings.USE_ETAGS:
-            if response.has_header('ETag'):
-                etag = response['ETag']
-            else:
-                etag = md5.new(response.content).hexdigest()
-            if response.status_code >= 200 and response.status_code < 300 and request.META.get('HTTP_IF_NONE_MATCH') == etag:
-                cookies = response.cookies
+            etag = md5.new(response.content).hexdigest()
+            if request.META.get('HTTP_IF_NONE_MATCH') == etag:
                 response = http.HttpResponseNotModified()
-                response.cookies = cookies
             else:
                 response['ETag'] = etag
 

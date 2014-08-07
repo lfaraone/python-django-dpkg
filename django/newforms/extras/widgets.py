@@ -2,10 +2,9 @@
 Extra HTML Widget classes
 """
 
-import datetime
-
 from django.newforms.widgets import Widget, Select
 from django.utils.dates import MONTHS
+import datetime
 
 __all__ = ('SelectDateWidget',)
 
@@ -53,8 +52,8 @@ class SelectDateWidget(Widget):
 
         return u'\n'.join(output)
 
-    def value_from_datadict(self, data, files, name):
+    def value_from_datadict(self, data, name):
         y, m, d = data.get(self.year_field % name), data.get(self.month_field % name), data.get(self.day_field % name)
         if y and m and d:
             return '%s-%s-%s' % (y, m, d)
-        return data.get(name, None)
+        return None

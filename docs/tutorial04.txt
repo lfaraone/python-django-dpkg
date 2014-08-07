@@ -8,8 +8,8 @@ application and will focus on simple form processing and cutting down our code.
 Write a simple form
 ===================
 
-Let's update our poll detail template ("polls/detail.html") from the last
-tutorial, so that the template contains an HTML ``<form>`` element::
+Let's update our poll detail template from the last tutorial, so that the
+template contains an HTML ``<form>`` element::
 
     <h1>{{ poll.question }}</h1>
 
@@ -48,7 +48,6 @@ So let's create a ``vote()`` function in ``mysite/polls/views.py``::
 
     from django.shortcuts import get_object_or_404, render_to_response
     from django.http import HttpResponseRedirect
-    from django.core.urlresolvers import reverse
     from mysite.polls.models import Choice, Poll
     # ...
     def vote(request, poll_id):
@@ -67,7 +66,7 @@ So let's create a ``vote()`` function in ``mysite/polls/views.py``::
             # Always return an HttpResponseRedirect after successfully dealing
             # with POST data. This prevents data from being posted twice if a
             # user hits the Back button.
-            return HttpResponseRedirect(reverse('mysite.polls.views.results', args=(p.id,)))
+            return HttpResponseRedirect('/polls/%s/results/' % p.id)
 
 This code includes a few things we haven't covered yet in this tutorial:
 
@@ -87,28 +86,12 @@ This code includes a few things we haven't covered yet in this tutorial:
     * After incrementing the choice count, the code returns an
       ``HttpResponseRedirect`` rather than a normal ``HttpResponse``.
       ``HttpResponseRedirect`` takes a single argument: the URL to which the
-      user will be redirected (see the following point for how we construct
-      the URL in this case).
+      user will be redirected. You should leave off the "http://" and domain
+      name if you can. That helps your app become portable across domains.
 
       As the Python comment above points out, you should always return an
       ``HttpResponseRedirect`` after successfully dealing with POST data. This
       tip isn't specific to Django; it's just good Web development practice.
-
-    * We are using the ``reverse()`` function in the ``HttpResponseRedirect``
-      constructor in this example. This function helps avoid having to
-      hardcode a URL in the view function. It is given the name of the view
-      that we want to pass control to and the variable portion of the URL
-      pattern that points to that view. In this case, using the URLConf we set
-      up in Tutorial 3, this ``reverse()`` call will return a string like ::
-
-        '/polls/3/results/'
-
-      ... where the ``3`` is the value of ``p.id``. This redirected URL will
-      then call the ``'results'`` view to display the final page. Note that
-      you need to use the full name of the view here (including the prefix).
-
-      For more information about ``reverse()``, see the `URL dispatcher`_
-      documentation.
 
 As mentioned in Tutorial 3, ``request`` is a ``HTTPRequest`` object. For more
 on ``HTTPRequest`` objects, see the `request and response documentation`_.
@@ -138,7 +121,6 @@ results page that gets updated each time you vote. If you submit the form
 without having chosen a choice, you should see the error message.
 
 .. _request and response documentation: ../request_response/
-.. _URL dispatcher: ../url_dispatch#reverse
 
 Use generic views: Less code is better
 ======================================
@@ -193,7 +175,7 @@ Change it like so::
     urlpatterns = patterns('',
         (r'^$', 'django.views.generic.list_detail.object_list', info_dict),
         (r'^(?P<object_id>\d+)/$', 'django.views.generic.list_detail.object_detail', info_dict),
-        url(r'^(?P<object_id>\d+)/results/$', 'django.views.generic.list_detail.object_detail', dict(info_dict, template_name='polls/results.html'), 'poll_results'),
+        (r'^(?P<object_id>\d+)/results/$', 'django.views.generic.list_detail.object_detail', dict(info_dict, template_name='polls/results.html')),
         (r'^(?P<poll_id>\d+)/vote/$', 'mysite.polls.views.vote'),
     )
 
@@ -208,15 +190,6 @@ objects" and "display a detail page for a particular type of object."
     * The ``object_detail`` generic view expects the ID value captured
       from the URL to be called ``"object_id"``, so we've changed ``poll_id`` to
       ``object_id`` for the generic views.
-
-    * We've added a name, ``poll_results``, to the results view so that we
-      have a way to refer to its URL later on (see the documentation about
-      `naming URL patterns`_ for information). We're also using the `url()`_
-      function from ``django.conf.urls.defaults`` here. It's a good habit to
-      use ``url()`` when you are providing a pattern name like this.
-
-.. _naming URL patterns: ../url_dispatch/#naming-url-patterns
-.. _url(): ../url_dispatch/#url
 
 By default, the ``object_detail`` generic view uses a template called
 ``<app name>/<model name>_detail.html``. In our case, it'll use the template
@@ -246,7 +219,7 @@ template. Note that we use ``dict()`` to return an altered dictionary in place.
     If you'd like to know more about how that works, The Django database API
     documentation `explains the lazy nature of QuerySet objects`_.
 
-.. _explains the lazy nature of QuerySet objects: ../db-api/#querysets-are-lazy
+.. _explains the lazy nature of QuerySet objects: ../db_api/#querysets-are-lazy
 
 In previous parts of the tutorial, the templates have been provided with a context
 that contains the ``poll`` and ``latest_poll_list`` context variables. However,
@@ -263,15 +236,6 @@ The ``vote()`` view is still required. However, it must be modified to match
 the new templates and context variables. Change the template call from
 ``polls/detail.html`` to ``polls/poll_detail.html``, and pass ``object`` in the
 context instead of ``poll``.
-
-The last thing to do is fix the URL handling to account for the use of generic
-views. In the vote view above, we used the ``reverse()`` function to avoid
-hard-coding our URLs. Now that we've switched to a generic view, we'll need to
-change the ``reverse()`` call to point back to our new generic view. We can't
-simply use the view function anymore -- generic views can be (and are) used
-multiple times -- but we can use the name we've given::
-    
-    return HttpResponseRedirect(reverse('poll_results', args=(p.id,)))
 
 Run the server, and use your new polling app based on generic views.
 
@@ -292,8 +256,4 @@ installments:
     * Advanced admin features: Permissions
     * Advanced admin features: Custom JavaScript
 
-In the meantime, you can read through the rest of the `Django documentation`_
-and start writing your own applications.
-
-.. _Tutorial 3: ../tutorial03/
-.. _Django documentation: http://www.djangoproject.com/documentation/
+.. _Tutorial 3: ../tutorial3/

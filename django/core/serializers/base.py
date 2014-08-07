@@ -7,7 +7,6 @@ try:
 except ImportError:
     from StringIO import StringIO
 from django.db import models
-from django.utils.encoding import smart_str, smart_unicode
 
 class SerializationError(Exception):
     """Something bad happened during serialization."""
@@ -60,7 +59,7 @@ class Serializer(object):
             value = getattr(obj, "get_%s_url" % field.name, lambda: None)()
         else:
             value = field.flatten_data(follow=None, obj=obj).get(field.name, "")
-        return smart_unicode(value)
+        return str(value)
 
     def start_serialization(self):
         """
@@ -106,11 +105,9 @@ class Serializer(object):
 
     def getvalue(self):
         """
-        Return the fully serialized queryset (or None if the output stream is
-        not seekable).
+        Return the fully serialized queryset.
         """
-        if callable(getattr(self.stream, 'getvalue', None)):
-            return self.stream.getvalue()
+        return self.stream.getvalue()
 
 class Deserializer(object):
     """
@@ -155,15 +152,10 @@ class DeserializedObject(object):
         self.m2m_data = m2m_data
 
     def __repr__(self):
-        return "<DeserializedObject: %s>" % smart_str(self.object)
+        return "<DeserializedObject: %s>" % str(self.object)
 
     def save(self, save_m2m=True):
-        # Call save on the Model baseclass directly. This bypasses any 
-        # model-defined save. The save is also forced to be raw.
-        # This ensures that the data that is deserialized is literally 
-        # what came from the file, not post-processed by pre_save/save
-        # methods.
-        models.Model.save(self.object, raw=True)
+        self.object.save()
         if self.m2m_data and save_m2m:
             for accessor_name, object_list in self.m2m_data.items():
                 setattr(self.object, accessor_name, object_list)

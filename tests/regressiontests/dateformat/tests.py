@@ -1,54 +1,54 @@
 r"""
 >>> format(my_birthday, '')
-u''
+''
 >>> format(my_birthday, 'a')
-u'p.m.'
+'p.m.'
 >>> format(my_birthday, 'A')
-u'PM'
+'PM'
 >>> format(my_birthday, 'd')
-u'08'
+'08'
 >>> format(my_birthday, 'j')
-u'8'
+'8'
 >>> format(my_birthday, 'l')
-u'Sunday'
+'Sunday'
 >>> format(my_birthday, 'L')
-u'False'
+'False'
 >>> format(my_birthday, 'm')
-u'07'
+'07'
 >>> format(my_birthday, 'M')
-u'Jul'
+'Jul'
 >>> format(my_birthday, 'b')
-u'jul'
+'jul'
 >>> format(my_birthday, 'n')
-u'7'
+'7'
 >>> format(my_birthday, 'N')
-u'July'
+'July'
 >>> no_tz or format(my_birthday, 'O') == '+0100'
 True
 >>> format(my_birthday, 'P')
-u'10 p.m.'
+'10 p.m.'
 >>> no_tz or format(my_birthday, 'r') == 'Sun, 8 Jul 1979 22:00:00 +0100'
 True
 >>> format(my_birthday, 's')
-u'00'
+'00'
 >>> format(my_birthday, 'S')
-u'th'
+'th'
 >>> format(my_birthday, 't')
-u'31'
+'31'
 >>> no_tz or format(my_birthday, 'T') == 'CET'
 True
 >>> no_tz or format(my_birthday, 'U') == '300531600'
 True
 >>> format(my_birthday, 'w')
-u'0'
+'0'
 >>> format(my_birthday, 'W')
-u'27'
+'27'
 >>> format(my_birthday, 'y')
-u'79'
+'79'
 >>> format(my_birthday, 'Y')
-u'1979'
+'1979'
 >>> format(my_birthday, 'z')
-u'189'
+'189'
 >>> no_tz or format(my_birthday, 'Z') == '3600'
 True
 
@@ -62,10 +62,10 @@ True
 True
 
 >>> format(my_birthday, r'Y z \C\E\T')
-u'1979 189 CET'
+'1979 189 CET'
 
 >>> format(my_birthday, r'jS o\f F')
-u'8th of July'
+'8th of July'
 """
 
 from django.utils import dateformat, translation

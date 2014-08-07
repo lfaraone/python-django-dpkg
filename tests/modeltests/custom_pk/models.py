@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 14. Using a custom primary key
 
@@ -9,23 +8,23 @@ this behavior by explicitly adding ``primary_key=True`` to a field.
 from django.db import models
 
 class Employee(models.Model):
-    employee_code = models.CharField(max_length=10, primary_key=True,
+    employee_code = models.CharField(maxlength=10, primary_key=True,
             db_column = 'code')
-    first_name = models.CharField(max_length=20)
-    last_name = models.CharField(max_length=20)
+    first_name = models.CharField(maxlength=20)
+    last_name = models.CharField(maxlength=20)
     class Meta:
         ordering = ('last_name', 'first_name')
 
-    def __unicode__(self):
-        return u"%s %s" % (self.first_name, self.last_name)
+    def __str__(self):
+        return "%s %s" % (self.first_name, self.last_name)
 
 class Business(models.Model):
-    name = models.CharField(max_length=20, primary_key=True)
+    name = models.CharField(maxlength=20, primary_key=True)
     employees = models.ManyToManyField(Employee)
     class Meta:
         verbose_name_plural = 'businesses'
 
-    def __unicode__(self):
+    def __str__(self):
         return self.name
 
 __test__ = {'API_TESTS':"""
@@ -56,15 +55,6 @@ DoesNotExist: Employee matching query does not exist.
 >>> Employee.objects.filter(pk__in=['ABC123','XYZ456'])
 [<Employee: Fran Bones>, <Employee: Dan Jones>]
 
-# The primary key can be accessed via the pk property on the model.
->>> e = Employee.objects.get(pk='ABC123')
->>> e.pk
-u'ABC123'
-
-# Or we can use the real attribute name for the primary key:
->>> e.employee_code
-u'ABC123'
-
 # Fran got married and changed her last name.
 >>> fran = Employee.objects.get(pk='XYZ456')
 >>> fran.last_name = 'Jones'
@@ -72,7 +62,7 @@ u'ABC123'
 >>> Employee.objects.filter(last_name__exact='Jones')
 [<Employee: Dan Jones>, <Employee: Fran Jones>]
 >>> Employee.objects.in_bulk(['ABC123', 'XYZ456'])
-{u'XYZ456': <Employee: Fran Jones>, u'ABC123': <Employee: Dan Jones>}
+{'XYZ456': <Employee: Fran Jones>, 'ABC123': <Employee: Dan Jones>}
 
 >>> b = Business(name='Sears')
 >>> b.save()
@@ -82,7 +72,7 @@ u'ABC123'
 >>> fran.business_set.all()
 [<Business: Sears>]
 >>> Business.objects.in_bulk(['Sears'])
-{u'Sears': <Business: Sears>}
+{'Sears': <Business: Sears>}
 
 >>> Business.objects.filter(name__exact='Sears')
 [<Business: Sears>]
@@ -101,9 +91,5 @@ u'ABC123'
 [<Business: Sears>]
 >>> Business.objects.filter(employees__first_name__startswith='Fran')
 [<Business: Sears>]
-
-# Primary key may be unicode string
->>> emp = Employee(employee_code='jaźń')
->>> emp.save()
 
 """}

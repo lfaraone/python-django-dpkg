@@ -1,18 +1,8 @@
 # -*- coding: utf-8 -*-
-from localflavor import localflavor_tests
-from regressions import regression_tests
-from util import util_tests
-
-form_tests = r"""
+r"""
 >>> from django.newforms import *
->>> from django.newforms.widgets import RadioFieldRenderer
 >>> import datetime
->>> import time
 >>> import re
->>> try:
-...     from decimal import Decimal
-... except ImportError:
-...     from django.utils._decimal import Decimal
 
 ###########
 # Widgets #
@@ -174,58 +164,56 @@ u'<input type="hidden" class="special" value="foo@example.com" name="email" />'
 
 # FileInput Widget ############################################################
 
-FileInput widgets don't ever show the value, because the old value is of no use
-if you are updating the form or if the provided file generated an error.
 >>> w = FileInput()
 >>> w.render('email', '')
 u'<input type="file" name="email" />'
 >>> w.render('email', None)
 u'<input type="file" name="email" />'
 >>> w.render('email', 'test@example.com')
-u'<input type="file" name="email" />'
+u'<input type="file" name="email" value="test@example.com" />'
 >>> w.render('email', 'some "quoted" & ampersanded value')
-u'<input type="file" name="email" />'
+u'<input type="file" name="email" value="some &quot;quoted&quot; &amp; ampersanded value" />'
 >>> w.render('email', 'test@example.com', attrs={'class': 'fun'})
-u'<input type="file" name="email" class="fun" />'
+u'<input type="file" name="email" value="test@example.com" class="fun" />'
 
 You can also pass 'attrs' to the constructor:
 >>> w = FileInput(attrs={'class': 'fun'})
 >>> w.render('email', '')
 u'<input type="file" class="fun" name="email" />'
 >>> w.render('email', 'foo@example.com')
-u'<input type="file" class="fun" name="email" />'
+u'<input type="file" class="fun" value="foo@example.com" name="email" />'
 
 >>> w.render('email', 'ŠĐĆŽćžšđ', attrs={'class': 'fun'})
-u'<input type="file" class="fun" name="email" />'
+u'<input type="file" class="fun" value="\u0160\u0110\u0106\u017d\u0107\u017e\u0161\u0111" name="email" />'
 
 # Textarea Widget #############################################################
 
 >>> w = Textarea()
 >>> w.render('msg', '')
-u'<textarea rows="10" cols="40" name="msg"></textarea>'
+u'<textarea name="msg"></textarea>'
 >>> w.render('msg', None)
-u'<textarea rows="10" cols="40" name="msg"></textarea>'
+u'<textarea name="msg"></textarea>'
 >>> w.render('msg', 'value')
-u'<textarea rows="10" cols="40" name="msg">value</textarea>'
+u'<textarea name="msg">value</textarea>'
 >>> w.render('msg', 'some "quoted" & ampersanded value')
-u'<textarea rows="10" cols="40" name="msg">some &quot;quoted&quot; &amp; ampersanded value</textarea>'
->>> w.render('msg', 'value', attrs={'class': 'pretty', 'rows': 20})
-u'<textarea class="pretty" rows="20" cols="40" name="msg">value</textarea>'
+u'<textarea name="msg">some &quot;quoted&quot; &amp; ampersanded value</textarea>'
+>>> w.render('msg', 'value', attrs={'class': 'pretty'})
+u'<textarea name="msg" class="pretty">value</textarea>'
 
 You can also pass 'attrs' to the constructor:
 >>> w = Textarea(attrs={'class': 'pretty'})
 >>> w.render('msg', '')
-u'<textarea rows="10" cols="40" name="msg" class="pretty"></textarea>'
+u'<textarea class="pretty" name="msg"></textarea>'
 >>> w.render('msg', 'example')
-u'<textarea rows="10" cols="40" name="msg" class="pretty">example</textarea>'
+u'<textarea class="pretty" name="msg">example</textarea>'
 
 'attrs' passed to render() get precedence over those passed to the constructor:
 >>> w = Textarea(attrs={'class': 'pretty'})
 >>> w.render('msg', '', attrs={'class': 'special'})
-u'<textarea rows="10" cols="40" name="msg" class="special"></textarea>'
+u'<textarea class="special" name="msg"></textarea>'
 
 >>> w.render('msg', 'ŠĐĆŽćžšđ', attrs={'class': 'fun'})
-u'<textarea rows="10" cols="40" name="msg" class="fun">\u0160\u0110\u0106\u017d\u0107\u017e\u0161\u0111</textarea>'
+u'<textarea class="fun" name="msg">\u0160\u0110\u0106\u017d\u0107\u017e\u0161\u0111</textarea>'
 
 # CheckboxInput Widget ########################################################
 
@@ -618,11 +606,11 @@ If 'choices' is passed to both the constructor and render(), then they'll both b
 <li><label><input type="radio" name="num" value="5" /> 5</label></li>
 </ul>
 
-RadioSelect uses a RadioFieldRenderer to render the individual radio inputs.
+The render() method returns a RadioFieldRenderer object, whose str() is a <ul>.
 You can manipulate that object directly to customize the way the RadioSelect
 is rendered.
 >>> w = RadioSelect()
->>> r = w.get_renderer('beatle', 'J', choices=(('J', 'John'), ('P', 'Paul'), ('G', 'George'), ('R', 'Ringo')))
+>>> r = w.render('beatle', 'J', choices=(('J', 'John'), ('P', 'Paul'), ('G', 'George'), ('R', 'Ringo')))
 >>> for inp in r:
 ...     print inp
 <label><input checked="checked" type="radio" name="beatle" value="J" /> John</label>
@@ -648,21 +636,10 @@ beatle J P Paul False
 beatle J G George False
 beatle J R Ringo False
 
-You can create your own custom renderers for RadioSelect to use.
->>> class MyRenderer(RadioFieldRenderer):
-...    def render(self):
-...        return u'<br />\n'.join([unicode(choice) for choice in self])
->>> w = RadioSelect(renderer=MyRenderer)
->>> print w.render('beatle', 'G', choices=(('J', 'John'), ('P', 'Paul'), ('G', 'George'), ('R', 'Ringo')))
-<label><input type="radio" name="beatle" value="J" /> John</label><br />
-<label><input type="radio" name="beatle" value="P" /> Paul</label><br />
-<label><input checked="checked" type="radio" name="beatle" value="G" /> George</label><br />
-<label><input type="radio" name="beatle" value="R" /> Ringo</label>
-
 A RadioFieldRenderer object also allows index access to individual RadioInput
 objects.
 >>> w = RadioSelect()
->>> r = w.get_renderer('beatle', 'J', choices=(('J', 'John'), ('P', 'Paul'), ('G', 'George'), ('R', 'Ringo')))
+>>> r = w.render('beatle', 'J', choices=(('J', 'John'), ('P', 'Paul'), ('G', 'George'), ('R', 'Ringo')))
 >>> print r[1]
 <label><input type="radio" name="beatle" value="P" /> Paul</label>
 >>> print r[0]
@@ -678,30 +655,9 @@ Traceback (most recent call last):
 ...
 IndexError: list index out of range
 
-# Unicode choices are correctly rendered as HTML
 >>> w = RadioSelect()
 >>> unicode(w.render('email', 'ŠĐĆŽćžšđ', choices=[('ŠĐĆŽćžšđ', 'ŠĐabcĆŽćžšđ'), ('ćžšđ', 'abcćžšđ')]))
 u'<ul>\n<li><label><input checked="checked" type="radio" name="email" value="\u0160\u0110\u0106\u017d\u0107\u017e\u0161\u0111" /> \u0160\u0110abc\u0106\u017d\u0107\u017e\u0161\u0111</label></li>\n<li><label><input type="radio" name="email" value="\u0107\u017e\u0161\u0111" /> abc\u0107\u017e\u0161\u0111</label></li>\n</ul>'
-
-# Attributes provided at instantiation are passed to the constituent inputs
->>> w = RadioSelect(attrs={'id':'foo'})
->>> print w.render('beatle', 'J', choices=(('J', 'John'), ('P', 'Paul'), ('G', 'George'), ('R', 'Ringo')))
-<ul>
-<li><label><input checked="checked" type="radio" id="foo_0" value="J" name="beatle" /> John</label></li>
-<li><label><input type="radio" id="foo_1" value="P" name="beatle" /> Paul</label></li>
-<li><label><input type="radio" id="foo_2" value="G" name="beatle" /> George</label></li>
-<li><label><input type="radio" id="foo_3" value="R" name="beatle" /> Ringo</label></li>
-</ul>
-
-# Attributes provided at render-time are passed to the constituent inputs
->>> w = RadioSelect()
->>> print w.render('beatle', 'J', choices=(('J', 'John'), ('P', 'Paul'), ('G', 'George'), ('R', 'Ringo')), attrs={'id':'bar'})
-<ul>
-<li><label><input checked="checked" type="radio" id="bar_0" value="J" name="beatle" /> John</label></li>
-<li><label><input type="radio" id="bar_1" value="P" name="beatle" /> Paul</label></li>
-<li><label><input type="radio" id="bar_2" value="G" name="beatle" /> George</label></li>
-<li><label><input type="radio" id="bar_3" value="R" name="beatle" /> Ringo</label></li>
-</ul>
 
 # CheckboxSelectMultiple Widget ###############################################
 
@@ -824,11 +780,6 @@ u'<ul>\n<li><label><input type="checkbox" name="nums" value="1" /> 1</label></li
 u'<input type="text" class="big" value="john" name="name_0" /><br /><input type="text" class="small" value="lennon" name="name_1" />'
 >>> w.render('name', 'john__lennon')
 u'<input type="text" class="big" value="john" name="name_0" /><br /><input type="text" class="small" value="lennon" name="name_1" />'
->>> w.render('name', 'john__lennon', attrs={'id':'foo'})
-u'<input id="foo_0" type="text" class="big" value="john" name="name_0" /><br /><input id="foo_1" type="text" class="small" value="lennon" name="name_1" />'
->>> w = MyMultiWidget(widgets=(TextInput(attrs={'class': 'big'}), TextInput(attrs={'class': 'small'})), attrs={'id': 'bar'})
->>> w.render('name', ['john', 'lennon'])
-u'<input id="bar_0" type="text" class="big" value="john" name="name_0" /><br /><input id="bar_1" type="text" class="small" value="lennon" name="name_1" />'
 
 # SplitDateTimeWidget #########################################################
 
@@ -911,7 +862,7 @@ u'1234567890'
 >>> f.clean('1234567890a')
 Traceback (most recent call last):
 ...
-ValidationError: [u'Ensure this value has at most 10 characters (it has 11).']
+ValidationError: [u'Ensure this value has at most 10 characters.']
 
 CharField accepts an optional min_length parameter:
 >>> f = CharField(min_length=10, required=False)
@@ -920,7 +871,7 @@ u''
 >>> f.clean('12345')
 Traceback (most recent call last):
 ...
-ValidationError: [u'Ensure this value has at least 10 characters (it has 5).']
+ValidationError: [u'Ensure this value has at least 10 characters.']
 >>> f.clean('1234567890')
 u'1234567890'
 >>> f.clean('1234567890a')
@@ -934,7 +885,7 @@ ValidationError: [u'This field is required.']
 >>> f.clean('12345')
 Traceback (most recent call last):
 ...
-ValidationError: [u'Ensure this value has at least 10 characters (it has 5).']
+ValidationError: [u'Ensure this value has at least 10 characters.']
 >>> f.clean('1234567890')
 u'1234567890'
 >>> f.clean('1234567890a')
@@ -958,12 +909,6 @@ True
 >>> f.clean('23')
 23
 >>> f.clean('a')
-Traceback (most recent call last):
-...
-ValidationError: [u'Enter a whole number.']
->>> f.clean(42)
-42
->>> f.clean(3.14)
 Traceback (most recent call last):
 ...
 ValidationError: [u'Enter a whole number.']
@@ -1070,170 +1015,6 @@ ValidationError: [u'Ensure this value is greater than or equal to 10.']
 Traceback (most recent call last):
 ...
 ValidationError: [u'Ensure this value is less than or equal to 20.']
-
-# FloatField ##################################################################
-
->>> f = FloatField()
->>> f.clean('')
-Traceback (most recent call last):
-...
-ValidationError: [u'This field is required.']
->>> f.clean(None)
-Traceback (most recent call last):
-...
-ValidationError: [u'This field is required.']
->>> f.clean('1')
-1.0
->>> isinstance(f.clean('1'), float)
-True
->>> f.clean('23')
-23.0
->>> f.clean('3.14')
-3.1400000000000001
->>> f.clean(3.14)
-3.1400000000000001
->>> f.clean(42)
-42.0
->>> f.clean('a')
-Traceback (most recent call last):
-...
-ValidationError: [u'Enter a number.']
->>> f.clean('1.0 ')
-1.0
->>> f.clean(' 1.0')
-1.0
->>> f.clean(' 1.0 ')
-1.0
->>> f.clean('1.0a')
-Traceback (most recent call last):
-...
-ValidationError: [u'Enter a number.']
-
->>> f = FloatField(required=False)
->>> f.clean('')
-
->>> f.clean(None)
-
->>> f.clean('1')
-1.0
-
-FloatField accepts min_value and max_value just like IntegerField:
->>> f = FloatField(max_value=1.5, min_value=0.5)
-
->>> f.clean('1.6')
-Traceback (most recent call last):
-...
-ValidationError: [u'Ensure this value is less than or equal to 1.5.']
->>> f.clean('0.4')
-Traceback (most recent call last):
-...
-ValidationError: [u'Ensure this value is greater than or equal to 0.5.']
->>> f.clean('1.5')
-1.5
->>> f.clean('0.5')
-0.5
-
-# DecimalField ################################################################
-
->>> f = DecimalField(max_digits=4, decimal_places=2)
->>> f.clean('')
-Traceback (most recent call last):
-...
-ValidationError: [u'This field is required.']
->>> f.clean(None)
-Traceback (most recent call last):
-...
-ValidationError: [u'This field is required.']
->>> f.clean('1')
-Decimal("1")
->>> isinstance(f.clean('1'), Decimal)
-True
->>> f.clean('23')
-Decimal("23")
->>> f.clean('3.14')
-Decimal("3.14")
->>> f.clean(3.14)
-Decimal("3.14")
->>> f.clean(Decimal('3.14'))
-Decimal("3.14")
->>> f.clean('a')
-Traceback (most recent call last):
-...
-ValidationError: [u'Enter a number.']
->>> f.clean('1.0 ')
-Decimal("1.0")
->>> f.clean(' 1.0')
-Decimal("1.0")
->>> f.clean(' 1.0 ')
-Decimal("1.0")
->>> f.clean('1.0a')
-Traceback (most recent call last):
-...
-ValidationError: [u'Enter a number.']
->>> f.clean('123.45')
-Traceback (most recent call last):
-...
-ValidationError: [u'Ensure that there are no more than 4 digits in total.']
->>> f.clean('1.234')
-Traceback (most recent call last):
-...
-ValidationError: [u'Ensure that there are no more than 2 decimal places.']
->>> f.clean('123.4')
-Traceback (most recent call last):
-...
-ValidationError: [u'Ensure that there are no more than 2 digits before the decimal point.']
->>> f.clean('-12.34')
-Decimal("-12.34")
->>> f.clean('-123.45')
-Traceback (most recent call last):
-...
-ValidationError: [u'Ensure that there are no more than 4 digits in total.']
->>> f.clean('-.12')
-Decimal("-0.12")
->>> f.clean('-00.12')
-Decimal("-0.12")
->>> f.clean('-000.12')
-Decimal("-0.12")
->>> f.clean('-000.123')
-Traceback (most recent call last):
-...
-ValidationError: [u'Ensure that there are no more than 2 decimal places.']
->>> f.clean('-000.1234')
-Traceback (most recent call last):
-...
-ValidationError: [u'Ensure that there are no more than 4 digits in total.']
->>> f.clean('--0.12')
-Traceback (most recent call last):
-...
-ValidationError: [u'Enter a number.']
-
->>> f = DecimalField(max_digits=4, decimal_places=2, required=False)
->>> f.clean('')
-
->>> f.clean(None)
-
->>> f.clean('1')
-Decimal("1")
-
-DecimalField accepts min_value and max_value just like IntegerField:
->>> f = DecimalField(max_digits=4, decimal_places=2, max_value=Decimal('1.5'), min_value=Decimal('0.5'))
-
->>> f.clean('1.6')
-Traceback (most recent call last):
-...
-ValidationError: [u'Ensure this value is less than or equal to 1.5.']
->>> f.clean('0.4')
-Traceback (most recent call last):
-...
-ValidationError: [u'Ensure this value is greater than or equal to 0.5.']
->>> f.clean('1.5')
-Decimal("1.5")
->>> f.clean('0.5')
-Decimal("0.5")
->>> f.clean('.5')
-Decimal("0.5")
->>> f.clean('00.50')
-Decimal("0.50")
 
 # DateField ###################################################################
 
@@ -1497,11 +1278,11 @@ RegexField also access min_length and max_length parameters, for convenience.
 >>> f.clean('123')
 Traceback (most recent call last):
 ...
-ValidationError: [u'Ensure this value has at least 5 characters (it has 3).']
+ValidationError: [u'Ensure this value has at least 5 characters.']
 >>> f.clean('abc')
 Traceback (most recent call last):
 ...
-ValidationError: [u'Ensure this value has at least 5 characters (it has 3).']
+ValidationError: [u'Ensure this value has at least 5 characters.']
 >>> f.clean('12345')
 u'12345'
 >>> f.clean('1234567890')
@@ -1509,7 +1290,7 @@ u'1234567890'
 >>> f.clean('12345678901')
 Traceback (most recent call last):
 ...
-ValidationError: [u'Ensure this value has at most 10 characters (it has 11).']
+ValidationError: [u'Ensure this value has at most 10 characters.']
 >>> f.clean('12345a')
 Traceback (most recent call last):
 ...
@@ -1566,49 +1347,13 @@ EmailField also access min_length and max_length parameters, for convenience.
 >>> f.clean('a@foo.com')
 Traceback (most recent call last):
 ...
-ValidationError: [u'Ensure this value has at least 10 characters (it has 9).']
+ValidationError: [u'Ensure this value has at least 10 characters.']
 >>> f.clean('alf@foo.com')
 u'alf@foo.com'
 >>> f.clean('alf123456788@foo.com')
 Traceback (most recent call last):
 ...
-ValidationError: [u'Ensure this value has at most 15 characters (it has 20).']
-
-# FileField ##################################################################
-
->>> f = FileField()
->>> f.clean('')
-Traceback (most recent call last):
-...
-ValidationError: [u'This field is required.']
-
->>> f.clean(None)
-Traceback (most recent call last):
-...
-ValidationError: [u'This field is required.']
-
->>> f.clean({})
-Traceback (most recent call last):
-...
-ValidationError: [u'No file was submitted.']
-
->>> f.clean('some content that is not a file')
-Traceback (most recent call last):
-...
-ValidationError: [u'No file was submitted. Check the encoding type on the form.']
-
->>> f.clean({'filename': 'name', 'content':None})
-Traceback (most recent call last):
-...
-ValidationError: [u'The submitted file is empty.']
-
->>> f.clean({'filename': 'name', 'content':''})
-Traceback (most recent call last):
-...
-ValidationError: [u'The submitted file is empty.']
-
->>> type(f.clean({'filename': 'name', 'content':'Some File Content'}))
-<class 'django.newforms.fields.UploadedFile'>
+ValidationError: [u'Ensure this value has at most 15 characters.']
 
 # URLField ##################################################################
 
@@ -1621,19 +1366,15 @@ ValidationError: [u'This field is required.']
 Traceback (most recent call last):
 ...
 ValidationError: [u'This field is required.']
->>> f.clean('http://localhost')
-u'http://localhost'
 >>> f.clean('http://example.com')
 u'http://example.com'
 >>> f.clean('http://www.example.com')
 u'http://www.example.com'
->>> f.clean('http://www.example.com:8000/test')
-u'http://www.example.com:8000/test'
->>> f.clean('http://200.8.9.10')
-u'http://200.8.9.10'
->>> f.clean('http://200.8.9.10:8000/test')
-u'http://200.8.9.10:8000/test'
 >>> f.clean('foo')
+Traceback (most recent call last):
+...
+ValidationError: [u'Enter a valid URL.']
+>>> f.clean('example.com')
 Traceback (most recent call last):
 ...
 ValidationError: [u'Enter a valid URL.']
@@ -1664,6 +1405,10 @@ u'http://example.com'
 >>> f.clean('http://www.example.com')
 u'http://www.example.com'
 >>> f.clean('foo')
+Traceback (most recent call last):
+...
+ValidationError: [u'Enter a valid URL.']
+>>> f.clean('example.com')
 Traceback (most recent call last):
 ...
 ValidationError: [u'Enter a valid URL.']
@@ -1707,27 +1452,18 @@ u''
 >>> f.clean('http://www.google.com') # This will fail if there's no Internet connection
 u'http://www.google.com'
 
-URLField also access min_length and max_length parameters, for convenience.
+EmailField also access min_length and max_length parameters, for convenience.
 >>> f = URLField(min_length=15, max_length=20)
 >>> f.clean('http://f.com')
 Traceback (most recent call last):
 ...
-ValidationError: [u'Ensure this value has at least 15 characters (it has 12).']
+ValidationError: [u'Ensure this value has at least 15 characters.']
 >>> f.clean('http://example.com')
 u'http://example.com'
 >>> f.clean('http://abcdefghijklmnopqrstuvwxyz.com')
 Traceback (most recent call last):
 ...
-ValidationError: [u'Ensure this value has at most 20 characters (it has 37).']
-
-URLField should prepend 'http://' if no scheme was given
->>> f = URLField(required=False)
->>> f.clean('example.com')
-u'http://example.com'
->>> f.clean('')
-u''
->>> f.clean('https://example.com')
-u'https://example.com'
+ValidationError: [u'Ensure this value has at most 20 characters.']
 
 # BooleanField ################################################################
 
@@ -1899,7 +1635,7 @@ u'test@example.com'
 >>> f.clean('longemailaddress@example.com')
 Traceback (most recent call last):
 ...
-ValidationError: [u'Ensure this value has at most 20 characters (it has 28).']
+ValidationError: [u'Ensure this value has at most 20 characters.']
 >>> f.clean('not an e-mail')
 Traceback (most recent call last):
 ...
@@ -1919,7 +1655,7 @@ u'test@example.com'
 >>> f.clean('longemailaddress@example.com')
 Traceback (most recent call last):
 ...
-ValidationError: [u'Ensure this value has at most 20 characters (it has 28).']
+ValidationError: [u'Ensure this value has at most 20 characters.']
 >>> f.clean('not an e-mail')
 Traceback (most recent call last):
 ...
@@ -1962,12 +1698,8 @@ ValidationError: [u'Enter a valid date.']
 >>> f = SplitDateTimeField(required=False)
 >>> f.clean([datetime.date(2006, 1, 10), datetime.time(7, 30)])
 datetime.datetime(2006, 1, 10, 7, 30)
->>> f.clean(['2006-01-10', '07:30'])
-datetime.datetime(2006, 1, 10, 7, 30)
 >>> f.clean(None)
 >>> f.clean('')
->>> f.clean([''])
->>> f.clean(['', ''])
 >>> f.clean('hello')
 Traceback (most recent call last):
 ...
@@ -1981,18 +1713,6 @@ Traceback (most recent call last):
 ...
 ValidationError: [u'Enter a valid time.']
 >>> f.clean(['hello', '07:30'])
-Traceback (most recent call last):
-...
-ValidationError: [u'Enter a valid date.']
->>> f.clean(['2006-01-10', ''])
-Traceback (most recent call last):
-...
-ValidationError: [u'Enter a valid time.']
->>> f.clean(['2006-01-10'])
-Traceback (most recent call last):
-...
-ValidationError: [u'Enter a valid time.']
->>> f.clean(['', '07:30'])
 Traceback (most recent call last):
 ...
 ValidationError: [u'Enter a valid date.']
@@ -2024,7 +1744,7 @@ True
 u''
 >>> p.errors.as_text()
 u''
->>> p.cleaned_data
+>>> p.clean_data
 {'first_name': u'John', 'last_name': u'Lennon', 'birthday': datetime.date(1940, 10, 9)}
 >>> print p['first_name']
 <input type="text" name="first_name" value="John" id="id_first_name" />
@@ -2060,10 +1780,10 @@ True
 {'first_name': [u'This field is required.'], 'last_name': [u'This field is required.'], 'birthday': [u'This field is required.']}
 >>> p.is_valid()
 False
->>> p.cleaned_data
+>>> p.clean_data
 Traceback (most recent call last):
 ...
-AttributeError: 'Person' object has no attribute 'cleaned_data'
+AttributeError: 'Person' object has no attribute 'clean_data'
 >>> print p
 <tr><th><label for="id_first_name">First name:</label></th><td><ul class="errorlist"><li>This field is required.</li></ul><input type="text" name="first_name" id="id_first_name" /></td></tr>
 <tr><th><label for="id_last_name">Last name:</label></th><td><ul class="errorlist"><li>This field is required.</li></ul><input type="text" name="last_name" id="id_last_name" /></td></tr>
@@ -2077,11 +1797,11 @@ AttributeError: 'Person' object has no attribute 'cleaned_data'
 <li><ul class="errorlist"><li>This field is required.</li></ul><label for="id_last_name">Last name:</label> <input type="text" name="last_name" id="id_last_name" /></li>
 <li><ul class="errorlist"><li>This field is required.</li></ul><label for="id_birthday">Birthday:</label> <input type="text" name="birthday" id="id_birthday" /></li>
 >>> print p.as_p()
-<ul class="errorlist"><li>This field is required.</li></ul>
+<p><ul class="errorlist"><li>This field is required.</li></ul></p>
 <p><label for="id_first_name">First name:</label> <input type="text" name="first_name" id="id_first_name" /></p>
-<ul class="errorlist"><li>This field is required.</li></ul>
+<p><ul class="errorlist"><li>This field is required.</li></ul></p>
 <p><label for="id_last_name">Last name:</label> <input type="text" name="last_name" id="id_last_name" /></p>
-<ul class="errorlist"><li>This field is required.</li></ul>
+<p><ul class="errorlist"><li>This field is required.</li></ul></p>
 <p><label for="id_birthday">Birthday:</label> <input type="text" name="birthday" id="id_birthday" /></p>
 
 If you don't pass any values to the Form's __init__(), or if you pass None,
@@ -2094,10 +1814,10 @@ False
 {}
 >>> p.is_valid()
 False
->>> p.cleaned_data
+>>> p.clean_data
 Traceback (most recent call last):
 ...
-AttributeError: 'Person' object has no attribute 'cleaned_data'
+AttributeError: 'Person' object has no attribute 'clean_data'
 >>> print p
 <tr><th><label for="id_first_name">First name:</label></th><td><input type="text" name="first_name" id="id_first_name" /></td></tr>
 <tr><th><label for="id_last_name">Last name:</label></th><td><input type="text" name="last_name" id="id_last_name" /></td></tr>
@@ -2136,10 +1856,10 @@ u'<ul class="errorlist"><li>first_name<ul class="errorlist"><li>This field is re
   * This field is required.
 * birthday
   * This field is required.
->>> p.cleaned_data
+>>> p.clean_data
 Traceback (most recent call last):
 ...
-AttributeError: 'Person' object has no attribute 'cleaned_data'
+AttributeError: 'Person' object has no attribute 'clean_data'
 >>> p['first_name'].errors
 [u'This field is required.']
 >>> p['first_name'].errors.as_ul()
@@ -2155,44 +1875,16 @@ u'* This field is required.'
 >>> print p['birthday']
 <input type="text" name="birthday" id="id_birthday" />
 
-cleaned_data will always *only* contain a key for fields defined in the
+clean_data will always *only* contain a key for fields defined in the
 Form, even if you pass extra data when you define the Form. In this
 example, we pass a bunch of extra fields to the form constructor,
-but cleaned_data contains only the form's fields.
+but clean_data contains only the form's fields.
 >>> data = {'first_name': u'John', 'last_name': u'Lennon', 'birthday': u'1940-10-9', 'extra1': 'hello', 'extra2': 'hello'}
 >>> p = Person(data)
 >>> p.is_valid()
 True
->>> p.cleaned_data
+>>> p.clean_data
 {'first_name': u'John', 'last_name': u'Lennon', 'birthday': datetime.date(1940, 10, 9)}
-
-cleaned_data will include a key and value for *all* fields defined in the Form,
-even if the Form's data didn't include a value for fields that are not
-required. In this example, the data dictionary doesn't include a value for the
-"nick_name" field, but cleaned_data includes it. For CharFields, it's set to the
-empty string.
->>> class OptionalPersonForm(Form):
-...     first_name = CharField()
-...     last_name = CharField()
-...     nick_name = CharField(required=False)
->>> data = {'first_name': u'John', 'last_name': u'Lennon'}
->>> f = OptionalPersonForm(data)
->>> f.is_valid()
-True
->>> f.cleaned_data
-{'nick_name': u'', 'first_name': u'John', 'last_name': u'Lennon'}
-
-For DateFields, it's set to None.
->>> class OptionalPersonForm(Form):
-...     first_name = CharField()
-...     last_name = CharField()
-...     birth_date = DateField(required=False)
->>> data = {'first_name': u'John', 'last_name': u'Lennon'}
->>> f = OptionalPersonForm(data)
->>> f.is_valid()
-True
->>> f.cleaned_data
-{'birth_date': None, 'first_name': u'John', 'last_name': u'Lennon'}
 
 "auto_id" tells the Form to add an "id" attribute to each form element.
 If it's a string that contains '%s', Django will use that as a format string
@@ -2271,12 +1963,12 @@ Any Field can have a Widget class passed to its constructor:
 >>> print f['subject']
 <input type="text" name="subject" />
 >>> print f['message']
-<textarea rows="10" cols="40" name="message"></textarea>
+<textarea name="message"></textarea>
 
 as_textarea(), as_text() and as_hidden() are shortcuts for changing the output
 widget type:
 >>> f['subject'].as_textarea()
-u'<textarea rows="10" cols="40" name="subject"></textarea>'
+u'<textarea name="subject"></textarea>'
 >>> f['message'].as_text()
 u'<input type="text" name="message" />'
 >>> f['message'].as_hidden()
@@ -2296,7 +1988,7 @@ as_hidden():
 u'<input type="text" name="message" />'
 >>> f = ContactForm({'subject': 'Hello', 'message': 'I love you.'}, auto_id=False)
 >>> f['subject'].as_textarea()
-u'<textarea rows="10" cols="40" name="subject">Hello</textarea>'
+u'<textarea name="subject">Hello</textarea>'
 >>> f['message'].as_text()
 u'<input type="text" name="message" value="I love you." />'
 >>> f['message'].as_hidden()
@@ -2542,19 +2234,19 @@ returns a list of input.
 >>> f = SongForm({'name': 'Yesterday', 'composers': ['J']}, auto_id=False)
 >>> f.errors
 {}
->>> f.cleaned_data
+>>> f.clean_data
 {'composers': [u'J'], 'name': u'Yesterday'}
 >>> f = SongForm({'name': 'Yesterday', 'composers': ['J', 'P']}, auto_id=False)
 >>> f.errors
 {}
->>> f.cleaned_data
+>>> f.clean_data
 {'composers': [u'J', u'P'], 'name': u'Yesterday'}
 
 Validation errors are HTML-escaped when output as HTML.
 >>> class EscapingForm(Form):
 ...     special_name = CharField()
 ...     def clean_special_name(self):
-...         raise ValidationError("Something's wrong with '%s'" % self.cleaned_data['special_name'])
+...         raise ValidationError("Something's wrong with '%s'" % self.clean_data['special_name'])
 
 >>> f = EscapingForm({'special_name': "Nothing to escape"}, auto_id=False)
 >>> print f
@@ -2569,7 +2261,7 @@ There are a couple of ways to do multiple-field validation. If you want the
 validation message to be associated with a particular field, implement the
 clean_XXX() method on the Form, where XXX is the field name. As in
 Field.clean(), the clean_XXX() method should return the cleaned value. In the
-clean_XXX() method, you have access to self.cleaned_data, which is a dictionary
+clean_XXX() method, you have access to self.clean_data, which is a dictionary
 of all the data that has been cleaned *so far*, in order by the fields,
 including the current field (e.g., the field XXX if you're in clean_XXX()).
 >>> class UserRegistration(Form):
@@ -2577,9 +2269,9 @@ including the current field (e.g., the field XXX if you're in clean_XXX()).
 ...    password1 = CharField(widget=PasswordInput)
 ...    password2 = CharField(widget=PasswordInput)
 ...    def clean_password2(self):
-...        if self.cleaned_data.get('password1') and self.cleaned_data.get('password2') and self.cleaned_data['password1'] != self.cleaned_data['password2']:
+...        if self.clean_data.get('password1') and self.clean_data.get('password2') and self.clean_data['password1'] != self.clean_data['password2']:
 ...            raise ValidationError(u'Please make sure your passwords match.')
-...        return self.cleaned_data['password2']
+...        return self.clean_data['password2']
 >>> f = UserRegistration(auto_id=False)
 >>> f.errors
 {}
@@ -2592,14 +2284,14 @@ including the current field (e.g., the field XXX if you're in clean_XXX()).
 >>> f = UserRegistration({'username': 'adrian', 'password1': 'foo', 'password2': 'foo'}, auto_id=False)
 >>> f.errors
 {}
->>> f.cleaned_data
+>>> f.clean_data
 {'username': u'adrian', 'password1': u'foo', 'password2': u'foo'}
 
 Another way of doing multiple-field validation is by implementing the
 Form's clean() method. If you do this, any ValidationError raised by that
 method will not be associated with a particular field; it will have a
 special-case association with the field named '__all__'.
-Note that in Form.clean(), you have access to self.cleaned_data, a dictionary of
+Note that in Form.clean(), you have access to self.clean_data, a dictionary of
 all the fields/values that have *not* raised a ValidationError. Also note
 Form.clean() is required to return a dictionary of all clean data.
 >>> class UserRegistration(Form):
@@ -2607,9 +2299,9 @@ Form.clean() is required to return a dictionary of all clean data.
 ...    password1 = CharField(widget=PasswordInput)
 ...    password2 = CharField(widget=PasswordInput)
 ...    def clean(self):
-...        if self.cleaned_data.get('password1') and self.cleaned_data.get('password2') and self.cleaned_data['password1'] != self.cleaned_data['password2']:
+...        if self.clean_data.get('password1') and self.clean_data.get('password2') and self.clean_data['password1'] != self.clean_data['password2']:
 ...            raise ValidationError(u'Please make sure your passwords match.')
-...        return self.cleaned_data
+...        return self.clean_data
 >>> f = UserRegistration(auto_id=False)
 >>> f.errors
 {}
@@ -2636,7 +2328,7 @@ Form.clean() is required to return a dictionary of all clean data.
 >>> f = UserRegistration({'username': 'adrian', 'password1': 'foo', 'password2': 'foo'}, auto_id=False)
 >>> f.errors
 {}
->>> f.cleaned_data
+>>> f.clean_data
 {'username': u'adrian', 'password1': u'foo', 'password2': u'foo'}
 
 # Dynamic construction ########################################################
@@ -2660,7 +2352,7 @@ Instances of a dynamic Form do not persist fields from one Form instance to
 the next.
 >>> class MyForm(Form):
 ...     def __init__(self, data=None, auto_id=False, field_list=[]):
-...         Form.__init__(self, data, auto_id=auto_id)
+...         Form.__init__(self, data, auto_id)
 ...         for field in field_list:
 ...             self.fields[field[0]] = field[1]
 >>> field_list = [('field1', CharField()), ('field2', CharField())]
@@ -2678,7 +2370,7 @@ the next.
 ...     default_field_1 = CharField()
 ...     default_field_2 = CharField()
 ...     def __init__(self, data=None, auto_id=False, field_list=[]):
-...         Form.__init__(self, data, auto_id=auto_id)
+...         Form.__init__(self, data, auto_id)
 ...         for field in field_list:
 ...             self.fields[field[0]] = field[1]
 >>> field_list = [('field1', CharField()), ('field2', CharField())]
@@ -2705,24 +2397,16 @@ to the next.
 ...         super(Person, self).__init__(*args, **kwargs)
 ...         if names_required:
 ...             self.fields['first_name'].required = True
-...             self.fields['first_name'].widget.attrs['class'] = 'required'
 ...             self.fields['last_name'].required = True
-...             self.fields['last_name'].widget.attrs['class'] = 'required'
 >>> f = Person(names_required=False)
 >>> f['first_name'].field.required, f['last_name'].field.required
 (False, False)
->>> f['first_name'].field.widget.attrs, f['last_name'].field.widget.attrs
-({}, {})
 >>> f = Person(names_required=True)
 >>> f['first_name'].field.required, f['last_name'].field.required
 (True, True)
->>> f['first_name'].field.widget.attrs, f['last_name'].field.widget.attrs
-({'class': 'required'}, {'class': 'required'})
 >>> f = Person(names_required=False)
 >>> f['first_name'].field.required, f['last_name'].field.required
 (False, False)
->>> f['first_name'].field.widget.attrs, f['last_name'].field.widget.attrs
-({}, {})
 >>> class Person(Form):
 ...     first_name = CharField(max_length=30)
 ...     last_name = CharField(max_length=30)
@@ -2795,7 +2479,7 @@ its field's order in the form.
 <li>Last name: <input type="text" name="last_name" value="Lennon" /></li>
 <li>Birthday: <input type="text" name="birthday" value="1940-10-9" /><input type="hidden" name="hidden_text" /></li>
 >>> print p.as_p()
-<ul class="errorlist"><li>(Hidden field hidden_text) This field is required.</li></ul>
+<p><ul class="errorlist"><li>(Hidden field hidden_text) This field is required.</li></ul></p>
 <p>First name: <input type="text" name="first_name" value="John" /></p>
 <p>Last name: <input type="text" name="last_name" value="Lennon" /></p>
 <p>Birthday: <input type="text" name="birthday" value="1940-10-9" /><input type="hidden" name="hidden_text" /></p>
@@ -2887,27 +2571,6 @@ underscores converted to spaces, and the initial letter capitalized.
 <li>Password1: <input type="password" name="password1" /></li>
 <li>Password (again): <input type="password" name="password2" /></li>
 
-Labels for as_* methods will only end in a colon if they don't end in other
-punctuation already.
->>> class Questions(Form):
-...    q1 = CharField(label='The first question')
-...    q2 = CharField(label='What is your name?')
-...    q3 = CharField(label='The answer to life is:')
-...    q4 = CharField(label='Answer this question!')
-...    q5 = CharField(label='The last question. Period.')
->>> print Questions(auto_id=False).as_p()
-<p>The first question: <input type="text" name="q1" /></p>
-<p>What is your name? <input type="text" name="q2" /></p>
-<p>The answer to life is: <input type="text" name="q3" /></p>
-<p>Answer this question! <input type="text" name="q4" /></p>
-<p>The last question. Period. <input type="text" name="q5" /></p>
->>> print Questions().as_p()
-<p><label for="id_q1">The first question:</label> <input type="text" name="q1" id="id_q1" /></p>
-<p><label for="id_q2">What is your name?</label> <input type="text" name="q2" id="id_q2" /></p>
-<p><label for="id_q3">The answer to life is:</label> <input type="text" name="q3" id="id_q3" /></p>
-<p><label for="id_q4">Answer this question!</label> <input type="text" name="q4" id="id_q4" /></p>
-<p><label for="id_q5">The last question. Period.</label> <input type="text" name="q5" id="id_q5" /></p>
-
 A label can be a Unicode object or a bytestring with special characters.
 >>> class UserRegistration(Form):
 ...    username = CharField(max_length=10, label='ŠĐĆŽćžšđ')
@@ -2942,37 +2605,6 @@ is default behavior.
 >>> print p.as_ul()
 <li><label for="id_username">Username:</label> <input id="id_username" type="text" name="username" maxlength="10" /></li>
 <li><label for="id_password">Password:</label> <input type="password" name="password" id="id_password" /></li>
-
-
-# Label Suffix ################################################################
-
-You can specify the 'label_suffix' argument to a Form class to modify the
-punctuation symbol used at the end of a label.  By default, the colon (:) is
-used, and is only appended to the label if the label doesn't already end with a
-punctuation symbol: ., !, ? or :.  If you specify a different suffix, it will
-be appended regardless of the last character of the label.
-
->>> class FavoriteForm(Form):
-...     color = CharField(label='Favorite color?')
-...     animal = CharField(label='Favorite animal')
-... 
->>> f = FavoriteForm(auto_id=False)
->>> print f.as_ul()
-<li>Favorite color? <input type="text" name="color" /></li>
-<li>Favorite animal: <input type="text" name="animal" /></li>
->>> f = FavoriteForm(auto_id=False, label_suffix='?')
->>> print f.as_ul()
-<li>Favorite color? <input type="text" name="color" /></li>
-<li>Favorite animal? <input type="text" name="animal" /></li>
->>> f = FavoriteForm(auto_id=False, label_suffix='')
->>> print f.as_ul()
-<li>Favorite color? <input type="text" name="color" /></li>
-<li>Favorite animal <input type="text" name="animal" /></li>
->>> f = FavoriteForm(auto_id=False, label_suffix=u'\u2192')
->>> f.as_ul()
-u'<li>Favorite color? <input type="text" name="color" /></li>\n<li>Favorite animal\u2192 <input type="text" name="animal" /></li>'
-
-
 
 # Initial data ################################################################
 
@@ -3067,64 +2699,6 @@ then the latter will get precedence.
 >>> p = UserRegistration(initial={'username': 'babik'}, auto_id=False)
 >>> print p.as_ul()
 <li>Username: <input type="text" name="username" value="babik" maxlength="10" /></li>
-<li>Password: <input type="password" name="password" /></li>
-
-# Callable initial data ########################################################
-
-The previous technique dealt with raw values as initial data, but it's also
-possible to specify callable data.
-
->>> class UserRegistration(Form):
-...    username = CharField(max_length=10)
-...    password = CharField(widget=PasswordInput)
-
-We need to define functions that get called later.
->>> def initial_django():
-...     return 'django'
->>> def initial_stephane():
-...     return 'stephane'
-
-Here, we're not submitting any data, so the initial value will be displayed.
->>> p = UserRegistration(initial={'username': initial_django}, auto_id=False)
->>> print p.as_ul()
-<li>Username: <input type="text" name="username" value="django" maxlength="10" /></li>
-<li>Password: <input type="password" name="password" /></li>
-
-The 'initial' parameter is meaningless if you pass data.
->>> p = UserRegistration({}, initial={'username': initial_django}, auto_id=False)
->>> print p.as_ul()
-<li><ul class="errorlist"><li>This field is required.</li></ul>Username: <input type="text" name="username" maxlength="10" /></li>
-<li><ul class="errorlist"><li>This field is required.</li></ul>Password: <input type="password" name="password" /></li>
->>> p = UserRegistration({'username': u''}, initial={'username': initial_django}, auto_id=False)
->>> print p.as_ul()
-<li><ul class="errorlist"><li>This field is required.</li></ul>Username: <input type="text" name="username" maxlength="10" /></li>
-<li><ul class="errorlist"><li>This field is required.</li></ul>Password: <input type="password" name="password" /></li>
->>> p = UserRegistration({'username': u'foo'}, initial={'username': initial_django}, auto_id=False)
->>> print p.as_ul()
-<li>Username: <input type="text" name="username" value="foo" maxlength="10" /></li>
-<li><ul class="errorlist"><li>This field is required.</li></ul>Password: <input type="password" name="password" /></li>
-
-A callable 'initial' value is *not* used as a fallback if data is not provided.
-In this example, we don't provide a value for 'username', and the form raises a
-validation error rather than using the initial value for 'username'.
->>> p = UserRegistration({'password': 'secret'}, initial={'username': initial_django})
->>> p.errors
-{'username': [u'This field is required.']}
->>> p.is_valid()
-False
-
-If a Form defines 'initial' *and* 'initial' is passed as a parameter to Form(),
-then the latter will get precedence.
->>> class UserRegistration(Form):
-...    username = CharField(max_length=10, initial=initial_django)
-...    password = CharField(widget=PasswordInput)
->>> p = UserRegistration(auto_id=False)
->>> print p.as_ul()
-<li>Username: <input type="text" name="username" value="django" maxlength="10" /></li>
-<li>Password: <input type="password" name="password" /></li>
->>> p = UserRegistration(initial={'username': initial_stephane}, auto_id=False)
->>> print p.as_ul()
-<li>Username: <input type="text" name="username" value="stephane" maxlength="10" /></li>
 <li>Password: <input type="password" name="password" /></li>
 
 # Help text ###################################################################
@@ -3243,7 +2817,7 @@ actual field name.
 {}
 >>> p.is_valid()
 True
->>> p.cleaned_data
+>>> p.clean_data
 {'first_name': u'John', 'last_name': u'Lennon', 'birthday': datetime.date(1940, 10, 9)}
 
 Let's try submitting some bad data to make sure form.errors and field.errors
@@ -3287,12 +2861,12 @@ of the same form.
 >>> p1 = Person(data, prefix='person1')
 >>> p1.is_valid()
 True
->>> p1.cleaned_data
+>>> p1.clean_data
 {'first_name': u'John', 'last_name': u'Lennon', 'birthday': datetime.date(1940, 10, 9)}
 >>> p2 = Person(data, prefix='person2')
 >>> p2.is_valid()
 True
->>> p2.cleaned_data
+>>> p2.clean_data
 {'first_name': u'Jim', 'last_name': u'Morrison', 'birthday': datetime.date(1943, 12, 8)}
 
 By default, forms append a hyphen between the prefix and the field name, but a
@@ -3318,7 +2892,7 @@ self.prefix.
 >>> p = Person(data, prefix='foo')
 >>> p.is_valid()
 True
->>> p.cleaned_data
+>>> p.clean_data
 {'first_name': u'John', 'last_name': u'Lennon', 'birthday': datetime.date(1940, 10, 9)}
 
 # Forms with NullBooleanFields ################################################
@@ -3372,35 +2946,6 @@ is different than its data. This is handled transparently, though.
 <option value="3" selected="selected">No</option>
 </select>
 
-# Forms with FileFields ################################################
-
-FileFields are a special case because they take their data from the request.FILES,
-not request.POST. 
-
->>> class FileForm(Form):
-...     file1 = FileField()
->>> f = FileForm(auto_id=False)
->>> print f
-<tr><th>File1:</th><td><input type="file" name="file1" /></td></tr>
-
->>> f = FileForm(data={}, files={}, auto_id=False)
->>> print f
-<tr><th>File1:</th><td><ul class="errorlist"><li>This field is required.</li></ul><input type="file" name="file1" /></td></tr>
-
->>> f = FileForm(data={}, files={'file1': {'filename': 'name', 'content':''}}, auto_id=False)
->>> print f
-<tr><th>File1:</th><td><ul class="errorlist"><li>The submitted file is empty.</li></ul><input type="file" name="file1" /></td></tr>
-
->>> f = FileForm(data={}, files={'file1': 'something that is not a file'}, auto_id=False)
->>> print f
-<tr><th>File1:</th><td><ul class="errorlist"><li>No file was submitted. Check the encoding type on the form.</li></ul><input type="file" name="file1" /></td></tr>
-
->>> f = FileForm(data={}, files={'file1': {'filename': 'name', 'content':'some content'}}, auto_id=False)
->>> print f
-<tr><th>File1:</th><td><input type="file" name="file1" /></td></tr>
->>> f.is_valid()
-True
-
 # Basic form processing in a view #############################################
 
 >>> from django.template import Template, Context
@@ -3409,16 +2954,16 @@ True
 ...    password1 = CharField(widget=PasswordInput)
 ...    password2 = CharField(widget=PasswordInput)
 ...    def clean(self):
-...        if self.cleaned_data.get('password1') and self.cleaned_data.get('password2') and self.cleaned_data['password1'] != self.cleaned_data['password2']:
+...        if self.clean_data.get('password1') and self.clean_data.get('password2') and self.clean_data['password1'] != self.clean_data['password2']:
 ...            raise ValidationError(u'Please make sure your passwords match.')
-...        return self.cleaned_data
+...        return self.clean_data
 >>> def my_function(method, post_data):
 ...     if method == 'POST':
 ...         form = UserRegistration(post_data, auto_id=False)
 ...     else:
 ...         form = UserRegistration(auto_id=False)
 ...     if form.is_valid():
-...         return 'VALID: %r' % form.cleaned_data
+...         return 'VALID: %r' % form.clean_data
 ...     t = Template('<form action="" method="post">\n<table>\n{{ form }}\n</table>\n<input type="submit" />\n</form>')
 ...     return t.render(Context({'form': form}))
 
@@ -3438,7 +2983,7 @@ Case 2: POST with erroneous data (a redisplayed form, with errors).
 <form action="" method="post">
 <table>
 <tr><td colspan="2"><ul class="errorlist"><li>Please make sure your passwords match.</li></ul></td></tr>
-<tr><th>Username:</th><td><ul class="errorlist"><li>Ensure this value has at most 10 characters (it has 23).</li></ul><input type="text" name="username" value="this-is-a-long-username" maxlength="10" /></td></tr>
+<tr><th>Username:</th><td><ul class="errorlist"><li>Ensure this value has at most 10 characters.</li></ul><input type="text" name="username" value="this-is-a-long-username" maxlength="10" /></td></tr>
 <tr><th>Password1:</th><td><input type="password" name="password1" value="foo" /></td></tr>
 <tr><th>Password2:</th><td><input type="password" name="password2" value="bar" /></td></tr>
 </table>
@@ -3456,9 +3001,9 @@ VALID: {'username': u'adrian', 'password1': u'secret', 'password2': u'secret'}
 ...    password1 = CharField(widget=PasswordInput)
 ...    password2 = CharField(widget=PasswordInput)
 ...    def clean(self):
-...        if self.cleaned_data.get('password1') and self.cleaned_data.get('password2') and self.cleaned_data['password1'] != self.cleaned_data['password2']:
+...        if self.clean_data.get('password1') and self.clean_data.get('password2') and self.clean_data['password1'] != self.clean_data['password2']:
 ...            raise ValidationError(u'Please make sure your passwords match.')
-...        return self.cleaned_data
+...        return self.clean_data
 
 You have full flexibility in displaying form fields in a template. Just pass a
 Form instance to the template, and use "dot" access to refer to individual
@@ -3545,7 +3090,7 @@ does not have help text, nothing will be output.
 <input type="submit" />
 </form>
 >>> Template('{{ form.password1.help_text }}').render(Context({'form': UserRegistration(auto_id=False)}))
-u''
+''
 
 The label_tag() method takes an optional attrs argument: a dictionary of HTML
 attributes to add to the <label> tag.
@@ -3723,178 +3268,300 @@ True
 <option value="2016">2016</option>
 </select>
 
-Using a SelectDateWidget in a form:
+# USZipCodeField ##############################################################
 
->>> class GetDate(Form):
-...     mydate = DateField(widget=SelectDateWidget)
->>> a = GetDate({'mydate_month':'4', 'mydate_day':'1', 'mydate_year':'2008'})
->>> print a.is_valid()
-True
->>> print a.cleaned_data['mydate']
-2008-04-01
-
-As with any widget that implements get_value_from_datadict,
-we must be prepared to accept the input from the "as_hidden"
-rendering as well.
-
->>> print a['mydate'].as_hidden()
-<input type="hidden" name="mydate" value="2008-4-1" id="id_mydate" />
->>> b=GetDate({'mydate':'2008-4-1'})
->>> print b.is_valid()
-True
->>> print b.cleaned_data['mydate']
-2008-04-01
-
-
-# MultiWidget and MultiValueField #############################################
-# MultiWidgets are widgets composed of other widgets. They are usually
-# combined with MultiValueFields - a field that is composed of other fields.
-# MulitWidgets can themselved be composed of other MultiWidgets.
-# SplitDateTimeWidget is one example of a MultiWidget.
-
->>> class ComplexMultiWidget(MultiWidget):
-...     def __init__(self, attrs=None):
-...         widgets = (
-...             TextInput(),
-...             SelectMultiple(choices=(('J', 'John'), ('P', 'Paul'), ('G', 'George'), ('R', 'Ringo'))),
-...             SplitDateTimeWidget(),
-...         )
-...         super(ComplexMultiWidget, self).__init__(widgets, attrs)
-...
-...     def decompress(self, value):
-...         if value:
-...             data = value.split(',')
-...             return [data[0], data[1], datetime.datetime(*time.strptime(data[2], "%Y-%m-%d %H:%M:%S")[0:6])]
-...         return [None, None, None]
-...     def format_output(self, rendered_widgets):
-...         return u'\n'.join(rendered_widgets)
->>> w = ComplexMultiWidget()
->>> print w.render('name', 'some text,JP,2007-04-25 06:24:00')
-<input type="text" name="name_0" value="some text" />
-<select multiple="multiple" name="name_1">
-<option value="J" selected="selected">John</option>
-<option value="P" selected="selected">Paul</option>
-<option value="G">George</option>
-<option value="R">Ringo</option>
-</select>
-<input type="text" name="name_2_0" value="2007-04-25" /><input type="text" name="name_2_1" value="06:24:00" />
-
->>> class ComplexField(MultiValueField):
-...     def __init__(self, required=True, widget=None, label=None, initial=None):
-...         fields = (
-...             CharField(),
-...             MultipleChoiceField(choices=(('J', 'John'), ('P', 'Paul'), ('G', 'George'), ('R', 'Ringo'))),
-...             SplitDateTimeField()
-...         )
-...         super(ComplexField, self).__init__(fields, required, widget, label, initial)
-...
-...     def compress(self, data_list):
-...         if data_list:
-...             return '%s,%s,%s' % (data_list[0],''.join(data_list[1]),data_list[2])
-...         return None
-
->>> f = ComplexField(widget=w)
->>> f.clean(['some text', ['J','P'], ['2007-04-25','6:24:00']])
-u'some text,JP,2007-04-25 06:24:00'
->>> f.clean(['some text',['X'], ['2007-04-25','6:24:00']])
+USZipCodeField validates that the data is either a five-digit U.S. zip code or
+a zip+4.
+>>> from django.contrib.localflavor.usa.forms import USZipCodeField
+>>> f = USZipCodeField()
+>>> f.clean('60606')
+u'60606'
+>>> f.clean(60606)
+u'60606'
+>>> f.clean('04000')
+u'04000'
+>>> f.clean('4000')
 Traceback (most recent call last):
 ...
-ValidationError: [u'Select a valid choice. X is not one of the available choices.']
-
-# If insufficient data is provided, None is substituted
->>> f.clean(['some text',['JP']])
+ValidationError: [u'Enter a zip code in the format XXXXX or XXXXX-XXXX.']
+>>> f.clean('60606-1234')
+u'60606-1234'
+>>> f.clean('6060-1234')
 Traceback (most recent call last):
 ...
-ValidationError: [u'This field is required.']
-
->>> class ComplexFieldForm(Form):
-...     field1 = ComplexField(widget=w)
->>> f = ComplexFieldForm()
->>> print f
-<tr><th><label for="id_field1_0">Field1:</label></th><td><input type="text" name="field1_0" id="id_field1_0" />
-<select multiple="multiple" name="field1_1" id="id_field1_1">
-<option value="J">John</option>
-<option value="P">Paul</option>
-<option value="G">George</option>
-<option value="R">Ringo</option>
-</select>
-<input type="text" name="field1_2_0" id="id_field1_2_0" /><input type="text" name="field1_2_1" id="id_field1_2_1" /></td></tr>
-
->>> f = ComplexFieldForm({'field1_0':'some text','field1_1':['J','P'], 'field1_2_0':'2007-04-25', 'field1_2_1':'06:24:00'})
->>> print f
-<tr><th><label for="id_field1_0">Field1:</label></th><td><input type="text" name="field1_0" value="some text" id="id_field1_0" />
-<select multiple="multiple" name="field1_1" id="id_field1_1">
-<option value="J" selected="selected">John</option>
-<option value="P" selected="selected">Paul</option>
-<option value="G">George</option>
-<option value="R">Ringo</option>
-</select>
-<input type="text" name="field1_2_0" value="2007-04-25" id="id_field1_2_0" /><input type="text" name="field1_2_1" value="06:24:00" id="id_field1_2_1" /></td></tr>
-
->>> f.cleaned_data
-{'field1': u'some text,JP,2007-04-25 06:24:00'}
-
-
-# IPAddressField ##################################################################
-
->>> f = IPAddressField()
->>> f.clean('')
+ValidationError: [u'Enter a zip code in the format XXXXX or XXXXX-XXXX.']
+>>> f.clean('60606-')
 Traceback (most recent call last):
 ...
-ValidationError: [u'This field is required.']
+ValidationError: [u'Enter a zip code in the format XXXXX or XXXXX-XXXX.']
 >>> f.clean(None)
 Traceback (most recent call last):
 ...
 ValidationError: [u'This field is required.']
->>> f.clean('127.0.0.1')
-u'127.0.0.1'
->>> f.clean('foo')
-Traceback (most recent call last):
-...
-ValidationError: [u'Enter a valid IPv4 address.']
->>> f.clean('127.0.0.')
-Traceback (most recent call last):
-...
-ValidationError: [u'Enter a valid IPv4 address.']
->>> f.clean('1.2.3.4.5')
-Traceback (most recent call last):
-...
-ValidationError: [u'Enter a valid IPv4 address.']
->>> f.clean('256.125.1.5')
-Traceback (most recent call last):
-...
-ValidationError: [u'Enter a valid IPv4 address.']
-
->>> f = IPAddressField(required=False)
 >>> f.clean('')
-u''
+Traceback (most recent call last):
+...
+ValidationError: [u'This field is required.']
+
+>>> f = USZipCodeField(required=False)
+>>> f.clean('60606')
+u'60606'
+>>> f.clean(60606)
+u'60606'
+>>> f.clean('04000')
+u'04000'
+>>> f.clean('4000')
+Traceback (most recent call last):
+...
+ValidationError: [u'Enter a zip code in the format XXXXX or XXXXX-XXXX.']
+>>> f.clean('60606-1234')
+u'60606-1234'
+>>> f.clean('6060-1234')
+Traceback (most recent call last):
+...
+ValidationError: [u'Enter a zip code in the format XXXXX or XXXXX-XXXX.']
+>>> f.clean('60606-')
+Traceback (most recent call last):
+...
+ValidationError: [u'Enter a zip code in the format XXXXX or XXXXX-XXXX.']
 >>> f.clean(None)
 u''
->>> f.clean('127.0.0.1')
-u'127.0.0.1'
->>> f.clean('foo')
+>>> f.clean('')
+u''
+
+# USPhoneNumberField ##########################################################
+
+USPhoneNumberField validates that the data is a valid U.S. phone number,
+including the area code. It's normalized to XXX-XXX-XXXX format.
+>>> from django.contrib.localflavor.usa.forms import USPhoneNumberField
+>>> f = USPhoneNumberField()
+>>> f.clean('312-555-1212')
+u'312-555-1212'
+>>> f.clean('3125551212')
+u'312-555-1212'
+>>> f.clean('312 555-1212')
+u'312-555-1212'
+>>> f.clean('(312) 555-1212')
+u'312-555-1212'
+>>> f.clean('312 555 1212')
+u'312-555-1212'
+>>> f.clean('312.555.1212')
+u'312-555-1212'
+>>> f.clean('312.555-1212')
+u'312-555-1212'
+>>> f.clean(' (312) 555.1212 ')
+u'312-555-1212'
+>>> f.clean('555-1212')
 Traceback (most recent call last):
 ...
-ValidationError: [u'Enter a valid IPv4 address.']
->>> f.clean('127.0.0.')
+ValidationError: [u'Phone numbers must be in XXX-XXX-XXXX format.']
+>>> f.clean('312-55-1212')
 Traceback (most recent call last):
 ...
-ValidationError: [u'Enter a valid IPv4 address.']
->>> f.clean('1.2.3.4.5')
+ValidationError: [u'Phone numbers must be in XXX-XXX-XXXX format.']
+>>> f.clean(None)
 Traceback (most recent call last):
 ...
-ValidationError: [u'Enter a valid IPv4 address.']
->>> f.clean('256.125.1.5')
+ValidationError: [u'This field is required.']
+>>> f.clean('')
 Traceback (most recent call last):
 ...
-ValidationError: [u'Enter a valid IPv4 address.']
+ValidationError: [u'This field is required.']
+
+>>> f = USPhoneNumberField(required=False)
+>>> f.clean('312-555-1212')
+u'312-555-1212'
+>>> f.clean('3125551212')
+u'312-555-1212'
+>>> f.clean('312 555-1212')
+u'312-555-1212'
+>>> f.clean('(312) 555-1212')
+u'312-555-1212'
+>>> f.clean('312 555 1212')
+u'312-555-1212'
+>>> f.clean('312.555.1212')
+u'312-555-1212'
+>>> f.clean('312.555-1212')
+u'312-555-1212'
+>>> f.clean(' (312) 555.1212 ')
+u'312-555-1212'
+>>> f.clean('555-1212')
+Traceback (most recent call last):
+...
+ValidationError: [u'Phone numbers must be in XXX-XXX-XXXX format.']
+>>> f.clean('312-55-1212')
+Traceback (most recent call last):
+...
+ValidationError: [u'Phone numbers must be in XXX-XXX-XXXX format.']
+>>> f.clean(None)
+u''
+>>> f.clean('')
+u''
+
+# USStateField ################################################################
+
+USStateField validates that the data is either an abbreviation or name of a
+U.S. state.
+>>> from django.contrib.localflavor.usa.forms import USStateField
+>>> f = USStateField()
+>>> f.clean('il')
+u'IL'
+>>> f.clean('IL')
+u'IL'
+>>> f.clean('illinois')
+u'IL'
+>>> f.clean('  illinois ')
+u'IL'
+>>> f.clean(60606)
+Traceback (most recent call last):
+...
+ValidationError: [u'Enter a U.S. state or territory.']
+>>> f.clean(None)
+Traceback (most recent call last):
+...
+ValidationError: [u'This field is required.']
+>>> f.clean('')
+Traceback (most recent call last):
+...
+ValidationError: [u'This field is required.']
+
+>>> f = USStateField(required=False)
+>>> f.clean('il')
+u'IL'
+>>> f.clean('IL')
+u'IL'
+>>> f.clean('illinois')
+u'IL'
+>>> f.clean('  illinois ')
+u'IL'
+>>> f.clean(60606)
+Traceback (most recent call last):
+...
+ValidationError: [u'Enter a U.S. state or territory.']
+>>> f.clean(None)
+u''
+>>> f.clean('')
+u''
+
+# USStateSelect ###############################################################
+
+USStateSelect is a Select widget that uses a list of U.S. states/territories
+as its choices.
+>>> from django.contrib.localflavor.usa.forms import USStateSelect
+>>> w = USStateSelect()
+>>> print w.render('state', 'IL')
+<select name="state">
+<option value="AL">Alabama</option>
+<option value="AK">Alaska</option>
+<option value="AS">American Samoa</option>
+<option value="AZ">Arizona</option>
+<option value="AR">Arkansas</option>
+<option value="CA">California</option>
+<option value="CO">Colorado</option>
+<option value="CT">Connecticut</option>
+<option value="DE">Deleware</option>
+<option value="DC">District of Columbia</option>
+<option value="FM">Federated States of Micronesia</option>
+<option value="FL">Florida</option>
+<option value="GA">Georgia</option>
+<option value="GU">Guam</option>
+<option value="HI">Hawaii</option>
+<option value="ID">Idaho</option>
+<option value="IL" selected="selected">Illinois</option>
+<option value="IN">Indiana</option>
+<option value="IA">Iowa</option>
+<option value="KS">Kansas</option>
+<option value="KY">Kentucky</option>
+<option value="LA">Louisiana</option>
+<option value="ME">Maine</option>
+<option value="MH">Marshall Islands</option>
+<option value="MD">Maryland</option>
+<option value="MA">Massachusetts</option>
+<option value="MI">Michigan</option>
+<option value="MN">Minnesota</option>
+<option value="MS">Mississippi</option>
+<option value="MO">Missouri</option>
+<option value="MT">Montana</option>
+<option value="NE">Nebraska</option>
+<option value="NV">Nevada</option>
+<option value="NH">New Hampshire</option>
+<option value="NJ">New Jersey</option>
+<option value="NM">New Mexico</option>
+<option value="NY">New York</option>
+<option value="NC">North Carolina</option>
+<option value="ND">North Dakota</option>
+<option value="MP">Northern Mariana Islands</option>
+<option value="OH">Ohio</option>
+<option value="OK">Oklahoma</option>
+<option value="OR">Oregon</option>
+<option value="PW">Palau</option>
+<option value="PA">Pennsylvania</option>
+<option value="PR">Puerto Rico</option>
+<option value="RI">Rhode Island</option>
+<option value="SC">South Carolina</option>
+<option value="SD">South Dakota</option>
+<option value="TN">Tennessee</option>
+<option value="TX">Texas</option>
+<option value="UT">Utah</option>
+<option value="VT">Vermont</option>
+<option value="VI">Virgin Islands</option>
+<option value="VA">Virginia</option>
+<option value="WA">Washington</option>
+<option value="WV">West Virginia</option>
+<option value="WI">Wisconsin</option>
+<option value="WY">Wyoming</option>
+</select>
+
+# UKPostcodeField #############################################################
+
+UKPostcodeField validates that the data is a valid UK postcode.
+>>> from django.contrib.localflavor.uk.forms import UKPostcodeField
+>>> f = UKPostcodeField()
+>>> f.clean('BT32 4PX')
+u'BT32 4PX'
+>>> f.clean('GIR 0AA')
+u'GIR 0AA'
+>>> f.clean('BT324PX')
+Traceback (most recent call last):
+...
+ValidationError: [u'Enter a postcode. A space is required between the two postcode parts.']
+>>> f.clean('1NV 4L1D')
+Traceback (most recent call last):
+...
+ValidationError: [u'Enter a postcode. A space is required between the two postcode parts.']
+>>> f.clean(None)
+Traceback (most recent call last):
+...
+ValidationError: [u'This field is required.']
+>>> f.clean('')
+Traceback (most recent call last):
+...
+ValidationError: [u'This field is required.']
+
+>>> f = UKPostcodeField(required=False)
+>>> f.clean('BT32 4PX')
+u'BT32 4PX'
+>>> f.clean('GIR 0AA')
+u'GIR 0AA'
+>>> f.clean('1NV 4L1D')
+Traceback (most recent call last):
+...
+ValidationError: [u'Enter a postcode. A space is required between the two postcode parts.']
+>>> f.clean('BT324PX')
+Traceback (most recent call last):
+...
+ValidationError: [u'Enter a postcode. A space is required between the two postcode parts.']
+>>> f.clean(None)
+u''
+>>> f.clean('')
+u''
 
 #################################
 # Tests of underlying functions #
 #################################
 
 # smart_unicode tests
->>> from django.utils.encoding import smart_unicode
+>>> from django.newforms.util import smart_unicode
 >>> class Test:
 ...     def __str__(self):
 ...        return 'ŠĐĆŽćžšđ'
@@ -3911,78 +3578,7 @@ u'\u0160\u0110\u0106\u017d\u0107\u017e\u0161\u0111'
 u'1'
 >>> smart_unicode('foo')
 u'foo'
-
-
-####################################
-# Test accessing errors in clean() #
-####################################
-
->>> class UserForm(Form):
-...     username = CharField(max_length=10)
-...     password = CharField(widget=PasswordInput)
-...     def clean(self):
-...         data = self.cleaned_data
-...         if not self.errors:
-...             data['username'] = data['username'].lower()
-...         return data
-
->>> f = UserForm({'username': 'SirRobin', 'password': 'blue'})
->>> f.is_valid()
-True
->>> f.cleaned_data['username']
-u'sirrobin'
-
-#######################################
-# Test overriding ErrorList in a form #
-#######################################
-
->>> from django.newforms.util import ErrorList
->>> class DivErrorList(ErrorList):
-...     def __unicode__(self):
-...         return self.as_divs()
-...     def as_divs(self):
-...         if not self: return u''
-...         return u'<div class="errorlist">%s</div>' % ''.join([u'<div class="error">%s</div>' % e for e in self])
->>> class CommentForm(Form):
-...     name = CharField(max_length=50, required=False)
-...     email = EmailField()
-...     comment = CharField()
->>> data = dict(email='invalid')
->>> f = CommentForm(data, auto_id=False, error_class=DivErrorList)
->>> print f.as_p()
-<p>Name: <input type="text" name="name" maxlength="50" /></p>
-<div class="errorlist"><div class="error">Enter a valid e-mail address.</div></div>
-<p>Email: <input type="text" name="email" value="invalid" /></p>
-<div class="errorlist"><div class="error">This field is required.</div></div>
-<p>Comment: <input type="text" name="comment" /></p>
-
-#################################
-# Test multipart-encoded form #
-#################################
-
->>> class FormWithoutFile(Form):
-...     username = CharField()
->>> class FormWithFile(Form):
-...     username = CharField()
-...     file = FileField()
->>> class FormWithImage(Form):
-...     image = ImageField()
-
->>> FormWithoutFile().is_multipart()
-False
->>> FormWithFile().is_multipart()
-True
->>> FormWithImage().is_multipart()
-True
-
 """
-
-__test__ = {
-    'form_tests': form_tests,
-    'localflavor': localflavor_tests,
-    'regressions': regression_tests,
-    'util_tests': util_tests,
-}
 
 if __name__ == "__main__":
     import doctest
