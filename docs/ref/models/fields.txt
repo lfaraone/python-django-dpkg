@@ -54,8 +54,8 @@ string, not ``NULL``.
 .. note::
 
     When using the Oracle database backend, the ``null=True`` option will be
-    coerced for string-based fields that can blank, and the value ``NULL`` will
-    be stored to denote the empty string.
+    coerced for string-based fields that have the empty string as a possible
+    value, and the value ``NULL`` will be stored to denote the empty string.
 
 ``blank``
 ---------
@@ -869,14 +869,14 @@ that control how the relationship functions.
 
     Same as :attr:`ForeignKey.related_name`.
 
-.. attribute:: ManyToManyFields.limit_choices_to
+.. attribute:: ManyToManyField.limit_choices_to
 
     Same as :attr:`ForeignKey.limit_choices_to`.
 
     ``limit_choices_to`` has no effect when used on a ``ManyToManyField`` with
     an intermediate table.
 
-.. attribute:: ManyToManyFields.symmetrical
+.. attribute:: ManyToManyField.symmetrical
 
     Only used in the definition of ManyToManyFields on self. Consider the
     following model::
@@ -895,7 +895,7 @@ that control how the relationship functions.
     add the descriptor for the reverse relationship, allowing
     :class:`ManyToManyField` relationships to be non-symmetrical.
 
-.. attribute:: ManyToManyFields.through
+.. attribute:: ManyToManyField.through
 
     Django will automatically generate a table to manage many-to-many
     relationships. However, if you want to manually specify the intermediary

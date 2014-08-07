@@ -62,6 +62,7 @@ class BaseQuery(object):
         self.dupe_avoidance = {}
         self.used_aliases = set()
         self.filter_is_sticky = False
+        self.included_inherited_models = {}
 
         # SQL-related attributes
         self.select = []
@@ -92,6 +93,11 @@ class BaseQuery(object):
         self.extra_where = ()
         self.extra_params = ()
         self.extra_order_by = ()
+
+        # A tuple that is a set of model field names and either True, if these
+        # are the fields to defer, or False if these are the only fields to
+        # load.
+        self.deferred_loading = (set(), True)
 
     def __str__(self):
         """
@@ -171,6 +177,7 @@ class BaseQuery(object):
         obj.default_cols = self.default_cols
         obj.default_ordering = self.default_ordering
         obj.standard_ordering = self.standard_ordering
+        obj.included_inherited_models = self.included_inherited_models.copy()
         obj.ordering_aliases = []
         obj.select_fields = self.select_fields[:]
         obj.related_select_fields = self.related_select_fields[:]
@@ -204,6 +211,7 @@ class BaseQuery(object):
         obj.extra_where = self.extra_where
         obj.extra_params = self.extra_params
         obj.extra_order_by = self.extra_order_by
+        obj.deferred_loading = deepcopy(self.deferred_loading)
         if self.filter_is_sticky and self.used_aliases:
             obj.used_aliases = self.used_aliases.copy()
         else:
@@ -304,6 +312,7 @@ class BaseQuery(object):
             self.select = []
             self.default_cols = False
             self.extra_select = {}
+            self.remove_inherited_models()
 
         query.clear_ordering(True)
         query.clear_limits()
@@ -326,7 +335,7 @@ class BaseQuery(object):
         Performs a COUNT() query using the current filter constraints.
         """
         obj = self.clone()
-        if len(self.select) > 1:
+        if len(self.select) > 1 or self.aggregate_select:
             # If a select clause exists, then the query has already started to
             # specify the columns that are to be returned.
             # In this case, we need to use a subquery to evaluate the count.
@@ -345,7 +354,7 @@ class BaseQuery(object):
         # in SQL (in variants that provide them) doesn't change the COUNT
         # output.
         number = max(0, number - self.low_mark)
-        if self.high_mark:
+        if self.high_mark is not None:
             number = min(number, self.high_mark - self.low_mark)
 
         return number
@@ -392,18 +401,21 @@ class BaseQuery(object):
                 result.append('AND')
             result.append(' AND '.join(self.extra_where))
 
-        grouping = self.get_grouping()
+        grouping, gb_params = self.get_grouping()
         if grouping:
             if ordering:
                 # If the backend can't group by PK (i.e., any database
                 # other than MySQL), then any fields mentioned in the
                 # ordering clause needs to be in the group by clause.
                 if not self.connection.features.allows_group_by_pk:
-                    grouping.extend([str(col) for col in ordering_group_by
-                        if col not in grouping])
+                    for col, col_params in ordering_group_by:
+                        if col not in grouping:
+                            grouping.append(str(col))
+                            gb_params.extend(col_params)
             else:
                 ordering = self.connection.ops.force_no_ordering()
             result.append('GROUP BY %s' % ', '.join(grouping))
+            params.extend(gb_params)
 
         if having:
             result.append('HAVING %s' % having)
@@ -455,6 +467,7 @@ class BaseQuery(object):
         assert self.distinct == rhs.distinct, \
             "Cannot combine a unique query with a non-unique query."
 
+        self.remove_inherited_models()
         # Work out how to relabel the rhs aliases, if necessary.
         change_map = {}
         used = set()
@@ -537,12 +550,107 @@ class BaseQuery(object):
         """
         if not self.tables:
             self.join((None, self.model._meta.db_table, None, None))
+        if (not self.select and self.default_cols and not
+                self.included_inherited_models):
+            self.setup_inherited_models()
         if self.select_related and not self.related_select_cols:
             self.fill_related_selections()
 
+    def deferred_to_data(self, target, callback):
+        """
+        Converts the self.deferred_loading data structure to an alternate data
+        structure, describing the field that *will* be loaded. This is used to
+        compute the columns to select from the database and also by the
+        QuerySet class to work out which fields are being initialised on each
+        model. Models that have all their fields included aren't mentioned in
+        the result, only those that have field restrictions in place.
+
+        The "target" parameter is the instance that is populated (in place).
+        The "callback" is a function that is called whenever a (model, field)
+        pair need to be added to "target". It accepts three parameters:
+        "target", and the model and list of fields being added for that model.
+        """
+        field_names, defer = self.deferred_loading
+        if not field_names:
+            return
+        columns = set()
+        cur_model = self.model
+        opts = cur_model._meta
+        seen = {}
+        must_include = {cur_model: set([opts.pk])}
+        for field_name in field_names:
+            parts = field_name.split(LOOKUP_SEP)
+            for name in parts[:-1]:
+                old_model = cur_model
+                source = opts.get_field_by_name(name)[0]
+                cur_model = opts.get_field_by_name(name)[0].rel.to
+                opts = cur_model._meta
+                # Even if we're "just passing through" this model, we must add
+                # both the current model's pk and the related reference field
+                # to the things we select.
+                must_include[old_model].add(source)
+                add_to_dict(must_include, cur_model, opts.pk)
+            field, model, _, _ = opts.get_field_by_name(parts[-1])
+            if model is None:
+                model = cur_model
+            add_to_dict(seen, model, field)
+
+        if defer:
+            # We need to load all fields for each model, except those that
+            # appear in "seen" (for all models that appear in "seen"). The only
+            # slight complexity here is handling fields that exist on parent
+            # models.
+            workset = {}
+            for model, values in seen.iteritems():
+                for field, f_model in model._meta.get_fields_with_model():
+                    if field in values:
+                        continue
+                    add_to_dict(workset, f_model or model, field)
+            for model, values in must_include.iteritems():
+                # If we haven't included a model in workset, we don't add the
+                # corresponding must_include fields for that model, since an
+                # empty set means "include all fields". That's why there's no
+                # "else" branch here.
+                if model in workset:
+                    workset[model].update(values)
+            for model, values in workset.iteritems():
+                callback(target, model, values)
+        else:
+            for model, values in must_include.iteritems():
+                if model in seen:
+                    seen[model].update(values)
+                else:
+                    # As we've passed through this model, but not explicitly
+                    # included any fields, we have to make sure it's mentioned
+                    # so that only the "must include" fields are pulled in.
+                    seen[model] = values
+            for model, values in seen.iteritems():
+                callback(target, model, values)
+
+    def deferred_to_columns(self):
+        """
+        Converts the self.deferred_loading data structure to mapping of table
+        names to sets of column names which are to be loaded. Returns the
+        dictionary.
+        """
+        columns = {}
+        self.deferred_to_data(columns, self.deferred_to_columns_cb)
+        return columns
+
+    def deferred_to_columns_cb(self, target, model, fields):
+        """
+        Callback used by deferred_to_columns(). The "target" parameter should
+        be a set instance.
+        """
+        table = model._meta.db_table
+        if table not in target:
+            target[table] = set()
+        for field in fields:
+            target[table].add(field.column)
+
     def get_columns(self, with_aliases=False):
         """
-        Return the list of columns to use in the select statement. If no
+        Returns the list of columns to use in the select statement. If no
         columns have been specified, returns all columns relating to fields in
         the model.
 
@@ -559,9 +667,14 @@ class BaseQuery(object):
         else:
             col_aliases = set()
         if self.select:
+            only_load = self.deferred_to_columns()
             for col in self.select:
                 if isinstance(col, (list, tuple)):
-                    r = '%s.%s' % (qn(col[0]), qn(col[1]))
+                    alias, column = col
+                    table = self.alias_map[alias][TABLE_NAME]
+                    if table in only_load and col not in only_load[table]:
+                        continue
+                    r = '%s.%s' % (qn(alias), qn(column))
                     if with_aliases:
                         if col[1] in col_aliases:
                             c_alias = 'Col%d' % len(col_aliases)
@@ -569,7 +682,7 @@ class BaseQuery(object):
                             aliases.add(c_alias)
                             col_aliases.add(c_alias)
                         else:
-                            result.append('%s AS %s' % (r, col[1]))
+                            result.append('%s AS %s' % (r, qn2(col[1])))
                             aliases.add(r)
                             col_aliases.add(col[1])
                     else:
@@ -616,7 +729,9 @@ class BaseQuery(object):
             start_alias=None, opts=None, as_pairs=False):
         """
         Computes the default columns for selecting every field in the base
-        model.
+        model. Will sometimes be called to pull in related models (e.g. via
+        select_related), in which case "opts" and "start_alias" will be given
+        to provide a starting point for the traversal.
 
         Returns a list of strings, quoted appropriately for use in SQL
         directly, as well as a set of aliases used in the select statement (if
@@ -626,22 +741,33 @@ class BaseQuery(object):
         result = []
         if opts is None:
             opts = self.model._meta
-        if start_alias:
-            table_alias = start_alias
-        else:
-            table_alias = self.tables[0]
-        root_pk = opts.pk.column
-        seen = {None: table_alias}
         qn = self.quote_name_unless_alias
         qn2 = self.connection.ops.quote_name
         aliases = set()
+        only_load = self.deferred_to_columns()
+        proxied_model = opts.proxy and opts.proxy_for_model or 0
+        if start_alias:
+            seen = {None: start_alias}
         for field, model in opts.get_fields_with_model():
-            try:
-                alias = seen[model]
-            except KeyError:
-                alias = self.join((table_alias, model._meta.db_table,
-                        root_pk, model._meta.pk.column))
-                seen[model] = alias
+            if start_alias:
+                try:
+                    alias = seen[model]
+                except KeyError:
+                    if model is proxied_model:
+                        alias = start_alias
+                    else:
+                        link_field = opts.get_ancestor_link(model)
+                        alias = self.join((start_alias, model._meta.db_table,
+                                link_field.column, model._meta.pk.column))
+                    seen[model] = alias
+            else:
+                # If we're starting from the base model of the queryset, the
+                # aliases will have already been set up in pre_sql_setup(), so
+                # we can save time here.
+                alias = self.included_inherited_models[model]
+            table = self.alias_map[alias][TABLE_NAME]
+            if table in only_load and field.column not in only_load[table]:
+                continue
             if as_pairs:
                 result.append((alias, field.column))
                 continue
@@ -710,17 +836,22 @@ class BaseQuery(object):
         Returns a tuple representing the SQL elements in the "group by" clause.
         """
         qn = self.quote_name_unless_alias
-        result = []
+        result, params = [], []
         if self.group_by is not None:
             group_by = self.group_by or []
-            for col in group_by + self.related_select_cols + self.extra_select.keys():
+
+            extra_selects = []
+            for extra_select, extra_params in self.extra_select.itervalues():
+                extra_selects.append(extra_select)
+                params.extend(extra_params)
+            for col in group_by + self.related_select_cols + extra_selects:
                 if isinstance(col, (list, tuple)):
                     result.append('%s.%s' % (qn(col[0]), qn(col[1])))
                 elif hasattr(col, 'as_sql'):
                     result.append(col.as_sql(qn))
                 else:
                     result.append(str(col))
-        return result
+        return result, params
 
     def get_ordering(self):
         """
@@ -768,7 +899,7 @@ class BaseQuery(object):
                 else:
                     order = asc
                 result.append('%s %s' % (field, order))
-                group_by.append(field)
+                group_by.append((field, []))
                 continue
             col, order = get_order_dir(field, asc)
             if col in self.aggregate_select:
@@ -783,7 +914,7 @@ class BaseQuery(object):
                     processed_pairs.add((table, col))
                     if not distinct or elt in select_aliases:
                         result.append('%s %s' % (elt, order))
-                        group_by.append(elt)
+                        group_by.append((elt, []))
             elif get_order_dir(field)[0] not in self.extra_select:
                 # 'col' is of the form 'field' or 'field1__field2' or
                 # '-field1__field2__field', etc.
@@ -795,13 +926,13 @@ class BaseQuery(object):
                         if distinct and elt not in select_aliases:
                             ordering_aliases.append(elt)
                         result.append('%s %s' % (elt, order))
-                        group_by.append(elt)
+                        group_by.append((elt, []))
             else:
                 elt = qn2(col)
                 if distinct and col not in select_aliases:
                     ordering_aliases.append(elt)
                 result.append('%s %s' % (elt, order))
-                group_by.append(elt)
+                group_by.append(self.extra_select[col])
         self.ordering_aliases = ordering_aliases
         return result, group_by
 
@@ -826,8 +957,9 @@ class BaseQuery(object):
             # the model.
             self.ref_alias(alias)
 
-        # Must use left outer joins for nullable fields.
-        self.promote_alias_chain(joins)
+        # Must use left outer joins for nullable fields and their relations.
+        self.promote_alias_chain(joins,
+                self.alias_map[joins[0]][JOIN_TYPE] == self.LOUTER)
 
         # If we get to this point and the field is a relation to another model,
         # append the default ordering for that model.
@@ -987,6 +1119,9 @@ class BaseQuery(object):
                 if alias == old_alias:
                     self.tables[pos] = new_alias
                     break
+        for key, alias in self.included_inherited_models.items():
+            if alias in change_map:
+                self.included_inherited_models[key] = change_map[alias]
 
         # 3. Update any joins that refer to the old alias.
         for alias, data in self.alias_map.iteritems():
@@ -1053,9 +1188,11 @@ class BaseQuery(object):
             lhs.lhs_col = table.col
 
         If 'always_create' is True and 'reuse' is None, a new alias is always
-        created, regardless of whether one already exists or not. Otherwise
-        'reuse' must be a set and a new join is created unless one of the
-        aliases in `reuse` can be used.
+        created, regardless of whether one already exists or not. If
+        'always_create' is True and 'reuse' is a set, an alias in 'reuse' that
+        matches the connection will be returned, if possible.  If
+        'always_create' is False, the first existing alias that matches the
+        'connection' is returned, if any. Otherwise a new join is created.
 
         If 'exclusions' is specified, it is something satisfying the container
         protocol ("foo in exclusions" must work) and specifies a list of
@@ -1116,6 +1253,42 @@ class BaseQuery(object):
             self.join_map[t_ident] = (alias,)
         self.rev_join_map[alias] = t_ident
         return alias
+
+    def setup_inherited_models(self):
+        """
+        If the model that is the basis for this QuerySet inherits other models,
+        we need to ensure that those other models have their tables included in
+        the query.
+
+        We do this as a separate step so that subclasses know which
+        tables are going to be active in the query, without needing to compute
+        all the select columns (this method is called from pre_sql_setup(),
+        whereas column determination is a later part, and side-effect, of
+        as_sql()).
+        """
+        opts = self.model._meta
+        root_alias = self.tables[0]
+        seen = {None: root_alias}
+        proxied_model = opts.proxy and opts.proxy_for_model or 0
+        for field, model in opts.get_fields_with_model():
+            if model not in seen:
+                if model is proxied_model:
+                    seen[model] = root_alias
+                else:
+                    link_field = opts.get_ancestor_link(model)
+                    seen[model] = self.join((root_alias, model._meta.db_table,
+                            link_field.column, model._meta.pk.column))
+        self.included_inherited_models = seen
+
+    def remove_inherited_models(self):
+        """
+        Undoes the effects of setup_inherited_models(). Should be called
+        whenever select columns (self.select) are set explicitly.
+        """
+        for key, alias in self.included_inherited_models.items():
+            if key:
+                self.unref_alias(alias)
+        self.included_inherited_models = {}
 
     def fill_related_selections(self, opts=None, root_alias=None, cur_depth=1,
             used=None, requested=None, restricted=None, nullable=None,
@@ -1229,7 +1402,7 @@ class BaseQuery(object):
                 field_list, opts, self.get_initial_alias(), False)
 
             # Process the join chain to see if it can be trimmed
-            _, _, col, _, join_list = self.trim_joins(source, join_list, last, False)
+            col, _, join_list = self.trim_joins(source, join_list, last, False)
 
             # If the aggregate references a model or field that requires a join,
             # those joins must be LEFT OUTER - empty join rows must be returned
@@ -1334,16 +1507,16 @@ class BaseQuery(object):
                     can_reuse)
             return
 
-        # Process the join chain to see if it can be trimmed
-        final, penultimate, col, alias, join_list = self.trim_joins(target, join_list, last, trim)
-
         if (lookup_type == 'isnull' and value is True and not negate and
-                final > 1):
-            # If the comparison is against NULL, we need to use a left outer
-            # join when connecting to the previous model. We make that
-            # adjustment here. We don't do this unless needed as it's less
-            # efficient at the database level.
-            self.promote_alias(join_list[penultimate])
+                len(join_list) > 1):
+            # If the comparison is against NULL, we may need to use some left
+            # outer joins when creating the join chain. This is only done when
+            # needed, as it's less efficient at the database level.
+            self.promote_alias_chain(join_list)
+
+        # Process the join list to see if we can remove any inner joins from
+        # the far end (fewer tables in a query is better).
+        col, alias, join_list = self.trim_joins(target, join_list, last, trim)
 
         if connector == OR:
             # Some joins may need to be promoted when adding a new filter to a
@@ -1378,7 +1551,7 @@ class BaseQuery(object):
         if negate:
             self.promote_alias_chain(join_list)
             if lookup_type != 'isnull':
-                if final > 1:
+                if len(join_list) > 1:
                     for alias in join_list:
                         if self.alias_map[alias][JOIN_TYPE] == self.LOUTER:
                             j_col = self.alias_map[alias][RHS_JOIN_COL]
@@ -1501,20 +1674,25 @@ class BaseQuery(object):
                 raise MultiJoin(pos + 1)
             if model:
                 # The field lives on a base class of the current model.
+                proxied_model = opts.proxy and opts.proxy_for_model or 0
                 for int_model in opts.get_base_chain(model):
-                    lhs_col = opts.parents[int_model].column
-                    dedupe = lhs_col in opts.duplicate_targets
-                    if dedupe:
-                        exclusions.update(self.dupe_avoidance.get(
-                                (id(opts), lhs_col), ()))
-                        dupe_set.add((opts, lhs_col))
-                    opts = int_model._meta
-                    alias = self.join((alias, opts.db_table, lhs_col,
-                            opts.pk.column), exclusions=exclusions)
-                    joins.append(alias)
-                    exclusions.add(alias)
-                    for (dupe_opts, dupe_col) in dupe_set:
-                        self.update_dupe_avoidance(dupe_opts, dupe_col, alias)
+                    if int_model is proxied_model:
+                        opts = int_model._meta
+                    else:
+                        lhs_col = opts.parents[int_model].column
+                        dedupe = lhs_col in opts.duplicate_targets
+                        if dedupe:
+                            exclusions.update(self.dupe_avoidance.get(
+                                    (id(opts), lhs_col), ()))
+                            dupe_set.add((opts, lhs_col))
+                        opts = int_model._meta
+                        alias = self.join((alias, opts.db_table, lhs_col,
+                                opts.pk.column), exclusions=exclusions)
+                        joins.append(alias)
+                        exclusions.add(alias)
+                        for (dupe_opts, dupe_col) in dupe_set:
+                            self.update_dupe_avoidance(dupe_opts, dupe_col,
+                                    alias)
             cached_data = opts._join_cache.get(name)
             orig_opts = opts
             dupe_col = direct and field.column or field.field.column
@@ -1641,13 +1819,28 @@ class BaseQuery(object):
         return field, target, opts, joins, last, extra_filters
 
     def trim_joins(self, target, join_list, last, trim):
-        """An optimization: if the final join is against the same column as
-        we are comparing against, we can go back one step in a join
-        chain and compare against the LHS of the join instead (and then
-        repeat the optimization). The result, potentially, involves less
-        table joins.
+        """
+        Sometimes joins at the end of a multi-table sequence can be trimmed. If
+        the final join is against the same column as we are comparing against,
+        and is an inner join, we can go back one step in a join chain and
+        compare against the LHS of the join instead (and then repeat the
+        optimization). The result, potentially, involves less table joins.
 
-        Returns a tuple
+        The 'target' parameter is the final field being joined to, 'join_list'
+        is the full list of join aliases.
+
+        The 'last' list contains offsets into 'join_list', corresponding to
+        each component of the filter.  Many-to-many relations, for example, add
+        two tables to the join list and we want to deal with both tables the
+        same way, so 'last' has an entry for the first of the two tables and
+        then the table immediately after the second table, in that case.
+
+        The 'trim' parameter forces the final piece of the join list to be
+        trimmed before anything. See the documentation of add_filter() for
+        details about this.
+
+        Returns the final active column and table alias and the new active
+        join_list.
         """
         final = len(join_list)
         penultimate = last.pop()
@@ -1666,7 +1859,7 @@ class BaseQuery(object):
         alias = join_list[-1]
         while final > 1:
             join = self.alias_map[alias]
-            if col != join[RHS_JOIN_COL]:
+            if col != join[RHS_JOIN_COL] or join[JOIN_TYPE] != self.INNER:
                 break
             self.unref_alias(alias)
             alias = join[LHS_ALIAS]
@@ -1675,7 +1868,7 @@ class BaseQuery(object):
             final -= 1
             if final == penultimate:
                 penultimate = last.pop()
-        return final, penultimate, col, alias, join_list
+        return col, alias, join_list
 
     def update_dupe_avoidance(self, opts, col, alias):
         """
@@ -1751,7 +1944,7 @@ class BaseQuery(object):
 
         Typically, this means no limits or offsets have been put on the results.
         """
-        return not (self.low_mark or self.high_mark)
+        return not self.low_mark and self.high_mark is None
 
     def clear_select_fields(self):
         """
@@ -1794,6 +1987,7 @@ class BaseQuery(object):
             names.sort()
             raise FieldError("Cannot resolve keyword %r into field. "
                     "Choices are: %s" % (name, ", ".join(names)))
+        self.remove_inherited_models()
 
     def add_ordering(self, *ordering):
         """
@@ -1876,6 +2070,7 @@ class BaseQuery(object):
         # Clear out the select cache to reflect the new unmasked aggregates.
         self.aggregates = {None: count}
         self.set_aggregate_mask(None)
+        self.group_by = None
 
     def add_select_related(self, fields):
         """
@@ -1925,6 +2120,70 @@ class BaseQuery(object):
             self.extra_tables += tuple(tables)
         if order_by:
             self.extra_order_by = order_by
+
+    def clear_deferred_loading(self):
+        """
+        Remove any fields from the deferred loading set.
+        """
+        self.deferred_loading = (set(), True)
+
+    def add_deferred_loading(self, field_names):
+        """
+        Add the given list of model field names to the set of fields to
+        exclude from loading from the database when automatic column selection
+        is done. The new field names are added to any existing field names that
+        are deferred (or removed from any existing field names that are marked
+        as the only ones for immediate loading).
+        """
+        # Fields on related models are stored in the literal double-underscore
+        # format, so that we can use a set datastructure. We do the foo__bar
+        # splitting and handling when computing the SQL colum names (as part of
+        # get_columns()).
+        existing, defer = self.deferred_loading
+        if defer:
+            # Add to existing deferred names.
+            self.deferred_loading = existing.union(field_names), True
+        else:
+            # Remove names from the set of any existing "immediate load" names.
+            self.deferred_loading = existing.difference(field_names), False
+
+    def add_immediate_loading(self, field_names):
+        """
+        Add the given list of model field names to the set of fields to
+        retrieve when the SQL is executed ("immediate loading" fields). The
+        field names replace any existing immediate loading field names. If
+        there are field names already specified for deferred loading, those
+        names are removed from the new field_names before storing the new names
+        for immediate loading. (That is, immediate loading overrides any
+        existing immediate values, but respects existing deferrals.)
+        """
+        existing, defer = self.deferred_loading
+        if defer:
+            # Remove any existing deferred names from the current set before
+            # setting the new names.
+            self.deferred_loading = set(field_names).difference(existing), False
+        else:
+            # Replace any existing "immediate load" field names.
+            self.deferred_loading = set(field_names), False
+
+    def get_loaded_field_names(self):
+        """
+        If any fields are marked to be deferred, returns a dictionary mapping
+        models to a set of names in those fields that will be loaded. If a
+        model is not in the returned dictionary, none of it's fields are
+        deferred.
+
+        If no fields are marked for deferral, returns an empty dictionary.
+        """
+        collection = {}
+        self.deferred_to_data(collection, self.get_loaded_field_names_cb)
+        return collection
+
+    def get_loaded_field_names_cb(self, target, model, fields):
+        """
+        Callback used by get_deferred_field_names().
+        """
+        target[model] = set([f.name for f in fields])
 
     def trim_extra_select(self, names):
         """
@@ -1995,6 +2254,7 @@ class BaseQuery(object):
             select_alias = join_info[RHS_ALIAS]
             select_col = join_info[RHS_JOIN_COL]
         self.select = [(select_alias, select_col)]
+        self.remove_inherited_models()
 
     def execute_sql(self, result_type=MULTI):
         """
@@ -2003,9 +2263,11 @@ class BaseQuery(object):
         iterator over the results if the result_type is MULTI.
 
         result_type is either MULTI (use fetchmany() to retrieve all rows),
-        SINGLE (only retrieve a single row), or None (no results expected, but
-        the cursor is returned, since it's used by subclasses such as
-        InsertQuery).
+        SINGLE (only retrieve a single row), or None. In this last case, the
+        cursor is returned if any query is executed, since it's used by
+        subclasses such as InsertQuery). It's possible, however, that no query
+        is needed, as the filters describe an empty set. In that case, None is
+        returned, to avoid any unnecessary database interaction.
         """
         try:
             sql, params = self.as_sql()
@@ -2088,4 +2350,14 @@ def setup_join_cache(sender, **kwargs):
     sender._meta._join_cache = {}
 
 signals.class_prepared.connect(setup_join_cache)
+
+def add_to_dict(data, key, value):
+    """
+    A helper function to add "value" to the set of values for "key", whether or
+    not "key" already exists.
+    """
+    if key in data:
+        data[key].add(value)
+    else:
+        data[key] = set([value])
 
