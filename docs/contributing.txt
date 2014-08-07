@@ -67,6 +67,13 @@ particular:
       likely to get lost. If a particular ticket is controversial, please move
       discussion to `django-developers`_.
 
+    * **Don't** post to django-developers just to announce that you have filed
+      a bug report. All the tickets are mailed to another list
+      (`django-updates`_), which is tracked by developers and triagers, so we
+      see them as they are filed.
+
+.. _django-updates: http://groups.google.com/group/django-updates
+
 Reporting security issues
 =========================
 
@@ -279,7 +286,7 @@ Please follow these coding standards when writing code for inclusion in Django:
     * Mark all strings for internationalization; see the `i18n documentation`_
       for details.
 
-    * In docstrings, use "action words," like so::
+    * In docstrings, use "action words" such as::
 
           def foo():
               """
@@ -340,14 +347,14 @@ Model style
       Do this::
 
           class Person(models.Model):
-              first_name = models.CharField(maxlength=20)
-              last_name = models.CharField(maxlength=40)
+              first_name = models.CharField(max_length=20)
+              last_name = models.CharField(max_length=40)
 
       Don't do this::
 
           class Person(models.Model):
-              FirstName = models.CharField(maxlength=20)
-              Last_Name = models.CharField(maxlength=40)
+              FirstName = models.CharField(max_length=20)
+              Last_Name = models.CharField(max_length=40)
 
     * The ``class Meta`` should appear *after* the fields are defined, with
       a single blank line separating the fields and the class definition.
@@ -355,8 +362,8 @@ Model style
       Do this::
 
           class Person(models.Model):
-              first_name = models.CharField(maxlength=20)
-              last_name = models.CharField(maxlength=40)
+              first_name = models.CharField(max_length=20)
+              last_name = models.CharField(max_length=40)
 
               class Meta:
                   verbose_name_plural = 'people'
@@ -364,8 +371,8 @@ Model style
       Don't do this::
 
           class Person(models.Model):
-              first_name = models.CharField(maxlength=20)
-              last_name = models.CharField(maxlength=40)
+              first_name = models.CharField(max_length=20)
+              last_name = models.CharField(max_length=40)
               class Meta:
                   verbose_name_plural = 'people'
 
@@ -375,8 +382,8 @@ Model style
               class Meta:
                   verbose_name_plural = 'people'
 
-              first_name = models.CharField(maxlength=20)
-              last_name = models.CharField(maxlength=40)
+              first_name = models.CharField(max_length=20)
+              last_name = models.CharField(max_length=40)
 
     * The order of model inner classes and standard methods should be as
       follows (noting that these are not all required):
@@ -545,11 +552,9 @@ To run the tests, ``cd`` to the ``tests/`` directory and type::
     ./runtests.py --settings=path.to.django.settings
 
 Yes, the unit tests need a settings module, but only for database connection
-info -- the ``DATABASE_NAME`` (required, but will be ignored),
-``DATABASE_ENGINE``, ``DATABASE_USER`` and ``DATABASE_PASSWORD`` settings. You
-will also need a ``ROOT_URLCONF`` setting (its value is ignored; it just needs
-to be present) and a ``SITE_ID`` setting (any non-zero integer value will do)
-in order for all the tests to pass.
+info, with the ``DATABASE_ENGINE`` setting. You will also need a ``ROOT_URLCONF``
+setting (its value is ignored; it just needs to be present) and a ``SITE_ID``
+setting (any non-zero integer value will do) in order for all the tests to pass.
 
 The unit tests will not touch your existing databases; they create a new
 database, called ``django_test_db``, which is deleted when the tests are

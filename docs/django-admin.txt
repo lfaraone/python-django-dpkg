@@ -124,6 +124,13 @@ executed. This means that all data will be removed from the database, any
 post-synchronization handlers will be re-executed, and the ``initial_data``
 fixture will be re-installed.
 
+The behavior of this command has changed in the Django development version.
+Previously, this command cleared *every* table in the database, including any
+table that Django didn't know about (i.e., tables that didn't have associated
+models and/or weren't in ``INSTALLED_APPS``). Now, the command only clears
+tables that are represented by Django models and are activated in
+``INSTALLED_APPS``.
+
 inspectdb
 ---------
 
@@ -235,10 +242,12 @@ The ``dumpdata`` command can be used to generate input for ``loaddata``.
 
 reset [appname appname ...]
 ---------------------------
+
 Executes the equivalent of ``sqlreset`` for the given appnames.
 
 runfcgi [options]
 -----------------
+
 Starts a set of FastCGI processes suitable for use with any web server
 which supports the FastCGI protocol. See the `FastCGI deployment
 documentation`_ for details. Requires the Python FastCGI module from
@@ -336,7 +345,7 @@ Refer to the description of ``sqlcustom`` for an explanation of how to
 specify initial data.
 
 sqlclear [appname appname ...]
---------------------------------------
+------------------------------
 
 Prints the DROP TABLE SQL statements for the given appnames.
 
@@ -359,18 +368,23 @@ table modifications, or insert any SQL functions into the database.
 
 Note that the order in which the SQL files are processed is undefined.
 
+sqlflush
+--------
+
+Prints the SQL statements that would be executed for the `flush`_ command.
+
 sqlindexes [appname appname ...]
-----------------------------------------
+--------------------------------
 
 Prints the CREATE INDEX SQL statements for the given appnames.
 
 sqlreset [appname appname ...]
---------------------------------------
+------------------------------
 
 Prints the DROP TABLE SQL, then the CREATE TABLE SQL, for the given appnames.
 
 sqlsequencereset [appname appname ...]
-----------------------------------------------
+--------------------------------------
 
 Prints the SQL statements for resetting sequences for the given
 appnames.
@@ -426,7 +440,49 @@ test
 
 Discover and run tests for all installed models.  See `Testing Django applications`_ for more information.
 
-.. _testing django applications: ../testing/
+.. _testing Django applications: ../testing/
+
+testserver [fixture fixture ...]
+--------------------------------
+
+**New in Django development version**
+
+Runs a Django development server (as in ``runserver``) using data from the
+given fixture(s).
+
+For example, this command::
+
+    django-admin.py testserver mydata.json
+
+...would perform the following steps:
+
+    1. Create a test database, as described in `testing Django applications`_.
+    2. Populate the test database with fixture data from the given fixtures.
+       (For more on fixtures, see the documentation for ``loaddata`` above.)
+    3. Runs the Django development server (as in ``runserver``), pointed at
+       this newly created test database instead of your production database.
+
+This is useful in a number of ways:
+
+    * When you're writing `unit tests`_ of how your views act with certain
+      fixture data, you can use ``testserver`` to interact with the views in
+      a Web browser, manually.
+
+    * Let's say you're developing your Django application and have a "pristine"
+      copy of a database that you'd like to interact with. You can dump your
+      database to a fixture (using the ``dumpdata`` command, explained above),
+      then use ``testserver`` to run your Web application with that data. With
+      this arrangement, you have the flexibility of messing up your data
+      in any way, knowing that whatever data changes you're making are only
+      being made to a test database.
+
+Note that this server can only run on the default port on localhost; it does
+not yet accept a ``host`` or ``port`` parameter.
+
+Also note that it does *not* automatically detect changes to your Python source
+code (as ``runserver`` does). It does, however, detect changes to templates.
+
+.. _unit tests: ../testing/
 
 validate
 --------
