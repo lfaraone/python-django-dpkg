@@ -813,7 +813,7 @@ subclass::
     the list of objects on the admin change list page. This can save you a
     bunch of database queries.
 
-    .. versionchanged:: dev
+    .. versionchanged:: 1.6
 
     The value should be either a boolean, a list or a tuple. Default is
     ``False``.
@@ -1590,7 +1590,7 @@ in your own admin JavaScript without including a second copy, you can use the
     The embedded jQuery has been upgraded from 1.4.2 to 1.9.1.
 
 The :class:`ModelAdmin` class requires jQuery by default, so there is no need
-to add jQuery to your ``ModelAdmin``'s list of media resources unless you have
+to add jQuery to your ``ModelAdmin``’s list of media resources unless you have
 a specifc need. For example, if you require the jQuery library to be in the
 global namespace (for example when using third-party jQuery plugins) or if you
 need a newer version of jQuery, you will have to include your own copy.
@@ -2354,7 +2354,8 @@ that instance as a ``current_app`` hint to the reverse call. For example,
 if you specifically wanted the admin view from the admin instance named
 ``custom``, you would need to call::
 
-    >>> change_url = urlresolvers.reverse('custom:polls_choice_change', args=(c.id,))
+    >>> change_url = urlresolvers.reverse('admin:polls_choice_change',
+    ...                                   args=(c.id,), current_app='custom')
 
 For more details, see the documentation on :ref:`reversing namespaced URLs
 <topics-http-reversing-url-namespaces>`.

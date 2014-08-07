@@ -392,7 +392,7 @@ these security concerns do not apply to you:
                model = Author
                fields = '__all__'
 
-2. Set the ``exclude`` attribute of the ``ModelForm``'s inner ``Meta`` class to
+2. Set the ``exclude`` attribute of the ``ModelForm``’s inner ``Meta`` class to
    a list of fields to be excluded from the form.
 
    For example::
@@ -528,7 +528,7 @@ field, you could do the following::
 
         class Meta:
             model = Article
-            fields = ['pub_date', 'headline', 'content', 'reporter']
+            fields = ['pub_date', 'headline', 'content', 'reporter', 'slug']
 
 
 If you want to specify a field's validators, you can do so by defining
@@ -768,7 +768,7 @@ Specifying widgets to use in the form with ``widgets``
 .. versionadded:: 1.6
 
 Using the ``widgets`` parameter, you can specify a dictionary of values to
-customize the ``ModelForm``'s widget class for a particular field. This
+customize the ``ModelForm``’s widget class for a particular field. This
 works the same way as the ``widgets`` dictionary on the inner ``Meta``
 class of a ``ModelForm`` works::
 
@@ -835,6 +835,12 @@ This gives you the ability to attach data to the instances before saving them
 to the database. If your formset contains a ``ManyToManyField``, you'll also
 need to call ``formset.save_m2m()`` to ensure the many-to-many relationships
 are saved properly.
+
+.. note::
+
+    While calling ``formset.save(commit=False)`` does not save new or changed
+    objects to the database, it *does* delete objects that have been marked for
+    deletion. This behavior will be corrected in Django 1.7.
 
 .. _model-formsets-max-num:
 
@@ -920,6 +926,24 @@ class's ``clean`` method::
             for form in self.forms:
                 # your custom formset validation
                 ...
+
+Also note that by the time you reach this step, individual model instances
+have already been created for each ``Form``. Modifying a value in
+``form.cleaned_data`` is not sufficient to affect the saved value. If you wish
+to modify a value in ``ModelFormSet.clean()`` you must modify
+``form.instance``::
+
+    from django.forms.models import BaseModelFormSet
+
+    class MyModelFormSet(BaseModelFormSet):
+        def clean(self):
+            super(MyModelFormSet, self).clean()
+
+            for form in self.forms:
+                name = form.cleaned_data['name'].upper()
+                form.cleaned_data['name'] = name
+                # update the instance value.
+                form.instance.name = name
 
 Using a custom queryset
 -----------------------

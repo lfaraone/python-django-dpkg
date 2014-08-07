@@ -17,6 +17,7 @@ from django.test import TestCase, RequestFactory
 from django.test.utils import (override_settings, setup_test_template_loader,
     restore_template_loaders)
 from django.utils.encoding import force_text, force_bytes
+from django.utils import importlib, six
 from django.views.debug import ExceptionReporter
 
 from .. import BrokenException, except_args
@@ -121,6 +122,35 @@ class DebugViewTests(TestCase):
         """
         self.assertRaises(TemplateDoesNotExist, self.client.get, '/render_no_template/')
 
+    @override_settings(ROOT_URLCONF='view_tests.default_urls')
+    def test_default_urlconf_template(self):
+        """
+        Make sure that the default urlconf template is shown shown instead
+        of the technical 404 page, if the user has not altered their
+        url conf yet.
+        """
+        response = self.client.get('/')
+        self.assertContains(
+            response,
+            "<h2>Congratulations on your first Django-powered page.</h2>"
+        )
+
+    @override_settings(ROOT_URLCONF='view_tests.regression_21530_urls')
+    def test_regression_21530(self):
+        """
+        Regression test for bug #21530.
+
+        If the admin app include is replaced with exactly one url
+        pattern, then the technical 404 template should be displayed.
+
+        The bug here was that an AttributeError caused a 500 response.
+        """
+        response = self.client.get('/')
+        self.assertContains(
+            response,
+            "Page not found <span>(404)</span>",
+            status_code=404
+        )
 
 class ExceptionReporterTests(TestCase):
     rf = RequestFactory()
@@ -222,6 +252,21 @@ class ExceptionReporterTests(TestCase):
         self.assertNotIn('<h2>Traceback ', html)
         self.assertIn('<h2>Request information</h2>', html)
         self.assertIn('<p>Request data not supplied</p>', html)
+
+    @skipIf(six.PY2, 'Bug manifests on PY3 only')
+    def test_unfrozen_importlib(self):
+        """
+        importlib is not a frozen app, but its loader thinks it's frozen which
+        results in an ImportError on Python 3. Refs #21443.
+        """
+        try:
+            request = self.rf.get('/test_view/')
+            importlib.import_module('abc.def.invalid.name')
+        except Exception:
+            exc_type, exc_value, tb = sys.exc_info()
+        reporter = ExceptionReporter(request, exc_type, exc_value, tb)
+        html = reporter.get_traceback_html()
+        self.assertIn('<h1>ImportError at /test_view/</h1>', html)
 
 
 class PlainTextReportTests(TestCase):
