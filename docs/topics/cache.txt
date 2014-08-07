@@ -116,7 +116,7 @@ One excellent feature of Memcached is its ability to share cache over multiple
 servers. This means you can run Memcached daemons on multiple machines, and the
 program will treat the group of machines as a *single* cache, without the need
 to duplicate cache values on each machine. To take advantage of this feature,
-include all server addresses in :setting:`BACKEND <CACHES-BACKEND>`, either
+include all server addresses in :setting:`LOCATION <CACHES-LOCATION>`, either
 separated by semicolons or as a list.
 
 In this example, the cache is shared over Memcached instances running on IP
@@ -420,7 +420,7 @@ Once the cache is set up, the simplest way to use caching is to cache your
 entire site. You'll need to add
 ``'django.middleware.cache.UpdateCacheMiddleware'`` and
 ``'django.middleware.cache.FetchFromCacheMiddleware'`` to your
-``MIDDLEWARE_CLASSES`` setting, as in this example::
+:setting:`MIDDLEWARE_CLASSES` setting, as in this example::
 
     MIDDLEWARE_CLASSES = (
         'django.middleware.cache.UpdateCacheMiddleware',
@@ -615,7 +615,7 @@ If :setting:`USE_I18N` is set to ``True`` the per-site middleware cache will
 :ref:`respect the active language<i18n-cache-key>`. For the ``cache`` template
 tag you could use one of the
 :ref:`translation-specific variables<template-translation-vars>` available in
-templates to archieve the same result:
+templates to achieve the same result:
 
 .. code-block:: html+django
 
@@ -843,7 +843,7 @@ keys unaffected. Continuing our previous example::
     # Version 2 isn't available, either
     >>> cache.get('my_key', version=2)
     None
-    # But version 3 *is* availble
+    # But version 3 *is* available
     >>> cache.get('my_key', version=3)
     'hello world!'
 
@@ -1061,6 +1061,28 @@ Django, use the ``cache_control`` view decorator. Example::
 
 This decorator takes care of sending out the appropriate HTTP header behind the
 scenes.
+
+Note that the cache control settings "private" and "public" are mutually
+exclusive. The decorator ensures that the "public" directive is removed if
+"private" should be set (and vice versa). An example use of the two directives
+would be a blog site that offers both private and public entries. Public
+entries may be cached on any shared cache. The following code uses
+``patch_cache_control``, the manual way to modify the cache control header
+(it is internally called by the ``cache_control`` decorator)::
+
+    from django.views.decorators.cache import patch_cache_control
+    from django.views.decorators.vary import vary_on_cookie
+
+    @vary_on_cookie
+    def list_blog_entries_view(request):
+        if request.user.is_anonymous():
+            response = render_only_public_entries()
+            patch_cache_control(response, public=True)
+        else:
+            response = render_private_and_public_entries(request.user)
+            patch_cache_control(response, private=True)
+
+        return response
 
 There are a few other ways to control cache parameters. For example, HTTP
 allows applications to do the following:

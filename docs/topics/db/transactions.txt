@@ -73,7 +73,7 @@ These functions, described in detail below, can be used in two different ways:
 
             from django.db import transaction
 
-            @transaction.commit_on_success()
+            @transaction.commit_on_success
             def viewfunc(request):
                 # ...
                 # this code executes inside a transaction
@@ -234,7 +234,7 @@ provide the savepoint functions, but they are empty operations - they won't
 actually do anything.
 
 Savepoints aren't especially useful if you are using the default
-``autocommit`` behaviour of Django. However, if you are using
+``autocommit`` behavior of Django. However, if you are using
 ``commit_on_success`` or ``commit_manually``, each open transaction will build
 up a series of database operations, awaiting a commit or rollback. If you
 issue a rollback, the entire transaction is rolled back. Savepoints provide
