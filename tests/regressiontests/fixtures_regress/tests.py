@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # Unittests for fixtures.
 import os
+import re
 import sys
 try:
     from cStringIO import StringIO
@@ -327,9 +328,14 @@ class TestFixtures(TestCase):
 
         # Output order isn't guaranteed, so check for parts
         data = stdout.getvalue()
+
+        # Get rid of artifacts like '000000002' to eliminate the differences
+        # between different Python versions.
+        data = re.sub('0{6,}\d', '', data)
+
         lion_json = '{"pk": 1, "model": "fixtures_regress.animal", "fields": {"count": 3, "weight": 1.2, "name": "Lion", "latin_name": "Panthera leo"}}'
         emu_json = '{"pk": 10, "model": "fixtures_regress.animal", "fields": {"count": 42, "weight": 1.2, "name": "Emu", "latin_name": "Dromaius novaehollandiae"}}'
-        platypus_json = '{"pk": %d, "model": "fixtures_regress.animal", "fields": {"count": 2, "weight": 2.2000000000000002, "name": "Platypus", "latin_name": "Ornithorhynchus anatinus"}}'
+        platypus_json = '{"pk": %d, "model": "fixtures_regress.animal", "fields": {"count": 2, "weight": 2.2, "name": "Platypus", "latin_name": "Ornithorhynchus anatinus"}}'
         platypus_json = platypus_json % animal.pk
 
         self.assertEqual(len(data), len('[%s]' % ', '.join([lion_json, emu_json, platypus_json])))
@@ -605,7 +611,8 @@ class TestTicket11101(TransactionTestCase):
         transaction.rollback()
         self.assertEqual(Thingy.objects.count(), 0)
 
-    def test_ticket_11101(self):
-        """Test that fixtures can be rolled back (ticket #11101)."""
-        ticket_11101 = transaction.commit_manually(self.ticket_11101)
-        ticket_11101()
+    if settings.DATABASES[DEFAULT_DB_ALIAS]['ENGINE'] != 'django.db.backends.mysql':
+        def test_ticket_11101(self):
+            """Test that fixtures can be rolled back (ticket #11101)."""
+            ticket_11101 = transaction.commit_manually(self.ticket_11101)
+            ticket_11101()

@@ -52,11 +52,6 @@ Adds a few conveniences for perfectionists:
       you don't have a valid URL pattern for ``foo.com/bar`` but *do* have a
       valid pattern for ``foo.com/bar/``.
 
-      .. versionchanged:: 1.0
-         The behavior of :setting:`APPEND_SLASH` has changed slightly in this
-         version. It didn't used to check whether the pattern was matched in
-         the URLconf.
-
       If :setting:`PREPEND_WWW` is ``True``, URLs that lack a leading "www."
       will be redirected to the same URL with a leading "www."
 
@@ -102,6 +97,9 @@ compression of the response content is the last thing that happens. Will not
 compress content bodies less than 200 bytes long, when the response code is
 something other than 200, JavaScript files (for IE compatibility), or
 responses that have the ``Content-Encoding`` header already specified.
+
+GZip compression can be applied to individual views using the
+:func:`~django.views.decorators.http.gzip_page()` decorator.
 
 Conditional GET middleware
 --------------------------
@@ -185,8 +183,6 @@ CSRF protection middleware
               Forgeries.
 
 .. class:: CsrfMiddleware
-
-.. versionadded:: 1.0
 
 Adds protection against Cross Site Request Forgeries by adding hidden form
 fields to POST forms and checking requests for the correct value. See the

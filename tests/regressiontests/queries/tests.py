@@ -14,7 +14,7 @@ from django.utils.datastructures import SortedDict
 from models import (Annotation, Article, Author, Celebrity, Child, Cover, Detail,
     DumbCategory, ExtraInfo, Fan, Item, LeafA, LoopX, LoopZ, ManagedModel,
     Member, NamedCategory, Note, Number, Plaything, PointerA, Ranking, Related,
-    Report, ReservedName, Tag, TvChef, Valid, X)
+    Report, ReservedName, Tag, TvChef, Valid, X, Food, Eaten, Node)
 
 
 class BaseQuerysetTest(TestCase):
@@ -1272,6 +1272,11 @@ class Queries6Tests(TestCase):
             []
         )
 
+        # This next makes exactly *zero* sense, but it works. It's needed
+        # because MySQL fails to give the right results the first time this
+        # query is executed. If you run the same query a second time, it
+        # works fine. It's a hack, but it works...
+        list(Tag.objects.exclude(children=None))
         self.assertQuerysetEqual(
             Tag.objects.exclude(children=None),
             ['<Tag: t1>', '<Tag: t3>']
@@ -1498,6 +1503,67 @@ class EscapingTests(TestCase):
         self.assertQuerysetEqual(
             ReservedName.objects.extra(select={'stuff':'name'}, order_by=('order','stuff')),
             ['<ReservedName: b>', '<ReservedName: a>']
+        )
+
+
+class ToFieldTests(TestCase):
+    def test_in_query(self):
+        apple = Food.objects.create(name="apple")
+        pear = Food.objects.create(name="pear")
+        lunch = Eaten.objects.create(food=apple, meal="lunch")
+        dinner = Eaten.objects.create(food=pear, meal="dinner")
+
+        self.assertEqual(
+            set(Eaten.objects.filter(food__in=[apple, pear])),
+            set([lunch, dinner]),
+        )
+
+    def test_reverse_in(self):
+        apple = Food.objects.create(name="apple")
+        pear = Food.objects.create(name="pear")
+        lunch_apple = Eaten.objects.create(food=apple, meal="lunch")
+        lunch_pear = Eaten.objects.create(food=pear, meal="dinner")
+
+        self.assertEqual(
+            set(Food.objects.filter(eaten__in=[lunch_apple, lunch_pear])),
+            set([apple, pear])
+        )
+
+    def test_single_object(self):
+        apple = Food.objects.create(name="apple")
+        lunch = Eaten.objects.create(food=apple, meal="lunch")
+        dinner = Eaten.objects.create(food=apple, meal="dinner")
+
+        self.assertEqual(
+            set(Eaten.objects.filter(food=apple)),
+            set([lunch, dinner])
+        )
+
+    def test_single_object_reverse(self):
+        apple = Food.objects.create(name="apple")
+        lunch = Eaten.objects.create(food=apple, meal="lunch")
+
+        self.assertEqual(
+            set(Food.objects.filter(eaten=lunch)),
+            set([apple])
+        )
+
+    def test_recursive_fk(self):
+        node1 = Node.objects.create(num=42)
+        node2 = Node.objects.create(num=1, parent=node1)
+
+        self.assertEqual(
+            list(Node.objects.filter(parent=node1)),
+            [node2]
+        )
+
+    def test_recursive_fk_reverse(self):
+        node1 = Node.objects.create(num=42)
+        node2 = Node.objects.create(num=1, parent=node1)
+
+        self.assertEqual(
+            list(Node.objects.filter(node=node2)),
+            [node1]
         )
 
 

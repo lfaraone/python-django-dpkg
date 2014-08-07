@@ -353,46 +353,58 @@ class Templates(unittest.TestCase):
             if isinstance(vals[2], tuple):
                 normal_string_result = vals[2][0]
                 invalid_string_result = vals[2][1]
-                if isinstance(invalid_string_result, basestring) and '%s' in invalid_string_result:
+
+                if isinstance(invalid_string_result, tuple):
                     expected_invalid_str = 'INVALID %s'
-                    invalid_string_result = invalid_string_result % vals[2][2]
+                    invalid_string_result = invalid_string_result[0] % invalid_string_result[1]
                     template.invalid_var_format_string = True
+
+                try:
+                    template_debug_result = vals[2][2]
+                except IndexError:
+                    template_debug_result = normal_string_result
+
             else:
                 normal_string_result = vals[2]
                 invalid_string_result = vals[2]
+                template_debug_result = vals[2]
 
             if 'LANGUAGE_CODE' in vals[1]:
                 activate(vals[1]['LANGUAGE_CODE'])
             else:
                 activate('en-us')
 
-            for invalid_str, result in [('', normal_string_result),
-                                        (expected_invalid_str, invalid_string_result)]:
+            for invalid_str, template_debug, result in [
+                    ('', False, normal_string_result),
+                    (expected_invalid_str, False, invalid_string_result),
+                    ('', True, template_debug_result),
+                ]:
                 settings.TEMPLATE_STRING_IF_INVALID = invalid_str
+                settings.TEMPLATE_DEBUG = template_debug
                 for is_cached in (False, True):
                     try:
                         start = datetime.now()
                         test_template = loader.get_template(name)
                         end = datetime.now()
                         if end-start > timedelta(seconds=0.2):
-                            failures.append("Template test (Cached='%s', TEMPLATE_STRING_IF_INVALID='%s'): %s -- FAILED. Took too long to parse test" % (is_cached, invalid_str, name))
+                            failures.append("Template test (Cached='%s', TEMPLATE_STRING_IF_INVALID='%s', TEMPLATE_DEBUG=%s): %s -- FAILED. Took too long to parse test" % (is_cached, invalid_str, template_debug, name))
 
                         start = datetime.now()
                         output = self.render(test_template, vals)
                         end = datetime.now()
                         if end-start > timedelta(seconds=0.2):
-                            failures.append("Template test (Cached='%s', TEMPLATE_STRING_IF_INVALID='%s'): %s -- FAILED. Took too long to render test" % (is_cached, invalid_str, name))
+                            failures.append("Template test (Cached='%s', TEMPLATE_STRING_IF_INVALID='%s', TEMPLATE_DEBUG=%s): %s -- FAILED. Took too long to render test" % (is_cached, invalid_str, template_debug, name))
                     except ContextStackException:
-                        failures.append("Template test (Cached='%s', TEMPLATE_STRING_IF_INVALID='%s'): %s -- FAILED. Context stack was left imbalanced" % (is_cached, invalid_str, name))
+                        failures.append("Template test (Cached='%s', TEMPLATE_STRING_IF_INVALID='%s', TEMPLATE_DEBUG=%s): %s -- FAILED. Context stack was left imbalanced" % (is_cached, invalid_str, template_debug, name))
                         continue
                     except Exception:
                         exc_type, exc_value, exc_tb = sys.exc_info()
                         if exc_type != result:
                             tb = '\n'.join(traceback.format_exception(exc_type, exc_value, exc_tb))
-                            failures.append("Template test (Cached='%s', TEMPLATE_STRING_IF_INVALID='%s'): %s -- FAILED. Got %s, exception: %s\n%s" % (is_cached, invalid_str, name, exc_type, exc_value, tb))
+                            failures.append("Template test (Cached='%s', TEMPLATE_STRING_IF_INVALID='%s', TEMPLATE_DEBUG=%s): %s -- FAILED. Got %s, exception: %s\n%s" % (is_cached, invalid_str, template_debug, name, exc_type, exc_value, tb))
                         continue
                     if output != result:
-                        failures.append("Template test (Cached='%s', TEMPLATE_STRING_IF_INVALID='%s'): %s -- FAILED. Expected %r, got %r" % (is_cached, invalid_str, name, result, output))
+                        failures.append("Template test (Cached='%s', TEMPLATE_STRING_IF_INVALID='%s', TEMPLATE_DEBUG=%s): %s -- FAILED. Expected %r, got %r" % (is_cached, invalid_str, template_debug, name, result, output))
                 cache_loader.reset()
 
             if 'LANGUAGE_CODE' in vals[1]:
@@ -496,16 +508,16 @@ class Templates(unittest.TestCase):
             'basic-syntax28': ("{{ a.b }}", {'a': SilentGetItemClass()}, ('', 'INVALID')),
             'basic-syntax29': ("{{ a.b }}", {'a': SilentAttrClass()}, ('', 'INVALID')),
 
-            # Something that starts like a number but has an extra lookup works as a lookup. 
-            'basic-syntax30': ("{{ 1.2.3 }}", {"1": {"2": {"3": "d"}}}, "d"), 
-            'basic-syntax31': ("{{ 1.2.3 }}", {"1": {"2": ("a", "b", "c", "d")}}, "d"), 
-            'basic-syntax32': ("{{ 1.2.3 }}", {"1": (("x", "x", "x", "x"), ("y", "y", "y", "y"), ("a", "b", "c", "d"))}, "d"), 
-            'basic-syntax33': ("{{ 1.2.3 }}", {"1": ("xxxx", "yyyy", "abcd")}, "d"), 
-            'basic-syntax34': ("{{ 1.2.3 }}", {"1": ({"x": "x"}, {"y": "y"}, {"z": "z", "3": "d"})}, "d"), 
-            
-            # Numbers are numbers even if their digits are in the context. 
-            'basic-syntax35': ("{{ 1 }}", {"1": "abc"}, "1"), 
-            'basic-syntax36': ("{{ 1.2 }}", {"1": "abc"}, "1.2"), 
+            # Something that starts like a number but has an extra lookup works as a lookup.
+            'basic-syntax30': ("{{ 1.2.3 }}", {"1": {"2": {"3": "d"}}}, "d"),
+            'basic-syntax31': ("{{ 1.2.3 }}", {"1": {"2": ("a", "b", "c", "d")}}, "d"),
+            'basic-syntax32': ("{{ 1.2.3 }}", {"1": (("x", "x", "x", "x"), ("y", "y", "y", "y"), ("a", "b", "c", "d"))}, "d"),
+            'basic-syntax33': ("{{ 1.2.3 }}", {"1": ("xxxx", "yyyy", "abcd")}, "d"),
+            'basic-syntax34': ("{{ 1.2.3 }}", {"1": ({"x": "x"}, {"y": "y"}, {"z": "z", "3": "d"})}, "d"),
+
+            # Numbers are numbers even if their digits are in the context.
+            'basic-syntax35': ("{{ 1 }}", {"1": "abc"}, "1"),
+            'basic-syntax36': ("{{ 1.2 }}", {"1": "abc"}, "1.2"),
 
             # List-index syntax allows a template to access a certain item of a subscriptable object.
             'list-index01': ("{{ var.1 }}", {"var": ["first item", "second item"]}, "second item"),
@@ -573,7 +585,7 @@ class Templates(unittest.TestCase):
 
             # In methods that raise an exception without a
             # "silent_variable_attribute" set to True, the exception propagates
-            'filter-syntax14': (r'1{{ var.method4 }}2', {"var": SomeClass()}, SomeOtherException),
+            'filter-syntax14': (r'1{{ var.method4 }}2', {"var": SomeClass()}, (SomeOtherException, SomeOtherException, template.TemplateSyntaxError)),
 
             # Escaped backslash in argument
             'filter-syntax15': (r'{{ var|default_if_none:"foo\bar" }}', {"var": None}, r'foo\bar'),
@@ -593,7 +605,7 @@ class Templates(unittest.TestCase):
 
             #filters should accept empty string constants
             'filter-syntax20': ('{{ ""|default_if_none:"was none" }}', {}, ""),
-            
+
             ### COMMENT SYNTAX ########################################################
             'comment-syntax01': ("{# this is hidden #}hello", {}, "hello"),
             'comment-syntax02': ("{# this is hidden #}hello{# foo #}", {}, "hello"),
@@ -636,11 +648,13 @@ class Templates(unittest.TestCase):
             'cycle14': ("{% cycle one two as foo %}{% cycle foo %}", {'one': '1','two': '2'}, '12'),
             'cycle15': ("{% for i in test %}{% cycle aye bee %}{{ i }},{% endfor %}", {'test': range(5), 'aye': 'a', 'bee': 'b'}, 'a0,b1,a2,b3,a4,'),
             'cycle16': ("{% cycle one|lower two as foo %}{% cycle foo %}", {'one': 'A','two': '2'}, 'a2'),
+            'cycle20': ("{% cycle one two as foo %} &amp; {% cycle foo %}", {'one' : 'A & B', 'two' : 'C & D'}, "A & B &amp; C & D"),
+            'cycle21': ("{% filter force_escape %}{% cycle one two as foo %} & {% cycle foo %}{% endfilter %}", {'one' : 'A & B', 'two' : 'C & D'}, "A &amp; B &amp; C &amp; D"),
 
             ### EXCEPTIONS ############################################################
 
             # Raise exception for invalid template name
-            'exception01': ("{% extends 'nonexistent' %}", {}, template.TemplateDoesNotExist),
+            'exception01': ("{% extends 'nonexistent' %}", {}, (template.TemplateDoesNotExist, template.TemplateDoesNotExist, template.TemplateSyntaxError)),
 
             # Raise exception for invalid template name (in variable)
             'exception02': ("{% extends nonexistent %}", {}, (template.TemplateSyntaxError, template.TemplateDoesNotExist)),
@@ -909,9 +923,18 @@ class Templates(unittest.TestCase):
             'include01': ('{% include "basic-syntax01" %}', {}, "something cool"),
             'include02': ('{% include "basic-syntax02" %}', {'headline': 'Included'}, "Included"),
             'include03': ('{% include template_name %}', {'template_name': 'basic-syntax02', 'headline': 'Included'}, "Included"),
-            'include04': ('a{% include "nonexistent" %}b', {}, "ab"),
+            'include04': ('a{% include "nonexistent" %}b', {}, ("ab", "ab", template.TemplateDoesNotExist)),
             'include 05': ('template with a space', {}, 'template with a space'),
             'include06': ('{% include "include 05"%}', {}, 'template with a space'),
+
+            ### INCLUSION ERROR REPORTING #############################################
+            'include-fail1': ('{% load bad_tag %}{% badtag %}', {}, RuntimeError),
+            'include-fail2': ('{% load broken_tag %}', {}, template.TemplateSyntaxError),
+            'include-error07': ('{% include "include-fail1" %}', {}, ('', '', RuntimeError)),
+            'include-error08': ('{% include "include-fail2" %}', {}, ('', '', template.TemplateSyntaxError)),
+            'include-error09': ('{% include failed_include %}', {'failed_include': 'include-fail1'}, ('', '', template.TemplateSyntaxError)),
+            'include-error10': ('{% include failed_include %}', {'failed_include': 'include-fail2'}, ('', '', template.TemplateSyntaxError)),
+
 
             ### NAMED ENDBLOCKS #######################################################
 
@@ -1049,6 +1072,9 @@ class Templates(unittest.TestCase):
             'spaceless01': ("{% spaceless %} <b>    <i> text </i>    </b> {% endspaceless %}", {}, "<b><i> text </i></b>"),
             'spaceless02': ("{% spaceless %} <b> \n <i> text </i> \n </b> {% endspaceless %}", {}, "<b><i> text </i></b>"),
             'spaceless03': ("{% spaceless %}<b><i>text</i></b>{% endspaceless %}", {}, "<b><i>text</i></b>"),
+            'spaceless04': ("{% spaceless %}<b>   <i>{{ text }}</i>  </b>{% endspaceless %}", {'text' : 'This & that'}, "<b><i>This &amp; that</i></b>"),
+            'spaceless05': ("{% autoescape off %}{% spaceless %}<b>   <i>{{ text }}</i>  </b>{% endspaceless %}{% endautoescape %}", {'text' : 'This & that'}, "<b><i>This & that</i></b>"),
+            'spaceless06': ("{% spaceless %}<b>   <i>{{ text|safe }}</i>  </b>{% endspaceless %}", {'text' : 'This & that'}, "<b><i>This & that</i></b>"),
 
             # simple translation of a string delimited by '
             'i18n01': ("{% load i18n %}{% trans 'xxxyyyxxx' %}", {}, "xxxyyyxxx"),
@@ -1119,8 +1145,8 @@ class Templates(unittest.TestCase):
             'invalidstr03': ('{% for v in var %}({{ v }}){% endfor %}', {}, ''),
             'invalidstr04': ('{% if var %}Yes{% else %}No{% endif %}', {}, 'No'),
             'invalidstr04': ('{% if var|default:"Foo" %}Yes{% else %}No{% endif %}', {}, 'Yes'),
-            'invalidstr05': ('{{ var }}', {}, ('', 'INVALID %s', 'var')),
-            'invalidstr06': ('{{ var.prop }}', {'var': {}}, ('', 'INVALID %s', 'var.prop')),
+            'invalidstr05': ('{{ var }}', {}, ('', ('INVALID %s', 'var'))),
+            'invalidstr06': ('{{ var.prop }}', {'var': {}}, ('', ('INVALID %s', 'var.prop'))),
 
             ### MULTILINE #############################################################
 
@@ -1253,8 +1279,8 @@ class Templates(unittest.TestCase):
 
             # Failures
             'url-fail01': ('{% url %}', {}, template.TemplateSyntaxError),
-            'url-fail02': ('{% url no_such_view %}', {}, urlresolvers.NoReverseMatch),
-            'url-fail03': ('{% url regressiontests.templates.views.client %}', {}, urlresolvers.NoReverseMatch),
+            'url-fail02': ('{% url no_such_view %}', {}, (urlresolvers.NoReverseMatch, urlresolvers.NoReverseMatch, template.TemplateSyntaxError)),
+            'url-fail03': ('{% url regressiontests.templates.views.client %}', {}, (urlresolvers.NoReverseMatch, urlresolvers.NoReverseMatch, template.TemplateSyntaxError)),
             'url-fail04': ('{% url view id, %}', {}, template.TemplateSyntaxError),
             'url-fail05': ('{% url view id= %}', {}, template.TemplateSyntaxError),
             'url-fail06': ('{% url view a.id=id %}', {}, template.TemplateSyntaxError),
@@ -1293,8 +1319,8 @@ class Templates(unittest.TestCase):
 
             # Regression test for #11270.
             'cache17': ('{% load cache %}{% cache 10 long_cache_key poem %}Some Content{% endcache %}', {'poem': 'Oh freddled gruntbuggly/Thy micturations are to me/As plurdled gabbleblotchits/On a lurgid bee/That mordiously hath bitled out/Its earted jurtles/Into a rancid festering/Or else I shall rend thee in the gobberwarts with my blurglecruncheon/See if I dont.'}, 'Some Content'),
-                                    
-            
+
+
             ### AUTOESCAPE TAG ##############################################
             'autoescape-tag01': ("{% autoescape off %}hello{% endautoescape %}", {}, "hello"),
             'autoescape-tag02': ("{% autoescape off %}{{ first }}{% endautoescape %}", {"first": "<b>hello</b>"}, "<b>hello</b>"),
@@ -1323,23 +1349,23 @@ class Templates(unittest.TestCase):
             # implementation details (fortunately, the (no)autoescape block
             # tags can be used in those cases)
             'autoescape-filtertag01': ("{{ first }}{% filter safe %}{{ first }} x<y{% endfilter %}", {"first": "<a>"}, template.TemplateSyntaxError),
-        
+
             # ifqeual compares unescaped vales.
-            'autoescape-ifequal01': ('{% ifequal var "this & that" %}yes{% endifequal %}', { "var": "this & that" }, "yes" ), 
-            
-            # Arguments to filters are 'safe' and manipulate their input unescaped. 
-            'autoescape-filters01': ('{{ var|cut:"&" }}', { "var": "this & that" }, "this  that" ), 
-            'autoescape-filters02': ('{{ var|join:" & \" }}', { "var": ("Tom", "Dick", "Harry") }, "Tom & Dick & Harry" ), 
-            
-            # Literal strings are safe. 
-            'autoescape-literals01': ('{{ "this & that" }}',{}, "this & that" ), 
-            
-            # Iterating over strings outputs safe characters. 
-            'autoescape-stringiterations01': ('{% for l in var %}{{ l }},{% endfor %}', {'var': 'K&R'}, "K,&amp;,R," ), 
-            
-            # Escape requirement survives lookup. 
-            'autoescape-lookup01': ('{{ var.key }}', { "var": {"key": "this & that" }}, "this &amp; that" ), 
-                    
+            'autoescape-ifequal01': ('{% ifequal var "this & that" %}yes{% endifequal %}', { "var": "this & that" }, "yes" ),
+
+            # Arguments to filters are 'safe' and manipulate their input unescaped.
+            'autoescape-filters01': ('{{ var|cut:"&" }}', { "var": "this & that" }, "this  that" ),
+            'autoescape-filters02': ('{{ var|join:" & \" }}', { "var": ("Tom", "Dick", "Harry") }, "Tom & Dick & Harry" ),
+
+            # Literal strings are safe.
+            'autoescape-literals01': ('{{ "this & that" }}',{}, "this & that" ),
+
+            # Iterating over strings outputs safe characters.
+            'autoescape-stringiterations01': ('{% for l in var %}{{ l }},{% endfor %}', {'var': 'K&R'}, "K,&amp;,R," ),
+
+            # Escape requirement survives lookup.
+            'autoescape-lookup01': ('{{ var.key }}', { "var": {"key": "this & that" }}, "this &amp; that" ),
+
         }
 
 
