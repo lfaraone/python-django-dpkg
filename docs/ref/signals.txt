@@ -84,7 +84,7 @@ Like pre_init, but this one is sent when the :meth:`~django.db.models.Model.__in
 Arguments sent with this signal:
 
     ``sender``
-        As above: rhe model class that just had an instance created.
+        As above: the model class that just had an instance created.
 
     ``instance``
         The actual instance of the model that's just been created.
@@ -141,7 +141,7 @@ Arguments sent with this signal:
         The model class.
 
     ``instance``
-        The actual instance being saved.
+        The actual instance being deleted.
 
 post_delete
 -----------
@@ -158,10 +158,10 @@ Arguments sent with this signal:
         The model class.
 
     ``instance``
-        The actual instance being saved.
+        The actual instance being deleted.
 
         Note that the object will no longer be in the database, so be very
-        careful what you do with this instance
+        careful what you do with this instance.
 
 class_prepared
 --------------

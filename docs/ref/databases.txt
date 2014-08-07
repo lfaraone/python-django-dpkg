@@ -50,8 +50,8 @@ Storage engines
 MySQL has several `storage engines`_ (previously called table types). You can
 change the default storage engine in the server configuration.
 
-The default engine is MyISAM_. The main drawback of MyISAM is that it doesn't
-currently support transactions or foreign keys. On the plus side, it's
+The default engine is MyISAM_ [#]_. The main drawback of MyISAM is that it
+doesn't currently support transactions or foreign keys. On the plus side, it's
 currently the only engine that supports full-text indexing and searching.
 
 The InnoDB_ engine is fully transactional and supports foreign key references.
@@ -69,6 +69,10 @@ For now, InnoDB is probably your best choice.
 .. _Other storage engines: http://dev.mysql.com/doc/refman/5.1/en/storage-engines-other.html
 .. _SolidDB: http://forge.mysql.com/projects/project.php?id=139
 .. _Falcon: http://dev.mysql.com/doc/falcon/en/index.html
+
+.. [#] Unless this was changed by the packager of your MySQL package. We've
+   had reports that the Windows Community Server installer sets up InnoDB as
+   the default storage engine, for example.
 
 MySQLdb
 -------
@@ -260,18 +264,18 @@ SQLite usable from Python through either the ``pysqlite2`` or the ``sqlite3``
 modules. 
  
 However, in the case of Windows, the official binary distribution of the stable 
-release of Python 2.5 (2.5.2 as of now) includes SQLite 3.3.4 so the bug can 
+release of Python 2.5 (2.5.2, as of this writing) includes SQLite 3.3.4, so the bug can 
 make itself evident in that platform. There are (as of Django 1.0) even three 
 tests in the Django test suite that will fail when run under this setup.  As 
 described above, this can be solved by downloading and installing a newer 
 version of ``pysqlite2`` (``pysqlite-2.x.x.win32-py2.5.exe``) that includes and 
-uses a newer version of SQLite. Python 2.6 will ship with a newer version of 
-SQLite and so will no be affected by this issue. 
- 
-If you are in such platform and find yourself in the need to update 
-``pysqlite``/SQLite, you will also need to manually modify the 
-``django/db/backends/sqlite3/base.py`` file in the Django source tree so it 
-attempts to import ``pysqlite2`` before that ``sqlite3`` and so it can take 
+uses a newer version of SQLite. Python 2.6 ships with a newer version of 
+SQLite and is not affected by this issue.
+
+If you are in such platform and find yourself in the need to update
+``pysqlite``/SQLite, you will also need to manually modify the
+``django/db/backends/sqlite3/base.py`` file in the Django source tree so it
+attempts to import ``pysqlite2`` before than ``sqlite3`` and so it can take
 advantage of the new ``pysqlite2``/SQLite versions.
 
 .. _oracle-notes:

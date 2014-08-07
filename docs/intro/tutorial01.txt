@@ -162,6 +162,9 @@ database's connection parameters:
       that file. If the file doesn't exist, it will automatically be created
       when you synchronize the database for the first time (see below).
       
+      When specifying the path, always use forward slashes, even on Windows 
+      (e.g. ``C:/homes/user/mysite/sqlite3.db``).
+      
     * :setting:`DATABASE_USER` -- Your database username (not used for SQLite).
     
     * :setting:`DATABASE_PASSWORD` -- Your database password (not used for
@@ -567,7 +570,7 @@ of this object. Let's fix that by editing the polls model (in the
    models and don't see any change in how they're represented, you're most
    likely using an old version of Django. (This version of the tutorial is
    written for the latest development version of Django.) If you're using a
-   Subversion checkout of of Django's development version (see :ref:`the
+   Subversion checkout of Django's development version (see :ref:`the
    installation docs <topics-install>` for more information), you shouldn't have
    any problems.
 

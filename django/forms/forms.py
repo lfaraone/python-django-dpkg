@@ -5,7 +5,7 @@ Form classes
 from copy import deepcopy
 
 from django.utils.datastructures import SortedDict
-from django.utils.html import escape
+from django.utils.html import conditional_escape
 from django.utils.encoding import StrAndUnicode, smart_unicode, force_unicode
 from django.utils.safestring import mark_safe
 
@@ -140,7 +140,7 @@ class BaseForm(StrAndUnicode):
         output, hidden_fields = [], []
         for name, field in self.fields.items():
             bf = BoundField(self, field, name)
-            bf_errors = self.error_class([escape(error) for error in bf.errors]) # Escape and cache in local variable.
+            bf_errors = self.error_class([conditional_escape(error) for error in bf.errors]) # Escape and cache in local variable.
             if bf.is_hidden:
                 if bf_errors:
                     top_errors.extend([u'(Hidden field %s) %s' % (name, force_unicode(e)) for e in bf_errors])
@@ -149,7 +149,7 @@ class BaseForm(StrAndUnicode):
                 if errors_on_separate_row and bf_errors:
                     output.append(error_row % force_unicode(bf_errors))
                 if bf.label:
-                    label = escape(force_unicode(bf.label))
+                    label = conditional_escape(force_unicode(bf.label))
                     # Only add the suffix if the label does not end in
                     # punctuation.
                     if self.label_suffix:
@@ -171,6 +171,13 @@ class BaseForm(StrAndUnicode):
                 last_row = output[-1]
                 # Chop off the trailing row_ender (e.g. '</td></tr>') and
                 # insert the hidden fields.
+                if not last_row.endswith(row_ender):
+                    # This can happen in the as_p() case (and possibly others
+                    # that users write): if there are only top errors, we may
+                    # not be able to conscript the last row for our purposes,
+                    # so insert a new, empty row.
+                    last_row = normal_row % {'errors': '', 'label': '', 'field': '', 'help_text': ''}
+                    output.append(last_row)
                 output[-1] = last_row[:-len(row_ender)] + str_hidden + row_ender
             else:
                 # If there aren't any rows in the output, just append the
@@ -388,7 +395,7 @@ class BoundField(StrAndUnicode):
 
         If attrs are given, they're used as HTML attributes on the <label> tag.
         """
-        contents = contents or escape(self.label)
+        contents = contents or conditional_escape(self.label)
         widget = self.field.widget
         id_ = widget.attrs.get('id') or self.auto_id
         if id_:

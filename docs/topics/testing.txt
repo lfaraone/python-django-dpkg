@@ -186,12 +186,12 @@ test utility is to find all the test cases (that is, subclasses of
 ``unittest.TestCase``) in ``models.py`` and ``tests.py``, automatically build a
 test suite out of those test cases, and run that suite.
 
-In the Django development version, there is a second way to define the test
-suite for a module: if you define a function called ``suite()`` in either
-``models.py`` or ``tests.py``, the Django test runner will use that function
-to construct the test suite for that module. This follows the `suggested
-organization`_ for unit tests. See the Python documentation for more details on
-how to construct a complex test suite.
+There is a second way to define the test suite for a module: if you define a
+function called ``suite()`` in either ``models.py`` or ``tests.py``, the
+Django test runner will use that function to construct the test suite for that
+module. This follows the `suggested organization`_ for unit tests. See the
+Python documentation for more details on how to construct a complex test
+suite.
 
 For more details about ``unittest``, see the `standard library unittest
 documentation`_.
@@ -950,7 +950,7 @@ Django, such as your machine's mail server, if you're running one.)
 
 .. currentmodule:: django.core.mail
 
-.. data:: django.core.mail.output
+.. data:: django.core.mail.outbox
 
 During test running, each outgoing e-mail is saved in
 ``django.core.mail.outbox``. This is a simple list of all
@@ -960,6 +960,11 @@ running unit tests. The outbox is created during test setup, along with the
 dummy :class:`<~django.core.mail.SMTPConnection>`. When the test framework is
 torn down, the standard :class:`<~django.core.mail.SMTPConnection>` class is
 restored, and the test outbox is destroyed.
+
+The ``outbox`` attribute is a special attribute that is created *only* when
+the tests are run. It doesn't normally exist as part of the
+:mod:`django.core.mail` module and you can't import it directly. The code
+below shows how to access this attribute correctly.
 
 Here's an example test that examines ``django.core.mail.outbox`` for length
 and contents::
@@ -975,10 +980,10 @@ and contents::
                 fail_silently=False)
 
             # Test that one message has been sent.
-            self.assertEqual(len(mail.outbox), 1)
+            self.assertEquals(len(mail.outbox), 1)
 
             # Verify that the subject of the first message is correct.
-            self.assertEqual(mail.outbox[0].subject, 'Subject here')
+            self.assertEquals(mail.outbox[0].subject, 'Subject here')
 
 As noted :ref:`previously <emptying-test-outbox>`, the test outbox is emptied
 at the start of every test in a Django ``TestCase``. To empty the outbox

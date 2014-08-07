@@ -24,9 +24,9 @@ probably already have it installed.
     If you use Jython_ (a Python implementation for the Java platform), you'll
     need to follow a few additional steps. See :ref:`howto-jython` for details.
 
-.. _jython: http://jython.org/
+.. _jython: http://www.jython.org/
 
-You can verify that Python's installed py typing ``python`` from your shell; you should see something like::
+You can verify that Python's installed by typing ``python`` from your shell; you should see something like::
 
     Python 2.5.1 (r251:54863, Jan 17 2008, 19:35:17) 
     [GCC 4.0.1 (Apple Inc. build 5465)] on darwin
