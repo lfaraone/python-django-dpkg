@@ -5,7 +5,7 @@ This example exists purely to point out errors in models.
 """
 
 from django.db import models
-model_errors = ""
+
 class FieldErrors(models.Model):
     charfield = models.CharField()
     decimalfield = models.DecimalField()
@@ -23,13 +23,13 @@ class Target(models.Model):
     clash1_set = models.CharField(max_length=10)
 
 class Clash1(models.Model):
-    src_safe = models.CharField(max_length=10, core=True)
+    src_safe = models.CharField(max_length=10)
 
     foreign = models.ForeignKey(Target)
     m2m = models.ManyToManyField(Target)
 
 class Clash2(models.Model):
-    src_safe = models.CharField(max_length=10, core=True)
+    src_safe = models.CharField(max_length=10)
 
     foreign_1 = models.ForeignKey(Target, related_name='id')
     foreign_2 = models.ForeignKey(Target, related_name='src_safe')
@@ -46,7 +46,7 @@ class Target2(models.Model):
     clashm2m_set = models.ManyToManyField(Target)
 
 class Clash3(models.Model):
-    src_safe = models.CharField(max_length=10, core=True)
+    src_safe = models.CharField(max_length=10)
 
     foreign_1 = models.ForeignKey(Target2, related_name='foreign_tgt')
     foreign_2 = models.ForeignKey(Target2, related_name='m2m_tgt')
@@ -61,7 +61,7 @@ class ClashM2M(models.Model):
     m2m = models.ManyToManyField(Target2)
 
 class SelfClashForeign(models.Model):
-    src_safe = models.CharField(max_length=10, core=True)
+    src_safe = models.CharField(max_length=10)
     selfclashforeign = models.CharField(max_length=10)
 
     selfclashforeign_set = models.ForeignKey("SelfClashForeign")
@@ -110,11 +110,11 @@ class Car(models.Model):
 class MissingRelations(models.Model):
     rel1 = models.ForeignKey("Rel1")
     rel2 = models.ManyToManyField("Rel2")
-    
+
 class MissingManualM2MModel(models.Model):
     name = models.CharField(max_length=5)
     missing_m2m = models.ManyToManyField(Model, through="MissingM2MModel")
-    
+
 class Person(models.Model):
     name = models.CharField(max_length=5)
 
@@ -167,6 +167,19 @@ class RelationshipDoubleFK(models.Model):
     second = models.ForeignKey(Person, related_name="second_related_name")
     third = models.ForeignKey(Group, related_name="rel_to_set")
     date_added = models.DateTimeField()
+
+class AbstractModel(models.Model):
+    name = models.CharField(max_length=10)
+    class Meta:
+        abstract = True
+
+class AbstractRelationModel(models.Model):
+    fk1 = models.ForeignKey('AbstractModel')
+    fk2 = models.ManyToManyField('AbstractModel')
+
+class UniqueM2M(models.Model):
+    """ Model to test for unique ManyToManyFields, which are invalid. """
+    unique_people = models.ManyToManyField( Person, unique=True )
 
 model_errors = """invalid_models.fielderrors: "charfield": CharFields require a "max_length" attribute.
 invalid_models.fielderrors: "decimalfield": DecimalFields require a "decimal_places" attribute.
@@ -250,8 +263,8 @@ invalid_models.selfclashm2m: Accessor for m2m field 'm2m_4' clashes with related
 invalid_models.selfclashm2m: Accessor for m2m field 'm2m_4' clashes with related m2m field 'SelfClashM2M.selfclashm2m_set'. Add a related_name argument to the definition for 'm2m_4'.
 invalid_models.selfclashm2m: Reverse query name for m2m field 'm2m_3' clashes with field 'SelfClashM2M.selfclashm2m'. Add a related_name argument to the definition for 'm2m_3'.
 invalid_models.selfclashm2m: Reverse query name for m2m field 'm2m_4' clashes with field 'SelfClashM2M.selfclashm2m'. Add a related_name argument to the definition for 'm2m_4'.
-invalid_models.missingrelations: 'rel2' has m2m relation with model Rel2, which has not been installed
-invalid_models.missingrelations: 'rel1' has relation with model Rel1, which has not been installed
+invalid_models.missingrelations: 'rel1' has a relation with model Rel1, which has either not been installed or is abstract.
+invalid_models.missingrelations: 'rel2' has an m2m relation with model Rel2, which has either not been installed or is abstract.
 invalid_models.grouptwo: 'primary' has a manually-defined m2m relation through model Membership, which does not have foreign keys to Person and GroupTwo
 invalid_models.grouptwo: 'secondary' has a manually-defined m2m relation through model MembershipMissingFK, which does not have foreign keys to Group and GroupTwo
 invalid_models.missingmanualm2mmodel: 'missing_m2m' specifies an m2m relation through model MissingM2MModel, which has not been installed
@@ -260,4 +273,7 @@ invalid_models.group: Intermediary model RelationshipDoubleFK has more than one 
 invalid_models.personselfrefm2m: Many-to-many fields with intermediate tables cannot be symmetrical.
 invalid_models.personselfrefm2m: Intermediary model RelationshipTripleFK has more than two foreign keys to PersonSelfRefM2M, which is ambiguous and is not permitted.
 invalid_models.personselfrefm2mexplicit: Many-to-many fields with intermediate tables cannot be symmetrical.
+invalid_models.abstractrelationmodel: 'fk1' has a relation with model AbstractModel, which has either not been installed or is abstract.
+invalid_models.abstractrelationmodel: 'fk2' has an m2m relation with model AbstractModel, which has either not been installed or is abstract.
+invalid_models.uniquem2m: ManyToManyFields cannot be unique.  Remove the unique argument on 'unique_people'.
 """

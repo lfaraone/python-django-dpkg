@@ -237,6 +237,8 @@ class AdminViewPermissionsTest(TestCase):
         # Change User should not have access to add articles
         self.client.get('/test_admin/admin/')
         self.client.post('/test_admin/admin/', self.changeuser_login)
+        # make sure the view removes test cookie
+        self.failUnlessEqual(self.client.session.test_cookie_worked(), False)
         request = self.client.get('/test_admin/admin/admin_views/article/add/')
         self.failUnlessEqual(request.status_code, 403)
         # Try POST just to make sure
@@ -266,9 +268,20 @@ class AdminViewPermissionsTest(TestCase):
         self.assertContains(post, 'Please log in again, because your session has expired.')
         self.super_login['post_data'] = _encode_post_data(add_dict)
         post = self.client.post('/test_admin/admin/admin_views/article/add/', self.super_login)
+        # make sure the view removes test cookie
+        self.failUnlessEqual(self.client.session.test_cookie_worked(), False)
         self.assertRedirects(post, '/test_admin/admin/admin_views/article/')
         self.failUnlessEqual(Article.objects.all().count(), 4)
         self.client.get('/test_admin/admin/logout/')
+
+        # 8509 - if a normal user is already logged in, it is possible
+        # to change user into the superuser without error
+        login = self.client.login(username='joepublic', password='secret')
+        # Check and make sure that if user expires, data still persists
+        self.client.get('/test_admin/admin/')
+        self.client.post('/test_admin/admin/', self.super_login)
+        # make sure the view removes test cookie
+        self.failUnlessEqual(self.client.session.test_cookie_worked(), False)
 
     def testChangeView(self):
         """Change view should restrict access and allow users to edit items."""
@@ -500,8 +513,10 @@ class SecureViewTest(TestCase):
         self.failUnlessEqual(request.status_code, 200)
         login = self.client.post('/test_admin/admin/secure-view/', self.super_login)
         self.assertRedirects(login, '/test_admin/admin/secure-view/')
-        self.assertFalse(login.context)
+        self.failIf(login.context)
         self.client.get('/test_admin/admin/logout/')
+        # make sure the view removes test cookie
+        self.failUnlessEqual(self.client.session.test_cookie_worked(), False)
 
         # Test if user enters e-mail address
         request = self.client.get('/test_admin/admin/secure-view/')
@@ -522,7 +537,7 @@ class SecureViewTest(TestCase):
         self.failUnlessEqual(request.status_code, 200)
         login = self.client.post('/test_admin/admin/secure-view/', self.adduser_login)
         self.assertRedirects(login, '/test_admin/admin/secure-view/')
-        self.assertFalse(login.context)
+        self.failIf(login.context)
         self.client.get('/test_admin/admin/logout/')
 
         # Change User
@@ -530,7 +545,7 @@ class SecureViewTest(TestCase):
         self.failUnlessEqual(request.status_code, 200)
         login = self.client.post('/test_admin/admin/secure-view/', self.changeuser_login)
         self.assertRedirects(login, '/test_admin/admin/secure-view/')
-        self.assertFalse(login.context)
+        self.failIf(login.context)
         self.client.get('/test_admin/admin/logout/')
 
         # Delete User
@@ -538,7 +553,7 @@ class SecureViewTest(TestCase):
         self.failUnlessEqual(request.status_code, 200)
         login = self.client.post('/test_admin/admin/secure-view/', self.deleteuser_login)
         self.assertRedirects(login, '/test_admin/admin/secure-view/')
-        self.assertFalse(login.context)
+        self.failIf(login.context)
         self.client.get('/test_admin/admin/logout/')
 
         # Regular User should not be able to login.
@@ -548,3 +563,23 @@ class SecureViewTest(TestCase):
         self.failUnlessEqual(login.status_code, 200)
         # Login.context is a list of context dicts we just need to check the first one.
         self.assert_(login.context[0].get('error_message'))
+
+        # Check and make sure that if user expires, data still persists
+        data = {'foo': 'bar'}
+        post = self.client.post('/test_admin/admin/secure-view/', data)
+        self.assertContains(post, 'Please log in again, because your session has expired.')
+        self.super_login['post_data'] = _encode_post_data(data)
+        post = self.client.post('/test_admin/admin/secure-view/', self.super_login)
+        # make sure the view removes test cookie
+        self.failUnlessEqual(self.client.session.test_cookie_worked(), False)
+        self.assertContains(post, "{'foo': 'bar'}")
+        self.client.get('/test_admin/admin/logout/')
+                
+        # 8509 - if a normal user is already logged in, it is possible
+        # to change user into the superuser without error
+        login = self.client.login(username='joepublic', password='secret')
+        # Check and make sure that if user expires, data still persists
+        self.client.get('/test_admin/admin/secure-view/')
+        self.client.post('/test_admin/admin/secure-view/', self.super_login)
+        # make sure the view removes test cookie
+        self.failUnlessEqual(self.client.session.test_cookie_worked(), False)

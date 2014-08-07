@@ -50,16 +50,16 @@ u'\\\\ : backslashes, too'
 u'Hello world'
 
 >>> escapejs(u'"double quotes" and \'single quotes\'')
-u'\\"double quotes\\" and \\\'single quotes\\\''
+u'\\x22double quotes\\x22 and \\x27single quotes\\x27'
 
 >>> escapejs(ur'\ : backslashes, too')
-u'\\\\ : backslashes, too'
+u'\\x5C : backslashes, too'
 
 >>> escapejs(u'and lots of whitespace: \r\n\t\v\f\b')
-u'and lots of whitespace: \\r\\n\\t\\v\\f\\b'
+u'and lots of whitespace: \\x0D\\x0A\\x09\\x0B\\x0C\\x08'
 
 >>> escapejs(ur'<script>and this</script>')
-u'<script>and this<\\/script>'
+u'\\x3Cscript\\x3Eand this\\x3C/script\\x3E'
 
 >>> fix_ampersands(u'Jack & Jill & Jeroboam')
 u'Jack &amp; Jill &amp; Jeroboam'
@@ -371,6 +371,15 @@ u'12'
 
 # real testing is done in timesince.py, where we can provide our own 'now'
 >>> timesince(datetime.datetime.now() - datetime.timedelta(1))
+u'1 day'
+
+>>> timesince(datetime.datetime(2005, 12, 29), datetime.datetime(2005, 12, 30))
+u'1 day'
+
+>>> timeuntil(datetime.datetime.now() + datetime.timedelta(1))
+u'1 day'
+
+>>> timeuntil(datetime.datetime(2005, 12, 30), datetime.datetime(2005, 12, 29))
 u'1 day'
 
 >>> default(u"val", u"default")

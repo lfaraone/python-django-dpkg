@@ -50,6 +50,11 @@ u'<input type="text" class="fun" value="foo@example.com" name="email" />'
 >>> w.render('email', '', attrs={'class': 'special'})
 u'<input type="text" class="special" name="email" />'
 
+'attrs' can be safe-strings if needed
+>>> w = TextInput(attrs={'onBlur': mark_safe("function('foo')")})
+>>> print w.render('email', '')
+<input onBlur="function('foo')" type="text" name="email" />
+
 # PasswordInput Widget ############################################################
 
 >>> w = PasswordInput()
@@ -1087,4 +1092,26 @@ u'<input type="text" name="date" value="2007-09-17 12:51:34" />'
 u'<input type="text" name="date" value="2007-09-17 12:51:34" />'
 >>> w.render('date', datetime.datetime(2007, 9, 17, 12, 51))
 u'<input type="text" name="date" value="2007-09-17 12:51:00" />'
+
+# TimeInput ###############################################################
+
+>>> w = TimeInput()
+>>> w.render('time', None)
+u'<input type="text" name="time" />'
+>>> t = datetime.time(12, 51, 34, 482548)
+>>> print t
+12:51:34.482548
+
+The microseconds are trimmed on display, by default.
+>>> w.render('time', t)
+u'<input type="text" name="time" value="12:51:34" />'
+>>> w.render('time', datetime.time(12, 51, 34))
+u'<input type="text" name="time" value="12:51:34" />'
+>>> w.render('time', datetime.time(12, 51))
+u'<input type="text" name="time" value="12:51:00" />'
+
+We should be able to initialize from a unicode value.
+>>> w.render('time', u'13:12:11')
+u'<input type="text" name="time" value="13:12:11" />'
 """
+

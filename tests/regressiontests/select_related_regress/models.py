@@ -28,11 +28,51 @@ class Connection(models.Model):
     def __unicode__(self):
         return u"%s to %s" % (self.start, self.end)
 
+# Another non-tree hierarchy that exercises code paths similar to the above
+# example, but in a slightly different configuration.
+class TUser(models.Model):
+    name = models.CharField(max_length=200)
+
+class Person(models.Model):
+    user = models.ForeignKey(TUser, unique=True)
+
+class Organizer(models.Model):
+    person = models.ForeignKey(Person)
+
+class Student(models.Model):
+    person = models.ForeignKey(Person)
+
+class Class(models.Model):
+    org = models.ForeignKey(Organizer)
+
+class Enrollment(models.Model):
+    std = models.ForeignKey(Student)
+    cls = models.ForeignKey(Class)
+
+# Models for testing bug #8036.
+class Country(models.Model):
+    name = models.CharField(max_length=50)
+
+class State(models.Model):
+    name = models.CharField(max_length=50)
+    country = models.ForeignKey(Country)
+
+class ClientStatus(models.Model):
+    name = models.CharField(max_length=50)
+
+class Client(models.Model):
+    name = models.CharField(max_length=50)
+    state = models.ForeignKey(State, null=True)
+    status = models.ForeignKey(ClientStatus)
+
 __test__ = {'API_TESTS': """
 Regression test for bug #7110. When using select_related(), we must query the
 Device and Building tables using two different aliases (each) in order to
 differentiate the start and end Connection fields. The net result is that both
-the "connections = ..." queries here should give the same results.
+the "connections = ..." queries here should give the same results without
+pulling in more than the absolute minimum number of tables (history has
+shown that it's easy to make a mistake in the implementation and include some
+unnecessary bonus joins).
 
 >>> b=Building.objects.create(name='101')
 >>> dev1=Device.objects.create(name="router", building=b)
@@ -57,4 +97,47 @@ the "connections = ..." queries here should give the same results.
 >>> connections.query.count_active_tables()
 7
 
+Regression test for bug #8106. Same sort of problem as the previous test, but
+this time there are more extra tables to pull in as part of the
+select_related() and some of them could potentially clash (so need to be kept
+separate).
+
+>>> us = TUser.objects.create(name="std")
+>>> usp = Person.objects.create(user=us)
+>>> uo = TUser.objects.create(name="org")
+>>> uop = Person.objects.create(user=uo)
+>>> s = Student.objects.create(person = usp)
+>>> o = Organizer.objects.create(person = uop)
+>>> c = Class.objects.create(org=o)
+>>> e = Enrollment.objects.create(std=s, cls=c)
+
+>>> e_related = Enrollment.objects.all().select_related()[0]
+>>> e_related.std.person.user.name
+u"std"
+>>> e_related.cls.org.person.user.name
+u"org"
+
+Regression test for bug #8036: the first related model in the tests below
+("state") is empty and we try to select the more remotely related
+state__country. The regression here was not skipping the empty column results
+for country before getting status.
+
+>>> australia = Country.objects.create(name='Australia')
+>>> active = ClientStatus.objects.create(name='active')
+>>> client = Client.objects.create(name='client', status=active)
+
+>>> client.status
+<ClientStatus: ClientStatus object>
+>>> Client.objects.select_related()[0].status
+<ClientStatus: ClientStatus object>
+>>> Client.objects.select_related('state')[0].status
+<ClientStatus: ClientStatus object>
+>>> Client.objects.select_related('state', 'status')[0].status
+<ClientStatus: ClientStatus object>
+>>> Client.objects.select_related('state__country')[0].status
+<ClientStatus: ClientStatus object>
+>>> Client.objects.select_related('state__country', 'status')[0].status
+<ClientStatus: ClientStatus object>
+>>> Client.objects.select_related('status')[0].status
+<ClientStatus: ClientStatus object>
 """}
