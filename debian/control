@@ -10,8 +10,8 @@ Standards-Version: 3.9.5
 Build-Depends: debhelper (>= 9), dh-python, python-all (>= 2.6.6-3~), python3-all, python-sphinx (>= 1.0.8), locales (>= 0)
 Build-Depends-Indep: libjs-jquery
 Homepage: http://www.djangoproject.com/
-Vcs-Svn: svn://anonscm.debian.org/python-modules/packages/python-django/trunk/
-Vcs-Browser: http://anonscm.debian.org/viewvc/python-modules/packages/python-django/trunk/
+Vcs-Git: git://anonscm.debian.org/python-modules/packages/python-django.git
+Vcs-Browser: http://anonscm.debian.org/cgit/python-modules/packages/python-django.git
 
 Package: python-django
 Architecture: all

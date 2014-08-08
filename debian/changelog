@@ -3,6 +3,9 @@ python-django (1.6.5-4) unstable; urgency=medium
   [ Brian May ]
   * Don't output stuff to stdout in django-admin. Closes: #757145
 
+  [ Raphaël Hertzog ]
+  * Update Vcs-* fields since the packaging repository moved to git.
+
  -- Raphaël Hertzog <hertzog@debian.org>  Fri, 08 Aug 2014 13:53:27 +0200
 
 python-django (1.6.5-3) unstable; urgency=low
