@@ -17,11 +17,9 @@ accepted by some browsers with more liberal URL parsing.
 To remedy this, the validation in ``is_safe_url()`` has been tightened
 to be able to handle and correctly validate these malformed URLs.
 
-diff --git a/django/contrib/auth/tests/views.py b/django/contrib/auth/tests/views.py
-index 6d7029b..2b72cd4 100644
 --- a/django/contrib/auth/tests/views.py
 +++ b/django/contrib/auth/tests/views.py
-@@ -307,8 +307,10 @@ class LoginTest(AuthViewsTestCase):
+@@ -307,8 +307,10 @@
  
          # Those URLs should not pass the security check
          for bad_url in ('http://example.com',
@@ -32,7 +30,7 @@ index 6d7029b..2b72cd4 100644
                          '//example.com',
                          'javascript:alert("XSS")'):
  
-@@ -330,8 +332,8 @@ class LoginTest(AuthViewsTestCase):
+@@ -330,8 +332,8 @@
                           '/view/?param=https://example.com',
                           '/view?param=ftp://exampel.com',
                           'view/?param=//example.com',
@@ -43,7 +41,7 @@ index 6d7029b..2b72cd4 100644
                           '//testserver/',
                           '/url%20with%20spaces/'):  # see ticket #12534
              safe_url = '%(url)s?%(next)s=%(good_url)s' % {
-@@ -467,8 +469,10 @@ class LogoutTest(AuthViewsTestCase):
+@@ -467,8 +469,10 @@
  
          # Those URLs should not pass the security check
          for bad_url in ('http://example.com',
@@ -54,7 +52,7 @@ index 6d7029b..2b72cd4 100644
                          '//example.com',
                          'javascript:alert("XSS")'):
              nasty_url = '%(url)s?%(next)s=%(bad_url)s' % {
-@@ -488,8 +492,8 @@ class LogoutTest(AuthViewsTestCase):
+@@ -488,8 +492,8 @@
                           '/view/?param=https://example.com',
                           '/view?param=ftp://exampel.com',
                           'view/?param=//example.com',
@@ -65,11 +63,9 @@ index 6d7029b..2b72cd4 100644
                           '//testserver/',
                           '/url%20with%20spaces/'):  # see ticket #12534
              safe_url = '%(url)s?%(next)s=%(good_url)s' % {
-diff --git a/django/utils/http.py b/django/utils/http.py
-index 21c84dc..2d40489 100644
 --- a/django/utils/http.py
 +++ b/django/utils/http.py
-@@ -234,6 +234,18 @@ def is_safe_url(url, host=None):
+@@ -234,6 +234,18 @@
      """
      if not url:
          return False
@@ -88,11 +84,9 @@ index 21c84dc..2d40489 100644
 +        return False
      return (not url_info[1] or url_info[1] == host) and \
          (not url_info[0] or url_info[0] in ['http', 'https'])
-diff --git a/tests/regressiontests/utils/http.py b/tests/regressiontests/utils/http.py
-index 16c7daa..c50524e 100644
 --- a/tests/regressiontests/utils/http.py
 +++ b/tests/regressiontests/utils/http.py
-@@ -122,3 +122,33 @@ class TestUtilsHttp(unittest.TestCase):
+@@ -122,3 +122,33 @@
          for n, b36 in [(0, '0'), (1, '1'), (42, '16'), (818469960, 'django')]:
              self.assertEqual(http.int_to_base36(n), b36)
              self.assertEqual(http.base36_to_int(b36), n)

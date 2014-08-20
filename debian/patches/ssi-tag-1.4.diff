@@ -24,8 +24,6 @@ To remedy this, the ``ssi`` tag will now use Python's
 whether it is actually located within a directory permitted by
 ``ALLOWED_INCLUDE_ROOTS``.
 
-diff --git a/django/template/defaulttags.py b/django/template/defaulttags.py
-index 954c5d6..f977901 100644
 --- a/django/template/defaulttags.py
 +++ b/django/template/defaulttags.py
 @@ -1,5 +1,6 @@
@@ -35,7 +33,7 @@ index 954c5d6..f977901 100644
  import sys
  import re
  from datetime import datetime
-@@ -309,6 +310,7 @@ def render(self, context):
+@@ -309,6 +310,7 @@
          return ''
  
  def include_is_allowed(filepath):
@@ -43,11 +41,9 @@ index 954c5d6..f977901 100644
      for root in settings.ALLOWED_INCLUDE_ROOTS:
          if filepath.startswith(root):
              return True
-diff --git a/tests/regressiontests/templates/tests.py b/tests/regressiontests/templates/tests.py
-index f74aa75..07bc384 100644
 --- a/tests/regressiontests/templates/tests.py
 +++ b/tests/regressiontests/templates/tests.py
-@@ -1764,3 +1764,34 @@ def test_include_only(self):
+@@ -1764,3 +1764,34 @@
              template.Template('{% include "child" only %}').render(ctx),
              'none'
          )

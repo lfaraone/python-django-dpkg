@@ -1,3 +1,13 @@
+python-django (1.4.5-1+deb7u8) wheezy-security; urgency=high
+
+  * New upstream security release.
+    - reverse() can generate URLs pointing to other hosts (CVE-2014-0480)                                                                                                                                          
+    - file upload denial of service (CVE-2014-0481)                                                                                                                                                                
+    - RemoteUserMiddleware session hijacking (CVE-2014-0482)                                                                                                                                                       
+    - data leakage via querystring manipulation in admin (CVE-2014-0483)   
+
+ -- Luke Faraone <lfaraone@debian.org>  Wed, 20 Aug 2014 01:46:17 -0700
+
 python-django (1.4.5-1+deb7u7) stable-security; urgency=high
 
   * New upstream security release.

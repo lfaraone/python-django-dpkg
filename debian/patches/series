@@ -13,3 +13,7 @@ mysql-typecast-1.4.x.diff
 is_safe_url_1_4.diff
 drop_fix_ie_for_vary_1_4.diff
 FTBFS-exception-in-servers-tests-tear-down.patch
+admin-data-leak-1.4.diff
+file-upload-1.4.diff
+remote-user-1.4.diff
+reverse-1.4.diff

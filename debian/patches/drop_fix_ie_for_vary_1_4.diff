@@ -22,11 +22,9 @@ longer stripped from the response. In addition, modifications to the
 ``Content-Disposition`` header, have also been removed as they were
 found to have similar issues.
 
-diff --git a/django/core/handlers/base.py b/django/core/handlers/base.py
-index a0918bf..99f81a6 100644
 --- a/django/core/handlers/base.py
 +++ b/django/core/handlers/base.py
-@@ -14,8 +14,6 @@ class BaseHandler(object):
+@@ -14,8 +14,6 @@
      response_fixes = [
          http.fix_location_header,
          http.conditional_content_removal,
@@ -35,11 +33,9 @@ index a0918bf..99f81a6 100644
      ]
  
      def __init__(self):
-diff --git a/django/http/utils.py b/django/http/utils.py
-index 0180864..f98ca93 100644
 --- a/django/http/utils.py
 +++ b/django/http/utils.py
-@@ -31,57 +31,3 @@ def conditional_content_removal(request, response):
+@@ -31,57 +31,3 @@
      if request.method == 'HEAD':
          response.content = ''
      return response
@@ -97,11 +93,9 @@ index 0180864..f98ca93 100644
 -
 -    return response
 -
-diff --git a/tests/regressiontests/utils/http.py b/tests/regressiontests/utils/http.py
-index 16c7daa..9e05a94 100644
 --- a/tests/regressiontests/utils/http.py
 +++ b/tests/regressiontests/utils/http.py
-@@ -56,50 +56,6 @@ class TestUtilsHttp(unittest.TestCase):
+@@ -56,50 +56,6 @@
          ]
          self.assertTrue(result in acceptable_results)
  
