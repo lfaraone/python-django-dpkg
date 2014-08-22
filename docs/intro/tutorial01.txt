@@ -480,6 +480,7 @@ readability):
 
 .. code-block:: sql
 
+    BEGIN;
     CREATE TABLE polls_question (
         "id" serial NOT NULL PRIMARY KEY,
         "question_text" varchar(200) NOT NULL,
@@ -500,6 +501,7 @@ readability):
         FOREIGN KEY ("question_id")
         REFERENCES "polls_question" ("id")
         DEFERRABLE INITIALLY DEFERRED;
+    COMMIT;
 
 
 Note the following:
@@ -704,8 +706,11 @@ demonstration:
     :filename: polls/models.py
 
     import datetime
+
+    from django.db import models
     from django.utils import timezone
-    # ...
+
+
     class Question(models.Model):
         # ...
         def was_published_recently(self):

@@ -27,7 +27,7 @@ Specifying widgets
 Whenever you specify a field on a form, Django will use a default widget
 that is appropriate to the type of data that is to be displayed. To find
 which widget is used on which field, see the documentation about
-:ref:`built-in fields`.
+:ref:`built-in-fields`.
 
 However, if you want to use a different widget for a field, you can
 just use the :attr:`~Field.widget` argument on the field definition. For
@@ -562,7 +562,7 @@ Selector and checkbox widgets
     .. code-block:: html
 
         <ul>
-          <li><input type='radio' ...></li>
+          <li><input type='radio' name='...'></li>
           ...
         </ul>
 
@@ -658,7 +658,7 @@ the widget.
     .. code-block:: html
 
         <ul>
-          <li><input type='checkbox' ...></li>
+          <li><input type='checkbox' name='...' ></li>
           ...
         </ul>
 

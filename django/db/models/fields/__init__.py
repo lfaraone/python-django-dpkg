@@ -730,9 +730,10 @@ class Field(RegisterLookupMixin):
         """Returns choices with a default blank choices included, for use
         as SelectField choices for this field."""
         blank_defined = False
-        named_groups = self.choices and isinstance(self.choices[0][1], (list, tuple))
+        choices = list(self.choices) if self.choices else []
+        named_groups = choices and isinstance(choices[0][1], (list, tuple))
         if not named_groups:
-            for choice, __ in self.choices:
+            for choice, __ in choices:
                 if choice in ('', None):
                     blank_defined = True
                     break
@@ -740,7 +741,7 @@ class Field(RegisterLookupMixin):
         first_choice = (blank_choice if include_blank and
                         not blank_defined else [])
         if self.choices:
-            return first_choice + list(self.choices)
+            return first_choice + choices
         rel_model = self.rel.to
         if hasattr(self.rel, 'get_related_field'):
             lst = [(getattr(x, self.rel.get_related_field().attname),
@@ -1915,6 +1916,9 @@ class TimeField(Field):
             kwargs["auto_now"] = self.auto_now
         if self.auto_now_add is not False:
             kwargs["auto_now_add"] = self.auto_now_add
+        if self.auto_now or self.auto_now_add:
+            del kwargs['blank']
+            del kwargs['editable']
         return name, path, args, kwargs
 
     def get_internal_type(self):
@@ -2009,6 +2013,11 @@ class BinaryField(Field):
         super(BinaryField, self).__init__(*args, **kwargs)
         if self.max_length is not None:
             self.validators.append(validators.MaxLengthValidator(self.max_length))
+
+    def deconstruct(self):
+        name, path, args, kwargs = super(BinaryField, self).deconstruct()
+        del kwargs['editable']
+        return name, path, args, kwargs
 
     def get_internal_type(self):
         return "BinaryField"

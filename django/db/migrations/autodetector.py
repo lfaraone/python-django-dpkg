@@ -10,6 +10,7 @@ from django.db.migrations import operations
 from django.db.migrations.migration import Migration
 from django.db.migrations.questioner import MigrationQuestioner
 from django.db.migrations.optimizer import MigrationOptimizer
+from django.db.migrations.operations.models import AlterModelOptions
 
 
 class MigrationAutodetector(object):
@@ -24,17 +25,6 @@ class MigrationAutodetector(object):
     depends on first). A user interface may offer single-app usage
     if it wishes, with the caveat that it may not always be possible.
     """
-
-    # Model options we want to compare and preserve in an AlterModelOptions op
-    ALTER_OPTION_KEYS = [
-        "get_latest_by",
-        "ordering",
-        "permissions",
-        "default_permissions",
-        "select_on_save",
-        "verbose_name",
-        "verbose_name_plural",
-    ]
 
     def __init__(self, from_state, to_state, questioner=None):
         self.from_state = from_state
@@ -118,11 +108,15 @@ class MigrationAutodetector(object):
         self.new_apps = self.to_state.render()
         self.old_model_keys = []
         self.old_proxy_keys = []
+        self.old_unmanaged_keys = []
         self.new_model_keys = []
         self.new_proxy_keys = []
+        self.new_unmanaged_keys = []
         for al, mn in sorted(self.from_state.models.keys()):
             model = self.old_apps.get_model(al, mn)
-            if model._meta.managed and al not in self.from_state.real_apps:
+            if not model._meta.managed:
+                self.old_unmanaged_keys.append((al, mn))
+            elif al not in self.from_state.real_apps:
                 if model._meta.proxy:
                     self.old_proxy_keys.append((al, mn))
                 else:
@@ -130,7 +124,9 @@ class MigrationAutodetector(object):
 
         for al, mn in sorted(self.to_state.models.keys()):
             model = self.new_apps.get_model(al, mn)
-            if model._meta.managed and (
+            if not model._meta.managed:
+                self.new_unmanaged_keys.append((al, mn))
+            elif (
                 al not in self.from_state.real_apps or
                 (convert_apps and al in convert_apps)
             ):
@@ -146,6 +142,8 @@ class MigrationAutodetector(object):
         # through models in the old state so we can make dependencies
         # from the through model deletion to the field that uses it.
         self.kept_model_keys = set(self.old_model_keys).intersection(self.new_model_keys)
+        self.kept_proxy_keys = set(self.old_proxy_keys).intersection(self.new_proxy_keys)
+        self.kept_unmanaged_keys = set(self.old_unmanaged_keys).intersection(self.new_unmanaged_keys)
         self.through_users = {}
         self.old_field_keys = set()
         self.new_field_keys = set()
@@ -170,15 +168,18 @@ class MigrationAutodetector(object):
                     self.through_users[through_key] = (app_label, old_model_name, field_name)
 
         # Generate non-rename model operations
-        self.generate_created_models()
         self.generate_deleted_models()
-        self.generate_created_proxies()
+        self.generate_created_models()
         self.generate_deleted_proxies()
+        self.generate_created_proxies()
+        self.generate_deleted_unmanaged()
+        self.generate_created_unmanaged()
         self.generate_altered_options()
 
         # Generate field operations
-        self.generate_added_fields()
+        self.generate_renamed_fields()
         self.generate_removed_fields()
+        self.generate_added_fields()
         self.generate_altered_fields()
         self.generate_altered_unique_together()
         self.generate_altered_index_together()
@@ -236,9 +237,17 @@ class MigrationAutodetector(object):
                     deps_satisfied = True
                     operation_dependencies = set()
                     for dep in operation._auto_deps:
+                        is_swappable_dep = False
                         if dep[0] == "__setting__":
-                            operation_dependencies.add((dep[0], dep[1]))
-                        elif dep[0] != app_label:
+                            # We need to temporarily resolve the swappable dependency to prevent
+                            # circular references. While keeping the dependency checks on the
+                            # resolved model we still add the swappable dependencies.
+                            # See #23322
+                            resolved_app_label, resolved_object_name = getattr(settings, dep[1]).split('.')
+                            original_dep = dep
+                            dep = (resolved_app_label, resolved_object_name.lower(), dep[2], dep[3])
+                            is_swappable_dep = True
+                        if dep[0] != app_label and dep[0] != "__setting__":
                             # External app dependency. See if it's not yet
                             # satisfied.
                             for other_operation in self.generated_operations.get(dep[0], []):
@@ -248,7 +257,9 @@ class MigrationAutodetector(object):
                             if not deps_satisfied:
                                 break
                             else:
-                                if self.migrations.get(dep[0], None):
+                                if is_swappable_dep:
+                                    operation_dependencies.add((original_dep[0], original_dep[1]))
+                                elif dep[0] in self.migrations:
                                     operation_dependencies.add((dep[0], self.migrations[dep[0]][-1].name))
                                 else:
                                     # If we can't find the other app, we add a first/last dependency,
@@ -285,7 +296,7 @@ class MigrationAutodetector(object):
                 if not chop_mode:
                     chop_mode = True
                 else:
-                    raise ValueError("Cannot resolve operation dependencies")
+                    raise ValueError("Cannot resolve operation dependencies: %r" % self.generated_operations)
             num_ops = new_num_ops
 
         # OK, add in internal dependencies among the migrations
@@ -360,10 +371,13 @@ class MigrationAutodetector(object):
         else:
             raise ValueError("Can't handle dependency %r" % (dependency, ))
 
-    def add_operation(self, app_label, operation, dependencies=None):
+    def add_operation(self, app_label, operation, dependencies=None, beginning=False):
         # Dependencies are (app_label, model_name, field_name, create/delete as True/False)
         operation._auto_deps = dependencies or []
-        self.generated_operations.setdefault(app_label, []).append(operation)
+        if beginning:
+            self.generated_operations.setdefault(app_label, []).insert(0, operation)
+        else:
+            self.generated_operations.setdefault(app_label, []).append(operation)
 
     def swappable_first_key(self, item):
         """
@@ -428,7 +442,7 @@ class MigrationAutodetector(object):
         that might be deferred (e.g. unique_together, index_together)
         """
         added_models = set(self.new_model_keys) - set(self.old_model_keys)
-        for app_label, model_name in sorted(added_models, key=self.swappable_first_key):
+        for app_label, model_name in sorted(added_models, key=self.swappable_first_key, reverse=True):
             model_state = self.to_state.models[app_label, model_name]
             # Gather related fields
             related_fields = {}
@@ -480,6 +494,7 @@ class MigrationAutodetector(object):
                     bases=model_state.bases,
                 ),
                 dependencies=dependencies,
+                beginning=True,
             )
             # Generate operations for each related field
             for name, field in sorted(related_fields.items()):
@@ -548,17 +563,23 @@ class MigrationAutodetector(object):
                     ]
                 )
 
-    def generate_created_proxies(self):
+    def generate_created_proxies(self, unmanaged=False):
         """
         Makes CreateModel statements for proxy models.
         We use the same statements as that way there's less code duplication,
         but of course for proxy models we can skip all that pointless field
         stuff and just chuck out an operation.
         """
-        added_proxies = set(self.new_proxy_keys) - set(self.old_proxy_keys)
-        for app_label, model_name in sorted(added_proxies):
+        if unmanaged:
+            added = set(self.new_unmanaged_keys) - set(self.old_unmanaged_keys)
+        else:
+            added = set(self.new_proxy_keys) - set(self.old_proxy_keys)
+        for app_label, model_name in sorted(added):
             model_state = self.to_state.models[app_label, model_name]
-            assert model_state.options.get("proxy", False)
+            if unmanaged:
+                assert not model_state.options.get("managed", True)
+            else:
+                assert model_state.options.get("proxy", False)
             # Depend on the deletion of any possible non-proxy version of us
             dependencies = [
                 (app_label, model_name, None, False),
@@ -580,6 +601,15 @@ class MigrationAutodetector(object):
                 # Depend on the deletion of any possible non-proxy version of us
                 dependencies=dependencies,
             )
+
+    def generate_created_unmanaged(self):
+        """
+        Similar to generate_created_proxies but for unmanaged
+        (they are similar to us in that we need to supply them, but they don't
+        affect the DB)
+        """
+        # Just re-use the same code in *_proxies
+        self.generate_created_proxies(unmanaged=True)
 
     def generate_deleted_models(self):
         """
@@ -677,14 +707,20 @@ class MigrationAutodetector(object):
                 dependencies=list(set(dependencies)),
             )
 
-    def generate_deleted_proxies(self):
+    def generate_deleted_proxies(self, unmanaged=False):
         """
         Makes DeleteModel statements for proxy models.
         """
-        deleted_proxies = set(self.old_proxy_keys) - set(self.new_proxy_keys)
-        for app_label, model_name in sorted(deleted_proxies):
+        if unmanaged:
+            deleted = set(self.old_unmanaged_keys) - set(self.new_unmanaged_keys)
+        else:
+            deleted = set(self.old_proxy_keys) - set(self.new_proxy_keys)
+        for app_label, model_name in sorted(deleted):
             model_state = self.from_state.models[app_label, model_name]
-            assert model_state.options.get("proxy", False)
+            if unmanaged:
+                assert not model_state.options.get("managed", True)
+            else:
+                assert model_state.options.get("proxy", False)
             self.add_operation(
                 app_label,
                 operations.DeleteModel(
@@ -692,17 +728,23 @@ class MigrationAutodetector(object):
                 ),
             )
 
-    def generate_added_fields(self):
-        # New fields
+    def generate_deleted_unmanaged(self):
+        """
+        Makes DeleteModel statements for unmanaged models
+        """
+        self.generate_deleted_proxies(unmanaged=True)
+
+    def generate_renamed_fields(self):
+        """
+        Works out renamed fields
+        """
         self.renamed_fields = {}
         for app_label, model_name, field_name in sorted(self.new_field_keys - self.old_field_keys):
             old_model_name = self.renamed_models.get((app_label, model_name), model_name)
             old_model_state = self.from_state.models[app_label, old_model_name]
-            new_model_state = self.to_state.models[app_label, model_name]
-            field = new_model_state.get_field_by_name(field_name)
+            field = self.new_apps.get_model(app_label, model_name)._meta.get_field_by_name(field_name)[0]
             # Scan to see if this is actually a rename!
             field_dec = self.deep_deconstruct(field)
-            found_rename = False
             for rem_app_label, rem_model_name, rem_field_name in sorted(self.old_field_keys - self.new_field_keys):
                 if rem_app_label == app_label and rem_model_name == model_name:
                     old_field_dec = self.deep_deconstruct(old_model_state.get_field_by_name(rem_field_name))
@@ -723,10 +765,33 @@ class MigrationAutodetector(object):
                             self.old_field_keys.remove((rem_app_label, rem_model_name, rem_field_name))
                             self.old_field_keys.add((app_label, model_name, field_name))
                             self.renamed_fields[app_label, model_name, field_name] = rem_field_name
-                            found_rename = True
                             break
-            if found_rename:
-                continue
+
+    def generate_added_fields(self):
+        """
+        Fields that have been added
+        """
+        for app_label, model_name, field_name in sorted(self.new_field_keys - self.old_field_keys):
+            field = self.new_apps.get_model(app_label, model_name)._meta.get_field_by_name(field_name)[0]
+            # Fields that are foreignkeys/m2ms depend on stuff
+            dependencies = []
+            if field.rel and field.rel.to:
+                # Account for FKs to swappable models
+                swappable_setting = getattr(field, 'swappable_setting', None)
+                if swappable_setting is not None:
+                    dep_app_label = "__setting__"
+                    dep_object_name = swappable_setting
+                else:
+                    dep_app_label = field.rel.to._meta.app_label
+                    dep_object_name = field.rel.to._meta.object_name
+                dependencies = [(dep_app_label, dep_object_name, None, True)]
+                if getattr(field.rel, "through", None) and not field.rel.through._meta.auto_created:
+                    dependencies.append((
+                        field.rel.through._meta.app_label,
+                        field.rel.through._meta.object_name,
+                        None,
+                        True
+                    ))
             # You can't just add NOT NULL fields with no default
             if not field.null and not field.has_default() and not isinstance(field, models.ManyToManyField):
                 field = field.clone()
@@ -738,7 +803,8 @@ class MigrationAutodetector(object):
                         name=field_name,
                         field=field,
                         preserve_default=False,
-                    )
+                    ),
+                    dependencies=dependencies,
                 )
             else:
                 self.add_operation(
@@ -747,7 +813,8 @@ class MigrationAutodetector(object):
                         model_name=model_name,
                         name=field_name,
                         field=field,
-                    )
+                    ),
+                    dependencies=dependencies,
                 )
 
     def generate_removed_fields(self):
@@ -836,18 +903,18 @@ class MigrationAutodetector(object):
         makes an operation to represent them in state changes (in case Python
         code in migrations needs them)
         """
-        models_to_check = self.kept_model_keys.union(set(self.new_proxy_keys).intersection(self.old_proxy_keys))
+        models_to_check = self.kept_model_keys.union(self.kept_proxy_keys).union(self.kept_unmanaged_keys)
         for app_label, model_name in sorted(models_to_check):
             old_model_name = self.renamed_models.get((app_label, model_name), model_name)
             old_model_state = self.from_state.models[app_label, old_model_name]
             new_model_state = self.to_state.models[app_label, model_name]
             old_options = dict(
                 option for option in old_model_state.options.items()
-                if option[0] in self.ALTER_OPTION_KEYS
+                if option[0] in AlterModelOptions.ALTER_OPTION_KEYS
             )
             new_options = dict(
                 option for option in new_model_state.options.items()
-                if option[0] in self.ALTER_OPTION_KEYS
+                if option[0] in AlterModelOptions.ALTER_OPTION_KEYS
             )
             if old_options != new_options:
                 self.add_operation(
