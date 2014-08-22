@@ -12,6 +12,7 @@ except ImproperlyConfigured:
 from django.core.files.storage import FileSystemStorage
 from django.db import models
 from django.db.models.fields.files import ImageFieldFile, ImageField
+from django.utils import six
 
 
 class Foo(models.Model):
@@ -43,6 +44,29 @@ class Whiz(models.Model):
         (0, 'Other'),
     )
     c = models.IntegerField(choices=CHOICES, null=True)
+
+
+class Counter(six.Iterator):
+    def __init__(self):
+        self.n = 1
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self.n > 5:
+            raise StopIteration
+        else:
+            self.n += 1
+            return (self.n, 'val-' + str(self.n))
+
+
+class WhizIter(models.Model):
+    c = models.IntegerField(choices=Counter(), null=True)
+
+
+class WhizIterEmpty(models.Model):
+    c = models.CharField(choices=(x for x in []), blank=True, max_length=1)
 
 
 class BigD(models.Model):

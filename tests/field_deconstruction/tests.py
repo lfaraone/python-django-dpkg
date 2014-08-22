@@ -203,6 +203,12 @@ class FieldDeconstructionTests(TestCase):
         self.assertEqual(path, "django.db.models.ForeignKey")
         self.assertEqual(args, [])
         self.assertEqual(kwargs, {"to": "auth.Permission", "to_field": "foobar"})
+        # Test related_name preservation
+        field = models.ForeignKey("auth.Permission", related_name="foobar")
+        name, path, args, kwargs = field.deconstruct()
+        self.assertEqual(path, "django.db.models.ForeignKey")
+        self.assertEqual(args, [])
+        self.assertEqual(kwargs, {"to": "auth.Permission", "related_name": "foobar"})
 
     @override_settings(AUTH_USER_MODEL="auth.Permission")
     def test_foreign_key_swapped(self):
@@ -277,6 +283,12 @@ class FieldDeconstructionTests(TestCase):
         self.assertEqual(path, "django.db.models.ManyToManyField")
         self.assertEqual(args, [])
         self.assertEqual(kwargs, {"to": "auth.Permission", "db_table": "custom_table"})
+        # Test related_name
+        field = models.ManyToManyField("auth.Permission", related_name="custom_table")
+        name, path, args, kwargs = field.deconstruct()
+        self.assertEqual(path, "django.db.models.ManyToManyField")
+        self.assertEqual(args, [])
+        self.assertEqual(kwargs, {"to": "auth.Permission", "related_name": "custom_table"})
 
     @override_settings(AUTH_USER_MODEL="auth.Permission")
     def test_many_to_many_field_swapped(self):
@@ -336,6 +348,23 @@ class FieldDeconstructionTests(TestCase):
         self.assertEqual(args, [])
         self.assertEqual(kwargs, {})
 
+    def test_time_field(self):
+        field = models.TimeField()
+        name, path, args, kwargs = field.deconstruct()
+        self.assertEqual(path, "django.db.models.TimeField")
+        self.assertEqual(args, [])
+        self.assertEqual(kwargs, {})
+
+        field = models.TimeField(auto_now=True)
+        name, path, args, kwargs = field.deconstruct()
+        self.assertEqual(args, [])
+        self.assertEqual(kwargs, {'auto_now': True})
+
+        field = models.TimeField(auto_now_add=True)
+        name, path, args, kwargs = field.deconstruct()
+        self.assertEqual(args, [])
+        self.assertEqual(kwargs, {'auto_now_add': True})
+
     def test_url_field(self):
         field = models.URLField()
         name, path, args, kwargs = field.deconstruct()
@@ -347,3 +376,10 @@ class FieldDeconstructionTests(TestCase):
         self.assertEqual(path, "django.db.models.URLField")
         self.assertEqual(args, [])
         self.assertEqual(kwargs, {"max_length": 231})
+
+    def test_binary_field(self):
+        field = models.BinaryField()
+        name, path, args, kwargs = field.deconstruct()
+        self.assertEqual(path, "django.db.models.BinaryField")
+        self.assertEqual(args, [])
+        self.assertEqual(kwargs, {})
