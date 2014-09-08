@@ -1,0 +1,15 @@
+python-django (1.7-1) unstable; urgency=medium
+
+  Django 1.7 has a new feature to handle database schema upgrade called
+  "migrations" which is incompatible with South (provided by
+  python-django-south in Debian). If you have Django applications using
+  South, make sure that you have applied all migrations prior to the
+  upgrade (alternatively you can use a virtualenv running Django 1.6
+  to run those migrations after the upgrade).
+
+  Django 1.7 comes with many new features and some backwards incompatible
+  changes. They are well documented in the Django documentation:
+  https://docs.djangoproject.com/en/1.7/releases/1.7/
+  https://docs.djangoproject.com/en/1.7/internals/deprecation/#deprecation-removed-in-1-7
+
+ -- Raphaël Hertzog <hertzog@debian.org>  Mon, 08 Sep 2014 10:20:37 +0200

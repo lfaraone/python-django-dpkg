@@ -1,3 +1,10 @@
+python-django (1.7-1) experimental; urgency=medium
+
+  * New major upstream release.
+  * Add a NEWS file to document the incompatibility with South.
+
+ -- Raphaël Hertzog <hertzog@debian.org>  Mon, 08 Sep 2014 10:19:12 +0200
+
 python-django (1.7~c3-1) experimental; urgency=medium
 
   * New upstream release candidate with security fixes:
