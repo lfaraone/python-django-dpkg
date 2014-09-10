@@ -23,6 +23,7 @@ Build-Depends-Indep: libjs-jquery
 Homepage: http://www.djangoproject.com/
 Vcs-Git: git://anonscm.debian.org/python-modules/packages/python-django.git
 Vcs-Browser: http://anonscm.debian.org/cgit/python-modules/packages/python-django.git
+X-Python-Version: >= 2.7
 
 Package: python-django
 Architecture: all
