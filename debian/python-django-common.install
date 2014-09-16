@@ -1,2 +1,3 @@
 debian/django-admin usr/bin/
+debian/django-migrate-south usr/bin/
 extras/django_bash_completion etc/bash_completion.d/
