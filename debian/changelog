@@ -1,3 +1,11 @@
+python-django (1.7-2) unstable; urgency=medium
+
+  * Release to unstable.
+  * Add a migrate-south sample script to help users apply their South
+    migrations. Thanks to Brian May.
+
+ -- Raphaël Hertzog <hertzog@debian.org>  Wed, 17 Sep 2014 14:15:11 +0200
+
 python-django (1.7-1) experimental; urgency=medium
 
   * New major upstream release.

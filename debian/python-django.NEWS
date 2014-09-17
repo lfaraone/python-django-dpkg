@@ -12,7 +12,7 @@ python-django (1.7-1) unstable; urgency=medium
   installing Django 1.6 and south into a virtualenv and running the migrations.
 
   apt-get install virtualenv
-  django-migrate-south --settings app.settings
+  sh /usr/share/doc/python-django/examples/migrate-south --settings app.settings
 
   Replace app.settings with the settings module your app uses.
 
