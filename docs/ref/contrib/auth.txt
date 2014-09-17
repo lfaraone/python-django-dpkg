@@ -130,8 +130,6 @@ Methods
 
     .. method:: get_short_name()
 
-        .. versionadded:: 1.5
-
         Returns the :attr:`~django.contrib.auth.models.User.first_name`.
 
     .. method:: set_password(raw_password)
@@ -221,24 +219,15 @@ Methods
         (the Django app label). If the user is inactive, this method will
         always return ``False``.
 
-    .. method:: email_user(subject, message, from_email=None)
+    .. method:: email_user(subject, message, from_email=None, **kwargs)
 
         Sends an email to the user. If ``from_email`` is ``None``, Django uses
         the :setting:`DEFAULT_FROM_EMAIL`.
 
-    .. method:: get_profile()
+        .. versionchanged:: 1.7
 
-        .. deprecated:: 1.5
-            With the introduction of :ref:`custom User models <auth-custom-user>`,
-            the use of :setting:`AUTH_PROFILE_MODULE` to define a single profile
-            model is no longer supported. See the
-            :doc:`Django 1.5 release notes</releases/1.5>` for more information.
-
-        Returns a site-specific profile for this user. Raises
-        ``django.contrib.auth.models.SiteProfileNotAvailable`` if the
-        current site doesn't allow profiles, or
-        :exc:`django.core.exceptions.ObjectDoesNotExist` if the user does not
-        have a profile.
+            Any ``**kwargs`` are passed to the underlying
+            :meth:`~django.core.mail.send_mail()` call.
 
 Manager methods
 ---------------
@@ -301,8 +290,7 @@ Anonymous users
     * :meth:`~django.contrib.auth.models.User.set_password()`,
       :meth:`~django.contrib.auth.models.User.check_password()`,
       :meth:`~django.db.models.Model.save` and
-      :meth:`~django.db.models.Model.delete()` raise
-      :exc:`~exceptions.NotImplementedError`.
+      :meth:`~django.db.models.Model.delete()` raise :exc:`NotImplementedError`.
 
 In practice, you probably won't need to use
 :class:`~django.contrib.auth.models.AnonymousUser` objects on your own, but
@@ -407,8 +395,6 @@ can be used for notification when a user logs in or out.
         user was not authenticated.
 
 .. function:: user_login_failed
-
-    .. versionadded:: 1.5
 
     Sent when the user failed to login successfully
 

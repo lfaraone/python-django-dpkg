@@ -1,4 +1,4 @@
-from __future__ import absolute_import, unicode_literals
+from __future__ import unicode_literals
 
 from django.forms.models import inlineformset_factory
 from django.test import TestCase, skipUnlessDBFeature
@@ -123,8 +123,10 @@ class InlineFormsetFactoryTest(TestCase):
         Child has two ForeignKeys to Parent, so if we don't specify which one
         to use for the inline formset, we should get an exception.
         """
-        six.assertRaisesRegex(self, Exception,
-            "<class 'inline_formsets.models.Child'> has more than 1 ForeignKey to <class 'inline_formsets.models.Parent'>",
+        six.assertRaisesRegex(
+            self,
+            ValueError,
+            "'inline_formsets.Child' has more than one ForeignKey to 'inline_formsets.Parent'.",
             inlineformset_factory, Parent, Child
         )
 
@@ -133,7 +135,8 @@ class InlineFormsetFactoryTest(TestCase):
         If we specify fk_name, but it isn't a ForeignKey from the child model
         to the parent model, we should get an exception.
         """
-        self.assertRaises(Exception,
+        self.assertRaises(
+            Exception,
             "fk_name 'school' is not a ForeignKey to <class 'inline_formsets.models.Parent'>",
             inlineformset_factory, Parent, Child, fk_name='school'
         )
@@ -143,8 +146,9 @@ class InlineFormsetFactoryTest(TestCase):
         If the field specified in fk_name is not a ForeignKey, we should get an
         exception.
         """
-        six.assertRaisesRegex(self, Exception,
-            "<class 'inline_formsets.models.Child'> has no field named 'test'",
+        six.assertRaisesRegex(
+            self, ValueError,
+            "'inline_formsets.Child' has no field named 'test'.",
             inlineformset_factory, Parent, Child, fk_name='test'
         )
 
@@ -158,11 +162,11 @@ class InlineFormsetFactoryTest(TestCase):
             Parent, Child, exclude=('school',), fk_name='mother'
         )
 
-    @skipUnlessDBFeature('allows_primary_key_0')
+    @skipUnlessDBFeature('allows_auto_pk_0')
     def test_zero_primary_key(self):
         # Regression test for #21472
         poet = Poet.objects.create(id=0, name='test')
-        poem = poet.poem_set.create(name='test poem')
+        poet.poem_set.create(name='test poem')
         PoemFormSet = inlineformset_factory(Poet, Poem, fields="__all__", extra=0)
         formset = PoemFormSet(None, instance=poet)
         self.assertEqual(len(formset.forms), 1)

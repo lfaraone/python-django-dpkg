@@ -162,8 +162,7 @@ Consider this set of models::
         title = models.CharField(max_length=3, choices=TITLE_CHOICES)
         birth_date = models.DateField(blank=True, null=True)
 
-        # On Python 3: def __str__(self):
-        def __unicode__(self):
+        def __str__(self):              # __unicode__ on Python 2
             return self.name
 
     class Book(models.Model):
@@ -259,7 +258,9 @@ The model's ``clean()`` method will be called before any uniqueness checks are
 made. See :ref:`Validating objects <validating-objects>` for more information
 on the model's ``clean()`` hook.
 
-Considerations regarding fields' ``error_messages``
+.. _considerations-regarding-model-errormessages:
+
+Considerations regarding model's ``error_messages``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Error messages defined at the
@@ -267,11 +268,29 @@ Error messages defined at the
 :ref:`form Meta <modelforms-overriding-default-fields>` level always take
 precedence over the error messages defined at the
 :attr:`model field <django.db.models.Field.error_messages>` level.
+
 Error messages  defined on :attr:`model fields
 <django.db.models.Field.error_messages>` are only used when the
 ``ValidationError`` is raised during the :ref:`model validation
 <validating-objects>` step and no corresponding error messages are defined at
 the form level.
+
+.. versionadded:: 1.7
+
+You can override the error messages from ``NON_FIELD_ERRORS`` raised by model
+validation by adding the :data:`~django.core.exceptions.NON_FIELD_ERRORS` key
+to the ``error_messages`` dictionary of the ``ModelForm``’s inner ``Meta`` class::
+
+    from django.forms import ModelForm
+    from django.core.exceptions import NON_FIELD_ERRORS
+
+    class ArticleForm(ModelForm):
+        class Meta:
+            error_messages = {
+                NON_FIELD_ERRORS: {
+                    'unique_together': "%(model_name)s's %(field_labels)s are not unique.",
+                }
+            }
 
 The ``save()`` method
 ---------------------
@@ -646,11 +665,22 @@ There are a couple of things to note, however.
   used. This means the child's ``Meta``, if it exists, otherwise the
   ``Meta`` of the first parent, etc.
 
-* For technical reasons, a subclass cannot inherit from both a ``ModelForm``
-  and a ``Form`` simultaneously.
+.. versionchanged:: 1.7
 
-Chances are these notes won't affect you unless you're trying to do something
-tricky with subclassing.
+* It's possible to inherit from both ``Form`` and ``ModelForm`` simultaneously,
+  however, you must ensure that ``ModelForm`` appears first in the MRO. This is
+  because these classes rely on different metaclasses and a class can only have
+  one metaclass.
+
+.. versionadded:: 1.7
+
+* It's possible to declaratively remove a ``Field`` inherited from a parent class by
+  setting the name to be ``None`` on the subclass.
+
+  You can only use this technique to opt out from a field defined declaratively
+  by a parent class; it won't prevent the ``ModelForm`` metaclass from generating
+  a default field. To opt-out from default fields, see
+  :ref:`controlling-fields-with-fields-and-exclude`.
 
 .. _modelforms-factory:
 
@@ -774,6 +804,8 @@ It is not always necessary to define a custom model form. The
 ``modelformset_factory`` function has several arguments which are
 passed through to ``modelform_factory``, which are described below.
 
+.. _controlling-fields-with-fields-and-exclude:
+
 Controlling which fields are used with ``fields`` and ``exclude``
 -----------------------------------------------------------------
 
@@ -862,11 +894,12 @@ to the database. If your formset contains a ``ManyToManyField``, you'll also
 need to call ``formset.save_m2m()`` to ensure the many-to-many relationships
 are saved properly.
 
-.. note::
+After calling ``save()``, your model formset will have three new attributes
+containing the formset's changes:
 
-    While calling ``formset.save(commit=False)`` does not save new or changed
-    objects to the database, it *does* delete objects that have been marked for
-    deletion. This behavior will be corrected in Django 1.7.
+.. attribute:: models.BaseModelFormSet.changed_objects
+.. attribute:: models.BaseModelFormSet.deleted_objects
+.. attribute:: models.BaseModelFormSet.new_objects
 
 .. _model-formsets-max-num:
 

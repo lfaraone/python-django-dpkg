@@ -11,9 +11,6 @@ Django provides a small set of tools that come in handy when writing tests.
 The test client
 ---------------
 
-.. module:: django.test.client
-   :synopsis: Django's test client.
-
 The test client is a Python class that acts as a dummy Web browser, allowing
 you to test your views and interact with your Django-powered application
 programmatically.
@@ -47,10 +44,10 @@ A comprehensive test suite should use a combination of both test types.
 Overview and a quick example
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-To use the test client, instantiate ``django.test.client.Client`` and retrieve
+To use the test client, instantiate ``django.test.Client`` and retrieve
 Web pages::
 
-    >>> from django.test.client import Client
+    >>> from django.test import Client
     >>> c = Client()
     >>> response = c.post('/login/', {'username': 'john', 'password': 'smith'})
     >>> response.status_code
@@ -80,8 +77,7 @@ Note a few important things about how the test client works:
 
   The test client is not capable of retrieving Web pages that are not
   powered by your Django project. If you need to retrieve other Web pages,
-  use a Python standard library module such as :mod:`urllib` or
-  :mod:`urllib2`.
+  use a Python standard library module such as :mod:`urllib`.
 
 * To resolve URLs, the test client uses whatever URLconf is pointed-to by
   your :setting:`ROOT_URLCONF` setting.
@@ -111,7 +107,7 @@ Note a few important things about how the test client works:
 Making requests
 ~~~~~~~~~~~~~~~
 
-Use the ``django.test.client.Client`` class to make requests.
+Use the ``django.test.Client`` class to make requests.
 
 .. class:: Client(enforce_csrf_checks=False, **defaults)
 
@@ -122,8 +118,8 @@ Use the ``django.test.client.Client`` class to make requests.
         >>> c = Client(HTTP_USER_AGENT='Mozilla/5.0')
 
     The values from the ``extra`` keywords arguments passed to
-    :meth:`~django.test.client.Client.get()`,
-    :meth:`~django.test.client.Client.post()`, etc. have precedence over
+    :meth:`~django.test.Client.get()`,
+    :meth:`~django.test.Client.post()`, etc. have precedence over
     the defaults passed to the class constructor.
 
     The ``enforce_csrf_checks`` argument can be used to test CSRF
@@ -132,8 +128,11 @@ Use the ``django.test.client.Client`` class to make requests.
     Once you have a ``Client`` instance, you can call any of the following
     methods:
 
-    .. method:: Client.get(path, data={}, follow=False, **extra)
+    .. method:: Client.get(path, data=None, follow=False, secure=False, **extra)
 
+        .. versionadded:: 1.7
+
+            The ``secure`` argument was added.
 
         Makes a GET request on the provided ``path`` and returns a ``Response``
         object, which is documented below.
@@ -189,7 +188,10 @@ Use the ``django.test.client.Client`` class to make requests.
             >>> response.redirect_chain
             [(u'http://testserver/next/', 302), (u'http://testserver/final/', 302)]
 
-    .. method:: Client.post(path, data={}, content_type=MULTIPART_CONTENT, follow=False, **extra)
+        If you set ``secure`` to ``True`` the client will emulate an HTTPS
+        request.
+
+    .. method:: Client.post(path, data=None, content_type=MULTIPART_CONTENT, follow=False, secure=False, **extra)
 
         Makes a POST request on the provided ``path`` and returns a
         ``Response`` object, which is documented below.
@@ -263,14 +265,17 @@ Use the ``django.test.client.Client`` class to make requests.
         and a ``redirect_chain`` attribute will be set in the response object
         containing tuples of the intermediate urls and status codes.
 
-    .. method:: Client.head(path, data={}, follow=False, **extra)
+        If you set ``secure`` to ``True`` the client will emulate an HTTPS
+        request.
+
+    .. method:: Client.head(path, data=None, follow=False, secure=False, **extra)
 
         Makes a HEAD request on the provided ``path`` and returns a
         ``Response`` object. This method works just like :meth:`Client.get`,
-        including the ``follow`` and ``extra`` arguments, except it does not
-        return a message body.
+        including the ``follow``, ``secure`` and ``extra`` arguments, except
+        it does not return a message body.
 
-    .. method:: Client.options(path, data='', content_type='application/octet-stream', follow=False, **extra)
+    .. method:: Client.options(path, data='', content_type='application/octet-stream', follow=False, secure=False, **extra)
 
         Makes an OPTIONS request on the provided ``path`` and returns a
         ``Response`` object. Useful for testing RESTful interfaces.
@@ -278,15 +283,10 @@ Use the ``django.test.client.Client`` class to make requests.
         When ``data`` is provided, it is used as the request body, and
         a ``Content-Type`` header is set to ``content_type``.
 
-        .. versionchanged:: 1.5
-
-            :meth:`Client.options` used to process ``data`` like
-            :meth:`Client.get`.
-
-        The ``follow`` and ``extra`` arguments act the same as for
+        The ``follow``, ``secure`` and ``extra`` arguments act the same as for
         :meth:`Client.get`.
 
-    .. method:: Client.put(path, data='', content_type='application/octet-stream', follow=False, **extra)
+    .. method:: Client.put(path, data='', content_type='application/octet-stream', follow=False, secure=False, **extra)
 
         Makes a PUT request on the provided ``path`` and returns a
         ``Response`` object. Useful for testing RESTful interfaces.
@@ -294,23 +294,18 @@ Use the ``django.test.client.Client`` class to make requests.
         When ``data`` is provided, it is used as the request body, and
         a ``Content-Type`` header is set to ``content_type``.
 
-        .. versionchanged:: 1.5
-
-            :meth:`Client.put` used to process ``data`` like
-            :meth:`Client.post`.
-
-        The ``follow`` and ``extra`` arguments act the same as for
+        The ``follow``, ``secure`` and ``extra`` arguments act the same as for
         :meth:`Client.get`.
 
-    .. method:: Client.patch(path, data='', content_type='application/octet-stream', follow=False, **extra)
+    .. method:: Client.patch(path, data='', content_type='application/octet-stream', follow=False, secure=False, **extra)
 
         Makes a PATCH request on the provided ``path`` and returns a
         ``Response`` object. Useful for testing RESTful interfaces.
 
-        The ``follow`` and ``extra`` arguments act the same as for
+        The ``follow``, ``secure`` and ``extra`` arguments act the same as for
         :meth:`Client.get`.
 
-    .. method:: Client.delete(path, data='', content_type='application/octet-stream', follow=False, **extra)
+    .. method:: Client.delete(path, data='', content_type='application/octet-stream', follow=False, secure=False, **extra)
 
         Makes an DELETE request on the provided ``path`` and returns a
         ``Response`` object. Useful for testing RESTful interfaces.
@@ -318,14 +313,8 @@ Use the ``django.test.client.Client`` class to make requests.
         When ``data`` is provided, it is used as the request body, and
         a ``Content-Type`` header is set to ``content_type``.
 
-        .. versionchanged:: 1.5
-
-            :meth:`Client.delete` used to process ``data`` like
-            :meth:`Client.get`.
-
-        The ``follow`` and ``extra`` arguments act the same as for
+        The ``follow``, ``secure`` and ``extra`` arguments act the same as for
         :meth:`Client.get`.
-
 
     .. method:: Client.login(**credentials)
 
@@ -423,6 +412,13 @@ Specifically, a ``Response`` object has the following attributes:
 
         The request data that stimulated the response.
 
+    .. attribute:: wsgi_request
+
+        .. versionadded:: 1.7
+
+        The ``WSGIRequest`` instance generated by the test handler that
+        generated the response.
+
     .. attribute:: status_code
 
         The HTTP status of the response, as an integer. See
@@ -468,9 +464,9 @@ can access these properties as part of a test condition.
 
 .. attribute:: Client.cookies
 
-    A Python :class:`~Cookie.SimpleCookie` object, containing the current values
-    of all the client cookies. See the documentation of the :mod:`Cookie` module
-    for more.
+    A Python :class:`~http.cookies.SimpleCookie` object, containing the current
+    values of all the client cookies. See the documentation of the
+    :mod:`http.cookies` module for more.
 
 .. attribute:: Client.session
 
@@ -491,8 +487,8 @@ Example
 
 The following is a simple unit test using the test client::
 
-    from django.utils import unittest
-    from django.test.client import Client
+    import unittest
+    from django.test import Client
 
     class SimpleTest(unittest.TestCase):
         def setUp(self):
@@ -511,14 +507,12 @@ The following is a simple unit test using the test client::
 
 .. seealso::
 
-    :class:`django.test.client.RequestFactory`
+    :class:`django.test.RequestFactory`
 
 .. _django-testcase-subclasses:
 
 Provided test case classes
 --------------------------
-
-.. currentmodule:: django.test
 
 Normal Python unit test classes extend a base class of
 :class:`unittest.TestCase`. Django provides a few extensions of this base class:
@@ -528,12 +522,9 @@ Normal Python unit test classes extend a base class of
 .. figure:: _images/django_unittest_classes_hierarchy.*
    :alt: Hierarchy of Django unit testing classes (TestCase subclasses)
    :width: 508
-   :height: 391
+   :height: 328
 
    Hierarchy of Django unit testing classes
-
-Regardless of the version of Python you're using, if you've installed
-``unittest2``, ``django.utils.unittest`` will point to that library.
 
 SimpleTestCase
 ~~~~~~~~~~~~~~
@@ -564,7 +555,7 @@ functionality like:
     for equality.
 
 * The ability to run tests with :ref:`modified settings <overriding-settings>`.
-* Using the :attr:`~SimpleTestCase.client` :class:`~django.test.client.Client`.
+* Using the :attr:`~SimpleTestCase.client` :class:`~django.test.Client`.
 * Custom test-time :attr:`URL maps <SimpleTestCase.urls>`.
 
 .. versionchanged:: 1.6
@@ -584,7 +575,7 @@ features like:
 then you should use :class:`~django.test.TransactionTestCase` or
 :class:`~django.test.TestCase` instead.
 
-``SimpleTestCase`` inherits from ``django.utils.unittest.TestCase``.
+``SimpleTestCase`` inherits from ``unittest.TestCase``.
 
 TransactionTestCase
 ~~~~~~~~~~~~~~~~~~~
@@ -614,9 +605,17 @@ to test the effects of commit and rollback:
   guarantees that the rollback at the end of the test restores the database to
   its initial state.
 
-  When running on a database that does not support rollback (e.g. MySQL with the
-  MyISAM storage engine), ``TestCase`` falls back to initializing the database
-  by truncating tables and reloading initial data.
+.. warning::
+
+  ``TestCase`` running on a database that does not support rollback (e.g. MySQL with the
+  MyISAM storage engine), and all instances of ``TransactionTestCase``, will
+  roll back at the end of the test by deleting all data from the test database
+  and reloading initial data for apps without migrations.
+
+  Apps with migrations :ref:`will not see their data reloaded <test-case-serialized-rollback>`;
+  if you need this functionality (for example, third-party apps should enable
+  this) you can set ``serialized_rollback = True`` inside the
+  ``TestCase`` body.
 
 .. warning::
 
@@ -627,24 +626,6 @@ to test the effects of commit and rollback:
     that can't normally be executed in autocommit mode
     (:meth:`~django.db.models.query.QuerySet.select_for_update()` is an
     example).
-
-.. versionchanged:: 1.5
-
-    Prior to 1.5, :class:`~django.test.TransactionTestCase` flushed the
-    database tables *before* each test. In Django 1.5, this is instead done
-    *after* the test has been run.
-
-    When the flush took place before the test, it was guaranteed that primary
-    key values started at one in :class:`~django.test.TransactionTestCase`
-    tests.
-
-    Tests should not depend on this behavior, but for legacy tests that do,
-    the :attr:`~TransactionTestCase.reset_sequences` attribute can be used
-    until the test has been properly updated.
-
-.. versionchanged:: 1.5
-
-    The order in which tests are run has changed. See :ref:`order-of-tests`.
 
 ``TransactionTestCase`` inherits from :class:`~django.test.SimpleTestCase`.
 
@@ -670,10 +651,6 @@ additions, including:
 
 * Django-specific assertions for testing for things like redirection and form
   errors.
-
-.. versionchanged:: 1.5
-
-    The order in which tests are run has changed. See :ref:`order-of-tests`.
 
 ``TestCase`` inherits from :class:`~django.test.TransactionTestCase`.
 
@@ -781,11 +758,25 @@ out the `full reference`_ for more details.
 .. _full reference: http://selenium-python.readthedocs.org/en/latest/api.html
 .. _Firefox: http://www.mozilla.com/firefox/
 
-.. note::
+.. versionchanged:: 1.7
 
-    ``LiveServerTestCase`` makes use of the :doc:`staticfiles contrib app
-    </howto/static-files/index>` so you'll need to have your project configured
-    accordingly (in particular by setting :setting:`STATIC_URL`).
+    Before Django 1.7 ``LiveServerTestCase`` used to rely on the
+    :doc:`staticfiles contrib app </howto/static-files/index>` to get the
+    static assets of the application(s) under test transparently served at their
+    expected locations during the execution of these tests.
+
+    In Django 1.7 this dependency of core functionality on a ``contrib``
+    application has been removed, because of which ``LiveServerTestCase``
+    ability in this respect has been retrofitted to simply publish the contents
+    of the file system under :setting:`STATIC_ROOT` at the :setting:`STATIC_URL`
+    URL.
+
+    If you use the ``staticfiles`` app in your project and need to perform live
+    testing then you might want to consider using the
+    :class:`~django.contrib.staticfiles.testing.StaticLiveServerTestCase`
+    subclass shipped with it instead because it's the one that implements the
+    original behavior now. See :ref:`the relevant documentation
+    <staticfiles-testing-support>` for more details.
 
 .. note::
 
@@ -838,8 +829,8 @@ worry about state (such as cookies) carrying over from one test to another.
 
 This means, instead of instantiating a ``Client`` in each test::
 
-    from django.utils import unittest
-    from django.test.client import Client
+    import unittest
+    from django.test import Client
 
     class SimpleTest(unittest.TestCase):
         def test_details(self):
@@ -874,8 +865,7 @@ If you want to use a different ``Client`` class (for example, a subclass
 with customized behavior), use the :attr:`~SimpleTestCase.client_class` class
 attribute::
 
-    from django.test import TestCase
-    from django.test.client import Client
+    from django.test import TestCase, Client
 
     class MyTestClient(Client):
         # Specialized methods for your environment...
@@ -910,9 +900,9 @@ documentation<dumpdata>` for more details.
 
 .. note::
 
-    If you've ever run :djadmin:`manage.py syncdb<syncdb>`, you've
+    If you've ever run :djadmin:`manage.py migrate<migrate>`, you've
     already used a fixture without even knowing it! When you call
-    :djadmin:`syncdb` in the database for the first time, Django
+    :djadmin:`migrate` in the database for the first time, Django
     installs a fixture called ``initial_data``. This gives you a way
     of populating a new database with any initial data, such as a
     default set of categories.
@@ -952,7 +942,7 @@ Here's specifically what will happen:
 
 * At the start of each test case, before ``setUp()`` is run, Django will
   flush the database, returning the database to the state it was in
-  directly after :djadmin:`syncdb` was called.
+  directly after :djadmin:`migrate` was called.
 
 * Then, all the named fixtures are installed. In this example, Django will
   install any JSON fixture named ``mammals``, followed by any fixture named
@@ -1046,7 +1036,7 @@ Overriding settings
 
 For testing purposes it's often useful to change a setting temporarily and
 revert to the original value after running the testing code. For this use case
-Django provides a standard Python context manager (see :pep:`343`)
+Django provides a standard Python context manager (see :pep:`343`) called
 :meth:`~django.test.SimpleTestCase.settings`, which can be used like this::
 
     from django.test import TestCase
@@ -1067,17 +1057,43 @@ Django provides a standard Python context manager (see :pep:`343`)
 This example will override the :setting:`LOGIN_URL` setting for the code
 in the ``with`` block and reset its value to the previous state afterwards.
 
-.. currentmodule:: django.test.utils
+.. method:: SimpleTestCase.modify_settings()
+
+.. versionadded:: 1.7
+
+It can prove unwieldy to redefine settings that contain a list of values. In
+practice, adding or removing values is often sufficient. The
+:meth:`~django.test.SimpleTestCase.modify_settings` context manager makes it
+easy::
+
+    from django.test import TestCase
+
+    class MiddlewareTestCase(TestCase):
+
+        def test_cache_middleware(self):
+            with self.modify_settings(MIDDLEWARE_CLASSES={
+                'append': 'django.middleware.cache.FetchFromCacheMiddleware',
+                'prepend': 'django.middleware.cache.UpdateCacheMiddleware',
+                'remove': [
+                    'django.contrib.sessions.middleware.SessionMiddleware',
+                    'django.contrib.auth.middleware.AuthenticationMiddleware',
+                    'django.contrib.messages.middleware.MessageMiddleware',
+                ],
+            }):
+                response = self.client.get('/')
+                # ...
+
+For each action, you can supply either a list of values or a string. When the
+value already exists in the list, ``append`` and ``prepend`` have no effect;
+neither does ``remove`` when the value doesn't exist.
 
 .. function:: override_settings
 
-In case you want to override a setting for just one test method or even the
-whole :class:`~django.test.TestCase` class, Django provides the
-:func:`~django.test.utils.override_settings` decorator (see :pep:`318`). It's
-used like this::
+In case you want to override a setting for a test method, Django provides the
+:func:`~django.test.override_settings` decorator (see :pep:`318`). It's used
+like this::
 
-    from django.test import TestCase
-    from django.test.utils import override_settings
+    from django.test import TestCase, override_settings
 
     class LoginTestCase(TestCase):
 
@@ -1086,10 +1102,9 @@ used like this::
             response = self.client.get('/sekrit/')
             self.assertRedirects(response, '/other/login/?next=/sekrit/')
 
-The decorator can also be applied to test case classes::
+The decorator can also be applied to :class:`~django.test.TestCase` classes::
 
-    from django.test import TestCase
-    from django.test.utils import override_settings
+    from django.test import TestCase, override_settings
 
     @override_settings(LOGIN_URL='/other/login/')
     class LoginTestCase(TestCase):
@@ -1098,37 +1113,97 @@ The decorator can also be applied to test case classes::
             response = self.client.get('/sekrit/')
             self.assertRedirects(response, '/other/login/?next=/sekrit/')
 
+.. versionchanged:: 1.7
+
+    Previously, ``override_settings`` was imported from ``django.test.utils``.
+
+.. function:: modify_settings
+
+.. versionadded:: 1.7
+
+Likewise, Django provides the :func:`~django.test.modify_settings`
+decorator::
+
+    from django.test import TestCase, modify_settings
+
+    class MiddlewareTestCase(TestCase):
+
+        @modify_settings(MIDDLEWARE_CLASSES={
+            'append': 'django.middleware.cache.FetchFromCacheMiddleware',
+            'prepend': 'django.middleware.cache.UpdateCacheMiddleware',
+        })
+        def test_cache_middleware(self):
+            response = self.client.get('/')
+            # ...
+
+The decorator can also be applied to test case classes::
+
+    from django.test import TestCase, modify_settings
+
+    @modify_settings(MIDDLEWARE_CLASSES={
+        'append': 'django.middleware.cache.FetchFromCacheMiddleware',
+        'prepend': 'django.middleware.cache.UpdateCacheMiddleware',
+    })
+    class MiddlewareTestCase(TestCase):
+
+        def test_cache_middleware(self):
+            response = self.client.get('/')
+            # ...
+
 .. note::
 
-    When given a class, the decorator modifies the class directly and
-    returns it; it doesn't create and return a modified copy of it.  So if
-    you try to tweak the above example to assign the return value to a
-    different name than ``LoginTestCase``, you may be surprised to find that
-    the original ``LoginTestCase`` is still equally affected by the
-    decorator.
+    When given a class, these decorators modify the class directly and return
+    it; they don't create and return a modified copy of it. So if you try to
+    tweak the above examples to assign the return value to a different name
+    than ``LoginTestCase`` or ``MiddlewareTestCase``, you may be surprised to
+    find that the original test case classes are still equally affected by the
+    decorator. For a given class, :func:`~django.test.modify_settings` is
+    always applied after :func:`~django.test.override_settings`.
+
+.. warning::
+
+    The settings file contains some settings that are only consulted during
+    initialization of Django internals. If you change them with
+    ``override_settings``, the setting is changed if you access it via the
+    ``django.conf.settings`` module, however, Django's internals access it
+    differently. Effectively, using :func:`~django.test.override_settings` or
+    :func:`~django.test.modify_settings` with these settings is probably not
+    going to do what you expect it to do.
+
+    We do not recommend altering the :setting:`DATABASES` setting. Altering
+    the :setting:`CACHES` setting is possible, but a bit tricky if you are
+    using internals that make using of caching, like
+    :mod:`django.contrib.sessions`. For example, you will have to reinitialize
+    the session backend in a test that uses cached sessions and overrides
+    :setting:`CACHES`.
 
     Finally, avoid aliasing your settings as module-level constants as
     ``override_settings()`` won't work on such values since they are
     only evaluated the first time the module is imported.
 
 You can also simulate the absence of a setting by deleting it after settings
-have been overriden, like this::
+have been overridden, like this::
 
     @override_settings()
     def test_something(self):
         del settings.LOGIN_URL
         ...
 
+.. versionchanged:: 1.7
+
+    Previously, you could only simulate the deletion of a setting which was
+    explicitly overridden.
+
 When overriding settings, make sure to handle the cases in which your app's
-code uses a cache or similar feature that retains state even if the
-setting is changed. Django provides the
-:data:`django.test.signals.setting_changed` signal that lets you register
-callbacks to clean up and otherwise reset state when settings are changed.
+code uses a cache or similar feature that retains state even if the setting is
+changed. Django provides the :data:`django.test.signals.setting_changed`
+signal that lets you register callbacks to clean up and otherwise reset state
+when settings are changed.
 
 Django itself uses this signal to reset various data:
 
 ================================ ========================
-Overriden settings               Data reset
+Overridden settings              Data reset
 ================================ ========================
 USE_TZ, TIME_ZONE                Databases timezone
 TEMPLATE_CONTEXT_PROCESSORS      Context processors cache
@@ -1151,8 +1226,6 @@ For more detail on email services during tests, see `Email services`_ below.
 Assertions
 ~~~~~~~~~~
 
-.. currentmodule:: django.test
-
 As Python's normal :class:`unittest.TestCase` class implements assertion methods
 such as :meth:`~unittest.TestCase.assertTrue` and
 :meth:`~unittest.TestCase.assertEqual`, Django's custom :class:`TestCase` class
@@ -1170,7 +1243,7 @@ your test suite.
     Asserts that execution of callable ``callable_obj`` raised the
     ``expected_exception`` exception and that such exception has an
     ``expected_message`` representation. Any other outcome is reported as a
-    failure. Similar to unittest's :meth:`~unittest.TestCase.assertRaisesRegexp`
+    failure. Similar to unittest's :meth:`~unittest.TestCase.assertRaisesRegex`
     with the difference that ``expected_message`` isn't a regular expression.
 
 .. method:: SimpleTestCase.assertFieldOutput(fieldclass, valid, invalid, field_args=None, field_kwargs=None, empty_value=u'')
@@ -1187,7 +1260,7 @@ your test suite.
     :param empty_value: the expected clean output for inputs in ``empty_values``.
 
     For example, the following code tests that an ``EmailField`` accepts
-    "a@a.com" as a valid email address, but rejects "aaa" with a reasonable
+    ``a@a.com`` as a valid email address, but rejects ``aaa`` with a reasonable
     error message::
 
         self.assertFieldOutput(EmailField, {'a@a.com': 'a@a.com'}, {'aaa': [u'Enter a valid email address.']})
@@ -1202,7 +1275,8 @@ your test suite.
 
     ``field`` is the name of the field on the form to check. If ``field``
     has a value of ``None``, non-field errors (errors you can access via
-    ``form.non_field_errors()``) will be checked.
+    :meth:`form.non_field_errors() <django.forms.Form.non_field_errors>`) will
+    be checked.
 
     ``errors`` is an error string, or a list of error strings, that are
     expected as a result of form validation.
@@ -1223,7 +1297,8 @@ your test suite.
 
     ``field`` is the name of the field on the form to check. If ``field``
     has a value of ``None``, non-field errors (errors you can access via
-    ``form.non_field_errors()``) will be checked.
+    :meth:`form.non_field_errors() <django.forms.Form.non_field_errors>`) will
+    be checked.
 
     ``errors`` is an error string, or a list of error strings, that are
     expected as a result of form validation.
@@ -1273,7 +1348,7 @@ your test suite.
     You can use this as a context manager in the same way as
     :meth:`~SimpleTestCase.assertTemplateUsed`.
 
-.. method:: SimpleTestCase.assertRedirects(response, expected_url, status_code=302, target_status_code=200, host=None, msg_prefix='')
+.. method:: SimpleTestCase.assertRedirects(response, expected_url, status_code=302, target_status_code=200, host=None, msg_prefix='', fetch_redirect_response=True)
 
     Asserts that the response returned a ``status_code`` redirect status,
     redirected to ``expected_url`` (including any ``GET`` data), and that the
@@ -1290,6 +1365,19 @@ your test suite.
     URLs, but the parameter may be useful if you are testing with a custom HTTP
     host (for example, initializing the test client with
     ``Client(HTTP_HOST="testhost")``.
+
+    .. versionadded:: 1.7
+
+    If ``fetch_redirect_response`` is ``False``, the final page won't be
+    loaded. Since the test client can't fetch externals URLs, this is
+    particularly useful if ``expected_url`` isn't part of your Django app.
+
+    .. versionadded:: 1.7
+
+    Scheme is handled correctly when making comparisons between two URLs. If
+    there isn't any scheme specified in the location where we are redirected to,
+    the original request's scheme is used. If present, the scheme in
+    ``expected_url`` is the one used to make the comparisons to.
 
 .. method:: SimpleTestCase.assertHTMLEqual(html1, html2, msg=None)
 
@@ -1335,20 +1423,16 @@ your test suite.
 
 .. method:: SimpleTestCase.assertXMLEqual(xml1, xml2, msg=None)
 
-    .. versionadded:: 1.5
-
     Asserts that the strings ``xml1`` and ``xml2`` are equal. The
-    comparison is based on XML semantics. Similarily to
+    comparison is based on XML semantics. Similarly to
     :meth:`~SimpleTestCase.assertHTMLEqual`, the comparison is
     made on parsed content, hence only semantic differences are considered, not
-    syntax differences. When unvalid XML is passed in any parameter, an
+    syntax differences. When invalid XML is passed in any parameter, an
     ``AssertionError`` is always raised, even if both string are identical.
 
     Output in case of error can be customized with the ``msg`` argument.
 
 .. method:: SimpleTestCase.assertXMLNotEqual(xml1, xml2, msg=None)
-
-    .. versionadded:: 1.5
 
     Asserts that the strings ``xml1`` and ``xml2`` are *not* equal. The
     comparison is based on XML semantics. See
@@ -1357,8 +1441,6 @@ your test suite.
     Output in case of error can be customized with the ``msg`` argument.
 
 .. method:: SimpleTestCase.assertInHTML(needle, haystack, count=None, msg_prefix='')
-
-    .. versionadded:: 1.5
 
     Asserts that the HTML fragment ``needle`` is contained in the ``haystack`` one.
 
@@ -1370,15 +1452,13 @@ your test suite.
 
 .. method:: SimpleTestCase.assertJSONEqual(raw, expected_data, msg=None)
 
-    .. versionadded:: 1.5
-
     Asserts that the JSON fragments ``raw`` and ``expected_data`` are equal.
     Usual JSON non-significant whitespace rules apply as the heavyweight is
     delegated to the :mod:`json` library.
 
     Output in case of error can be customized with the ``msg`` argument.
 
-.. method:: TransactionTestCase.assertQuerysetEqual(qs, values, transform=repr, ordered=True)
+.. method:: TransactionTestCase.assertQuerysetEqual(qs, values, transform=repr, ordered=True, msg=None)
 
     Asserts that a queryset ``qs`` returns a particular list of values ``values``.
 
@@ -1391,12 +1471,19 @@ your test suite.
     provide an implicit ordering, you can set the ``ordered`` parameter to
     ``False``, which turns the comparison into a Python set comparison.
 
+    Output in case of error can be customized with the ``msg`` argument.
+
     .. versionchanged:: 1.6
 
         The method now checks for undefined order and raises ``ValueError``
         if undefined order is spotted. The ordering is seen as undefined if
         the given ``qs`` isn't ordered and the comparison is against more
         than one ordered values.
+
+    .. versionchanged:: 1.7
+
+        The method now accepts a ``msg`` parameter to allow customization of
+        error message
 
 .. method:: TransactionTestCase.assertNumQueries(num, func, *args, **kwargs)
 
@@ -1503,7 +1590,8 @@ for skipping tests.
 
 .. function:: skipIfDBFeature(feature_name_string)
 
-Skip the decorated test if the named database feature is supported.
+Skip the decorated test or ``TestCase`` if the named database feature is
+supported.
 
 For example, the following test will not be executed if the database
 supports transactions (e.g., it would *not* run under PostgreSQL, but
@@ -1514,9 +1602,13 @@ it would under MySQL with MyISAM tables)::
         def test_transaction_behavior(self):
             # ... conditional test code
 
+.. versionchanged:: 1.7
+
+    ``skipIfDBFeature`` can now be used to decorate a ``TestCase`` class.
+
 .. function:: skipUnlessDBFeature(feature_name_string)
 
-Skip the decorated test if the named database feature is *not*
+Skip the decorated test or ``TestCase`` if the named database feature is *not*
 supported.
 
 For example, the following test will only be executed if the database
@@ -1527,3 +1619,7 @@ under MySQL with MyISAM tables)::
         @skipUnlessDBFeature('supports_transactions')
         def test_transaction_behavior(self):
             # ... conditional test code
+
+.. versionchanged:: 1.7
+
+    ``skipUnlessDBFeature`` can now be used to decorate a ``TestCase`` class.

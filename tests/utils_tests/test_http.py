@@ -1,12 +1,10 @@
 from datetime import datetime
 import sys
+import unittest
 
-from django.http import HttpResponse, utils
-from django.test import RequestFactory
 from django.utils.datastructures import MultiValueDict
 from django.utils import http
 from django.utils import six
-from django.utils import unittest
 
 
 class TestUtilsHttp(unittest.TestCase):
@@ -36,7 +34,7 @@ class TestUtilsHttp(unittest.TestCase):
         self.assertEqual(result, 'a=1&b=2&c=3')
 
         # A dictionary
-        result = http.urlencode({ 'a': 1, 'b': 2, 'c': 3})
+        result = http.urlencode({'a': 1, 'b': 2, 'c': 3})
         acceptable_results = [
             # Need to allow all of these as dictionaries have to be treated as
             # unordered
@@ -121,28 +119,29 @@ class TestUtilsHttp(unittest.TestCase):
                      '/url%20with%20spaces/'):
             self.assertTrue(http.is_safe_url(good_url, host='testserver'), "%s should be allowed" % good_url)
 
+
 class ETagProcessingTests(unittest.TestCase):
-    def testParsing(self):
+    def test_parsing(self):
         etags = http.parse_etags(r'"", "etag", "e\"t\"ag", "e\\tag", W/"weak"')
         self.assertEqual(etags, ['', 'etag', 'e"t"ag', r'e\tag', 'weak'])
 
-    def testQuoting(self):
+    def test_quoting(self):
         quoted_etag = http.quote_etag(r'e\t"ag')
         self.assertEqual(quoted_etag, r'"e\\t\"ag"')
 
 
 class HttpDateProcessingTests(unittest.TestCase):
-    def testParsingRfc1123(self):
+    def test_parsing_rfc1123(self):
         parsed = http.parse_http_date('Sun, 06 Nov 1994 08:49:37 GMT')
         self.assertEqual(datetime.utcfromtimestamp(parsed),
                          datetime(1994, 11, 6, 8, 49, 37))
 
-    def testParsingRfc850(self):
+    def test_parsing_rfc850(self):
         parsed = http.parse_http_date('Sunday, 06-Nov-94 08:49:37 GMT')
         self.assertEqual(datetime.utcfromtimestamp(parsed),
                          datetime(1994, 11, 6, 8, 49, 37))
 
-    def testParsingAsctime(self):
+    def test_parsing_asctime(self):
         parsed = http.parse_http_date('Sun Nov  6 08:49:37 1994')
         self.assertEqual(datetime.utcfromtimestamp(parsed),
                          datetime(1994, 11, 6, 8, 49, 37))

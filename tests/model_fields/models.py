@@ -1,5 +1,6 @@
 import os
 import tempfile
+import warnings
 
 from django.core.exceptions import ImproperlyConfigured
 
@@ -11,55 +12,109 @@ except ImproperlyConfigured:
 from django.core.files.storage import FileSystemStorage
 from django.db import models
 from django.db.models.fields.files import ImageFieldFile, ImageField
+from django.utils import six
 
 
 class Foo(models.Model):
     a = models.CharField(max_length=10)
     d = models.DecimalField(max_digits=5, decimal_places=3)
 
+
 def get_foo():
     return Foo.objects.get(id=1)
+
 
 class Bar(models.Model):
     b = models.CharField(max_length=10)
     a = models.ForeignKey(Foo, default=get_foo)
 
+
 class Whiz(models.Model):
     CHOICES = (
         ('Group 1', (
-                (1,'First'),
-                (2,'Second'),
-            )
+            (1, 'First'),
+            (2, 'Second'),
+        )
         ),
         ('Group 2', (
-                (3,'Third'),
-                (4,'Fourth'),
-            )
+            (3, 'Third'),
+            (4, 'Fourth'),
+        )
         ),
-        (0,'Other'),
+        (0, 'Other'),
     )
     c = models.IntegerField(choices=CHOICES, null=True)
+
+
+class Counter(six.Iterator):
+    def __init__(self):
+        self.n = 1
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self.n > 5:
+            raise StopIteration
+        else:
+            self.n += 1
+            return (self.n, 'val-' + str(self.n))
+
+
+class WhizIter(models.Model):
+    c = models.IntegerField(choices=Counter(), null=True)
+
+
+class WhizIterEmpty(models.Model):
+    c = models.CharField(choices=(x for x in []), blank=True, max_length=1)
+
 
 class BigD(models.Model):
     d = models.DecimalField(max_digits=38, decimal_places=30)
 
+
+class FloatModel(models.Model):
+    size = models.FloatField()
+
+
 class BigS(models.Model):
     s = models.SlugField(max_length=255)
 
-class BigInt(models.Model):
+
+class SmallIntegerModel(models.Model):
+    value = models.SmallIntegerField()
+
+
+class IntegerModel(models.Model):
+    value = models.IntegerField()
+
+
+class BigIntegerModel(models.Model):
     value = models.BigIntegerField()
-    null_value = models.BigIntegerField(null = True, blank = True)
+    null_value = models.BigIntegerField(null=True, blank=True)
+
+
+class PositiveSmallIntegerModel(models.Model):
+    value = models.PositiveSmallIntegerField()
+
+
+class PositiveIntegerModel(models.Model):
+    value = models.PositiveIntegerField()
+
 
 class Post(models.Model):
     title = models.CharField(max_length=100)
     body = models.TextField()
 
+
 class NullBooleanModel(models.Model):
     nbfield = models.NullBooleanField()
+
 
 class BooleanModel(models.Model):
     bfield = models.BooleanField(default=None)
     string = models.CharField(max_length=10, default='abc')
+
 
 class DateTimeModel(models.Model):
     d = models.DateField()
@@ -67,13 +122,24 @@ class DateTimeModel(models.Model):
     t = models.TimeField()
 
 
+class PrimaryKeyCharModel(models.Model):
+    string = models.CharField(max_length=10, primary_key=True)
+
+
 class FksToBooleans(models.Model):
-    """Model wih FKs to models with {Null,}BooleanField's, #15040"""
+    """Model with FKs to models with {Null,}BooleanField's, #15040"""
     bf = models.ForeignKey(BooleanModel)
     nbf = models.ForeignKey(NullBooleanModel)
 
+
+class FkToChar(models.Model):
+    """Model with FK to a model with a CharField primary key, #19299"""
+    out = models.ForeignKey(PrimaryKeyCharModel)
+
+
 class RenamedField(models.Model):
-    modelname = models.IntegerField(name="fieldname", choices=((1,'One'),))
+    modelname = models.IntegerField(name="fieldname", choices=((1, 'One'),))
+
 
 class VerboseNameField(models.Model):
     id = models.AutoField("verbose pk", primary_key=True)
@@ -91,7 +157,9 @@ class VerboseNameField(models.Model):
     # Don't want to depend on Pillow/PIL in this test
     #field_image = models.ImageField("verbose field")
     field12 = models.IntegerField("verbose field12")
-    field13 = models.IPAddressField("verbose field13")
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        field13 = models.IPAddressField("verbose field13")
     field14 = models.GenericIPAddressField("verbose field14", protocol="ipv4")
     field15 = models.NullBooleanField("verbose field15")
     field16 = models.PositiveIntegerField("verbose field16")
@@ -102,10 +170,12 @@ class VerboseNameField(models.Model):
     field21 = models.TimeField("verbose field21")
     field22 = models.URLField("verbose field22")
 
+
 # This model isn't used in any test, just here to ensure it validates successfully.
 # See ticket #16570.
 class DecimalLessThanOne(models.Model):
     d = models.DecimalField(max_digits=3, decimal_places=3)
+
 
 class DataModel(models.Model):
     short_data = models.BinaryField(max_length=10, default=b'\x08')
@@ -113,6 +183,7 @@ class DataModel(models.Model):
 
 ###############################################################################
 # FileField
+
 
 class Document(models.Model):
     myfile = models.FileField(upload_to='unused')
@@ -129,7 +200,8 @@ if Image:
         """
         def __init__(self, *args, **kwargs):
             self.was_opened = False
-            super(TestImageFieldFile, self).__init__(*args,**kwargs)
+            super(TestImageFieldFile, self).__init__(*args, **kwargs)
+
         def open(self):
             self.was_opened = True
             super(TestImageFieldFile, self).open()
@@ -149,14 +221,25 @@ if Image:
         name = models.CharField(max_length=50)
         mugshot = TestImageField(storage=temp_storage, upload_to='tests')
 
-    class PersonWithHeight(models.Model):
+    class AbsctractPersonWithHeight(models.Model):
         """
-        Model that defines an ImageField with only one dimension field.
+        Abstract model that defines an ImageField with only one dimension field
+        to make sure the dimension update is correctly run on concrete subclass
+        instance post-initialization.
         """
-        name = models.CharField(max_length=50)
         mugshot = TestImageField(storage=temp_storage, upload_to='tests',
                                  height_field='mugshot_height')
         mugshot_height = models.PositiveSmallIntegerField()
+
+        class Meta:
+            abstract = True
+
+    class PersonWithHeight(AbsctractPersonWithHeight):
+        """
+        Concrete model that subclass an abctract one with only on dimension
+        field.
+        """
+        name = models.CharField(max_length=50)
 
     class PersonWithHeightAndWidth(models.Model):
         """
@@ -194,9 +277,9 @@ if Image:
                                  height_field='mugshot_height',
                                  width_field='mugshot_width')
         headshot_height = models.PositiveSmallIntegerField(
-                blank=True, null=True)
+            blank=True, null=True)
         headshot_width = models.PositiveSmallIntegerField(
-                blank=True, null=True)
+            blank=True, null=True)
         headshot = TestImageField(blank=True, null=True,
                                   storage=temp_storage, upload_to='tests',
                                   height_field='headshot_height',

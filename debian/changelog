@@ -1,3 +1,60 @@
+python-django (1.7-1) experimental; urgency=medium
+
+  * New major upstream release.
+  * Add a NEWS file to document the incompatibility with South.
+
+ -- Raphaël Hertzog <hertzog@debian.org>  Mon, 08 Sep 2014 10:19:12 +0200
+
+python-django (1.7~c3-1) experimental; urgency=medium
+
+  * New upstream release candidate with security fixes:
+    https://www.djangoproject.com/weblog/2014/aug/20/security/
+
+ -- Raphaël Hertzog <hertzog@debian.org>  Fri, 22 Aug 2014 22:50:32 +0200
+
+python-django (1.7~c2-2) experimental; urgency=medium
+
+  * Merge changes from 1.6.5-4:
+    * Don't output stuff to stdout in django-admin. Closes: #757145
+    * Update Vcs-* fields since the packaging repository moved to git.
+
+ -- Raphaël Hertzog <hertzog@debian.org>  Fri, 08 Aug 2014 14:26:47 +0200
+
+python-django (1.7~c2-1) experimental; urgency=medium
+
+  * New upstream release candidate.
+
+ -- Raphaël Hertzog <hertzog@debian.org>  Wed, 30 Jul 2014 20:47:10 +0200
+
+python-django (1.7~c1+20140722-2) experimental; urgency=medium
+
+  * Move django-admin manual page in python-django-common. Bump version
+    constraint in Breaks/Replaces accordingly.
+  * Drop conflicting django-admin in python-django and python3-django that
+    were not removed as usual because upstream stopped installing them as
+    django-admin.py.
+  * Drop extra license files.
+  * Fix shebang lines in python3-django.
+  * Drop empty left-over /usr/bin directories in python-django/python3-django.
+
+ -- Raphaël Hertzog <hertzog@debian.org>  Tue, 22 Jul 2014 23:29:30 +0200
+
+python-django (1.7~c1+20140722-1) experimental; urgency=medium
+
+  * New upstream release candidate. We want this version in jessie so we
+    should prepare now.
+  * Snapshot tarball generated with "python setup.py sdist" after having
+    applied fix submitted in https://code.djangoproject.com/ticket/23072
+  * Added python-sqlparse, python-tz to Recommends
+  * Added other optional dependencies (python-memcache, python-pil,
+    python-bcrypt) to Suggests
+  * Add all those dependencies in Build-Depends for the benefit of the
+    test suite.
+  * Run the test suite for python2 and python3.
+  * Differentiate descriptions of python2 and python3 packages. 
+
+ -- Raphaël Hertzog <hertzog@debian.org>  Mon, 21 Jul 2014 21:57:07 +0200
+
 python-django (1.6.6-1) unstable; urgency=high
 
   * New upstream security release.
