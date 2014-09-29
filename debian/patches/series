@@ -31,3 +31,9 @@ CVE-2014-0473.patch
 CVE-2014-0474.patch
 CVE-2014-1418.patch
 CVE-2014-3730.patch
+no-network-access-on-builder.patch
+CVE-2014-0482.patch
+CVE-2014-0483.patch
+CVE-2014-0480.patch
+get-random-string-backport.patch
+CVE-2014-0481.patch

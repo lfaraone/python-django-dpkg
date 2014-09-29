@@ -1,3 +1,19 @@
+python-django (1.2.3-3+squeeze11) squeeze-lts; urgency=low
+
+  * LTS security upload:
+    https://www.djangoproject.com/weblog/2014/aug/20/security/
+    - CVE-2014-0480.patch: reverse() generating URLs pointing
+      to other hosts
+    - CVE-2014-0481.patch: file upload denial of service
+    - CVE-2014-0482.patch: RemoteUserMiddleware session hijacking
+    - CVE-2014-0483.patch: data leakage via querystring manipulation in admin
+  * Add no-network-access-on-builder.patch to disable regression tests
+    using the network.
+  * Add get-random-string-backport.patch to backport get_random_string()
+    needed by CVE-2014-0481.patch.
+
+ -- Raphaël Hertzog <hertzog@debian.org>  Mon, 29 Sep 2014 07:52:17 +0000
+
 python-django (1.2.3-3+squeeze10) squeeze-security; urgency=high
 
   * Non-maintainer upload by the Security Team.

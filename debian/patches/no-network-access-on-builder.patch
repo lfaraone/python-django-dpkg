@@ -1,0 +1,30 @@
+Index: python-django-1.2.3/tests/regressiontests/forms/error_messages.py
+===================================================================
+--- python-django-1.2.3.orig/tests/regressiontests/forms/error_messages.py	2010-01-05 04:56:19.000000000 +0100
++++ python-django-1.2.3/tests/regressiontests/forms/error_messages.py	2014-09-18 15:47:17.000000000 +0200
+@@ -224,25 +224,6 @@
+ ...
+ ValidationError: [u'EMPTY FILE']
+ 
+-# URLField ##################################################################
+-
+->>> e = {'required': 'REQUIRED'}
+->>> e['invalid'] = 'INVALID'
+->>> e['invalid_link'] = 'INVALID LINK'
+->>> f = URLField(verify_exists=True, error_messages=e)
+->>> f.clean('')
+-Traceback (most recent call last):
+-...
+-ValidationError: [u'REQUIRED']
+->>> f.clean('abc.c')
+-Traceback (most recent call last):
+-...
+-ValidationError: [u'INVALID']
+->>> f.clean('http://www.broken.djangoproject.com')
+-Traceback (most recent call last):
+-...
+-ValidationError: [u'INVALID LINK']
+-
+ # BooleanField ################################################################
+ 
+ >>> e = {'required': 'REQUIRED'}
