@@ -9,15 +9,16 @@ Uploaders: Luke Faraone <lfaraone@debian.org>,
 Standards-Version: 3.9.5
 Build-Depends: debhelper (>= 9), dh-python, python-all (>= 2.6.6-3~), python3-all, python-sphinx (>= 1.0.8), locales (>= 0),
 # Needed to enable supplementary tests in test suite
- python-bcrypt, python3-bcrypt,
+# python-bcrypt, python3-bcrypt, # Not in wheezy
  python-docutils, python3-docutils,
  python-numpy, python3-numpy,
- python-pil, python3-pil,
+# python-pil, python3-pil, # Not in wheezy
  python-yaml, python3-yaml,
  python-tz, python3-tz,
  python-setuptools, python3-setuptools,
 # python-memcache, python3-memcache, memcached, # we can't rely on running daemon
- python-sqlparse, python3-sqlparse,
+ python-sqlparse,
+# python3-sqlparse, # Not in wheezy
 # python-selenium in theory too... but it's not properly packaged
 Build-Depends-Indep: libjs-jquery
 Homepage: http://www.djangoproject.com/
