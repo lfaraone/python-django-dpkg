@@ -1,3 +1,9 @@
+python-django (1.7-2~bpo70+1) wheezy-backports; urgency=medium
+
+  * Rebuild for wheezy-backports.
+
+ -- Raphaël Hertzog <hertzog@debian.org>  Sun, 05 Oct 2014 17:22:45 +0200
+
 python-django (1.7-2) unstable; urgency=medium
 
   * Release to unstable.
