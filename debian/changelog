@@ -2,6 +2,10 @@ python-django (1.7-3) UNRELEASED; urgency=medium
 
   * Add 01_fix_test_loaddata_not_existant_fixture_file.patch
     to fix FTBFS with Python 3.4.2. Closes: #765117
+  * Improve migrate-south script to look for Python files in the current dir.
+    ./manage.py implicitely has the current directory but when we use
+    django-admin it's not the case. Thanks to Uwe Kleine-Koenig for the
+    report.
 
  -- Raphaël Hertzog <hertzog@debian.org>  Wed, 15 Oct 2014 10:29:27 +0200
 
