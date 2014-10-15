@@ -1,3 +1,4 @@
+01_fix_test_loaddata_not_existant_fixture_file.patch
 02_disable-sources-in-sphinxdoc.diff
 03_manpage.diff
 06_use_debian_geoip_database_as_default.diff
