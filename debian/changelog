@@ -1,4 +1,4 @@
-python-django (1.7-3) UNRELEASED; urgency=medium
+python-django (1.7-3) unstable; urgency=medium
 
   * Add 01_fix_test_loaddata_not_existant_fixture_file.patch
     to fix FTBFS with Python 3.4.2. Closes: #765117
@@ -7,7 +7,7 @@ python-django (1.7-3) UNRELEASED; urgency=medium
     django-admin it's not the case. Thanks to Uwe Kleine-Koenig for the
     report.
 
- -- Raphaël Hertzog <hertzog@debian.org>  Wed, 15 Oct 2014 10:29:27 +0200
+ -- Raphaël Hertzog <hertzog@debian.org>  Wed, 15 Oct 2014 10:45:27 +0200
 
 python-django (1.7-2) unstable; urgency=medium
 
