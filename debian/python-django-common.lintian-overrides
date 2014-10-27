@@ -1,0 +1,5 @@
+# Those gzip files are not created during build, the embedded timestamps
+# won't change across multiple rebuilds.
+python-django-common: package-contains-timestamped-gzip usr/share/python-django-common/django/contrib/gis/tests/distapp/fixtures/initial_data.json.gz
+python-django-common: package-contains-timestamped-gzip usr/share/python-django-common/django/contrib/gis/tests/geoapp/fixtures/initial_data.json.gz
+python-django-common: package-contains-timestamped-gzip usr/share/python-django-common/django/contrib/gis/tests/relatedapp/fixtures/initial_data.json.gz
