@@ -1,3 +1,14 @@
+python-django (1.7.1-1) unstable; urgency=medium
+
+  [ Raphaël Hertzog ]
+  * New upstream bugfix release.
+
+  [ Brian May ]
+  * Fix django-admin wrapper to not even consider using python 2.6 as
+    that version is unsupported with Django 1.7.
+
+ -- Raphaël Hertzog <hertzog@debian.org>  Mon, 27 Oct 2014 16:37:41 +0100
+
 python-django (1.7-3) unstable; urgency=medium
 
   * Add 01_fix_test_loaddata_not_existant_fixture_file.patch
