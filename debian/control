@@ -29,7 +29,7 @@ Package: python-django
 Architecture: all
 Depends: ${misc:Depends}, ${python:Depends}, python-django-common (= ${binary:Version})
 Recommends: libjs-jquery, python-sqlparse, python-tz
-Suggests: python-psycopg2, python-mysqldb, python-flup, python-sqlite, python-memcache, python-pil, python-bcrypt, python-yaml, geoip-database-contrib, gettext, python-django-doc, ipython, bpython, libgdal1
+Suggests: python-psycopg2, python-mysqldb, python-flup, python-sqlite, python-memcache, python-pil, python-bcrypt, python-yaml, geoip-database-extra | geoip-database-contrib, gettext, python-django-doc, ipython, bpython, libgdal1
 Description: High-level Python web development framework (Python 2 version)
  Django is a high-level web application framework that loosely follows the
  model-view-controller design pattern.
