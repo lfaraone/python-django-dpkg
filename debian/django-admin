@@ -7,9 +7,6 @@ then
 elif command -v python2.7 > /dev/null && test -e /usr/lib/python2.7/dist-packages/django/bin/django-admin.py
 then
     exec python2.7 "$0" "$@"
-elif command -v python2.6 > /dev/null && test -e /usr/lib/python2.6/dist-packages/django/bin/django-admin.py
-then
-    exec python2.6 "$0" "$@"
 else
     echo "Cannot find installed version of python-django or python3-django." >&2
     exit 1

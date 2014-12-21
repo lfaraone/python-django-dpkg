@@ -11,4 +11,4 @@ pip install django==1.6.5
 pip install south
 
 CMD="$(command -v django-admin)"
-python "$CMD" migrate "$@"
+PYTHONPATH="$PWD" python "$CMD" migrate "$@"
