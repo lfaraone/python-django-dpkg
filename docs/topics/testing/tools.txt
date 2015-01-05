@@ -747,7 +747,7 @@ Finally, you may run the test as follows:
 
 .. code-block:: bash
 
-    ./manage.py test myapp.MySeleniumTests.test_login
+    ./manage.py test myapp.tests.MySeleniumTests.test_login
 
 This example will automatically open Firefox then go to the login page, enter
 the credentials and press the "Log in" button. Selenium offers other drivers in
@@ -870,7 +870,8 @@ attribute::
     from django.test import TestCase, Client
 
     class MyTestClient(Client):
-        # Specialized methods for your environment...
+        # Specialized methods for your environment
+        ...
 
     class MyTest(TestCase):
         client_class = MyTestClient
@@ -1033,6 +1034,12 @@ If ``multi_db=True``, fixtures are loaded into all databases.
 
 Overriding settings
 ~~~~~~~~~~~~~~~~~~~
+
+.. warning::
+
+    Use the functions below to temporarily alter the value of settings in tests.
+    Don't manipulate ``django.conf.settings`` directly as Django won't restore
+    the original values after such manipulations.
 
 .. method:: SimpleTestCase.settings()
 
@@ -1561,6 +1568,25 @@ manually, assign the empty list to ``mail.outbox``::
 
     # Empty the test outbox
     mail.outbox = []
+
+.. _topics-testing-management-commands:
+
+Management Commands
+-------------------
+
+Management commands can be tested with the
+:func:`~django.core.management.call_command` function. The output can be
+redirected into a ``StringIO`` instance::
+
+    from django.core.management import call_command
+    from django.test import TestCase
+    from django.utils.six import StringIO
+
+    class ClosepollTest(TestCase):
+        def test_command_output(self):
+            out = StringIO()
+            call_command('closepoll', stdout=out)
+            self.assertIn('Expected output', out.getvalue())
 
 .. _skipping-tests:
 

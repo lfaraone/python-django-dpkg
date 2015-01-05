@@ -139,7 +139,7 @@ class BaseModelAdmin(six.with_metaclass(RenameBaseModelAdminMethods)):
         if cls.validator_class:
             warnings.warn(
                 'ModelAdmin.validator_class is deprecated. '
-                'ModeAdmin validators must be converted to use '
+                'ModelAdmin validators must be converted to use '
                 'the system check framework.',
                 RemovedInDjango19Warning)
             validator = cls.validator_class()
@@ -450,9 +450,9 @@ class BaseModelAdmin(six.with_metaclass(RenameBaseModelAdminMethods)):
         except FieldDoesNotExist:
             return False
 
-        # Check whether this model is the origin of a M2M relationship
-        # in which case to_field has to be the pk on this model.
-        if opts.many_to_many and field.primary_key:
+        # Always allow referencing the primary key since it's already possible
+        # to get this information from the change view URL.
+        if field.primary_key:
             return True
 
         # Make sure at least one of the models registered for this site
@@ -463,8 +463,7 @@ class BaseModelAdmin(six.with_metaclass(RenameBaseModelAdminMethods)):
             for inline in admin.inlines:
                 registered_models.add(inline.model)
 
-        for related_object in (opts.get_all_related_objects(include_hidden=True) +
-                               opts.get_all_related_many_to_many_objects()):
+        for related_object in opts.get_all_related_objects(include_hidden=True):
             related_model = related_object.model
             if (any(issubclass(model, related_model) for model in registered_models) and
                     related_object.field.rel.get_related_field() == field):
@@ -1400,7 +1399,7 @@ class ModelAdmin(BaseModelAdmin):
             else:
                 form_validated = False
                 new_object = form.instance
-            formsets, inline_instances = self._create_formsets(request, new_object)
+            formsets, inline_instances = self._create_formsets(request, new_object, change=not add)
             if all_valid(formsets) and form_validated:
                 self.save_model(request, new_object, form, not add)
                 self.save_related(request, form, formsets, not add)
@@ -1415,10 +1414,10 @@ class ModelAdmin(BaseModelAdmin):
             if add:
                 initial = self.get_changeform_initial_data(request)
                 form = ModelForm(initial=initial)
-                formsets, inline_instances = self._create_formsets(request, self.model())
+                formsets, inline_instances = self._create_formsets(request, self.model(), change=False)
             else:
                 form = ModelForm(instance=obj)
-                formsets, inline_instances = self._create_formsets(request, obj)
+                formsets, inline_instances = self._create_formsets(request, obj, change=True)
 
         adminForm = helpers.AdminForm(
             form,
@@ -1703,13 +1702,13 @@ class ModelAdmin(BaseModelAdmin):
             "admin/object_history.html"
         ], context, current_app=self.admin_site.name)
 
-    def _create_formsets(self, request, obj):
+    def _create_formsets(self, request, obj, change):
         "Helper function to generate formsets for add/change_view."
         formsets = []
         inline_instances = []
         prefixes = {}
         get_formsets_args = [request]
-        if obj.pk:
+        if change:
             get_formsets_args.append(obj)
         for FormSet, inline in self.get_formsets_with_inlines(*get_formsets_args):
             prefix = FormSet.get_default_prefix()
@@ -1830,6 +1829,8 @@ class InlineModelAdmin(BaseModelAdmin):
                 if self.cleaned_data.get(DELETION_FIELD_NAME, False):
                     using = router.db_for_write(self._meta.model)
                     collector = NestedObjects(using=using)
+                    if self.instance.pk is None:
+                        return
                     collector.collect([self.instance])
                     if collector.protected:
                         objs = []

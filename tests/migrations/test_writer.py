@@ -2,6 +2,7 @@
 from __future__ import unicode_literals
 
 import datetime
+import math
 import os
 import re
 import tokenize
@@ -69,6 +70,10 @@ class WriterTests(TestCase):
         """
         # Basic values
         self.assertSerializedEqual(1)
+        self.assertSerializedEqual(1.2)
+        self.assertTrue(math.isinf(self.serialize_round_trip(float("inf"))))
+        self.assertTrue(math.isinf(self.serialize_round_trip(float("-inf"))))
+        self.assertTrue(math.isnan(self.serialize_round_trip(float("nan"))))
         self.assertSerializedEqual(None)
         self.assertSerializedEqual(b"foobar")
         string, imports = MigrationWriter.serialize(b"foobar")
@@ -106,6 +111,10 @@ class WriterTests(TestCase):
         safe_date = datetime_safe.date(2014, 3, 31)
         string, imports = MigrationWriter.serialize(safe_date)
         self.assertEqual(string, repr(datetime.date(2014, 3, 31)))
+        self.assertEqual(imports, {'import datetime'})
+        safe_time = datetime_safe.time(10, 25)
+        string, imports = MigrationWriter.serialize(safe_time)
+        self.assertEqual(string, repr(datetime.time(10, 25)))
         self.assertEqual(imports, {'import datetime'})
         safe_datetime = datetime_safe.datetime(2014, 3, 31, 16, 4, 31)
         string, imports = MigrationWriter.serialize(safe_datetime)
@@ -335,3 +344,14 @@ class WriterTests(TestCase):
         fixed_offset_datetime = datetime.datetime(2014, 1, 1, 1, 1, tzinfo=FixedOffset(180))
         self.assertEqual(MigrationWriter.serialize_datetime(fixed_offset_datetime),
                          "datetime.datetime(2013, 12, 31, 22, 1, tzinfo=utc)")
+
+    def test_deconstruct_class_arguments(self):
+        # Yes, it doesn't make sense to use a class as a default for a
+        # CharField. It does make sense for custom fields though, for example
+        # an enumfield that takes the enum class as an argument.
+        class DeconstructableInstances(object):
+            def deconstruct(self):
+                return ('DeconstructableInstances', [], {})
+
+        string = MigrationWriter.serialize(models.CharField(default=DeconstructableInstances))[0]
+        self.assertEqual(string, "models.CharField(default=migrations.test_writer.DeconstructableInstances)")

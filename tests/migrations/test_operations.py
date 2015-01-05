@@ -46,7 +46,9 @@ class OperationTestBase(MigrationTestBase):
         operation.state_forwards(app_label, new_state)
         return project_state, new_state
 
-    def set_up_test_model(self, app_label, second_model=False, third_model=False, related_model=False, mti_model=False, proxy_model=False, unique_together=False, options=False):
+    def set_up_test_model(self, app_label, second_model=False, third_model=False,
+            related_model=False, mti_model=False, proxy_model=False,
+            unique_together=False, options=False, db_table=None, index_together=False):
         """
         Creates a test model state and database table.
         """
@@ -78,10 +80,13 @@ class OperationTestBase(MigrationTestBase):
         # Make the "current" state
         model_options = {
             "swappable": "TEST_SWAP_MODEL",
+            "index_together": [["weight", "pink"]] if index_together else [],
             "unique_together": [["pink", "weight"]] if unique_together else [],
         }
         if options:
             model_options["permissions"] = [("can_groom", "Can groom")]
+        if db_table:
+            model_options["db_table"] = db_table
         operations = [migrations.CreateModel(
             "Pony",
             [
@@ -428,8 +433,7 @@ class OperationTests(OperationTestBase):
             self.assertFKNotExists("test_rnmo_rider", ["pony_id"], ("test_rnmo_pony", "id"))
             self.assertFKExists("test_rnmo_rider", ["pony_id"], ("test_rnmo_horse", "id"))
         # And test reversal
-        with connection.schema_editor() as editor:
-            operation.database_backwards("test_rnmo", editor, new_state, project_state)
+        self.unapply_operations("test_rnmo", project_state, [operation])
         self.assertTableExists("test_rnmo_pony")
         self.assertTableNotExists("test_rnmo_horse")
         if connection.features.supports_foreign_keys:
@@ -875,6 +879,37 @@ class OperationTests(OperationTestBase):
             operation.database_backwards("test_almota", editor, new_state, project_state)
         self.assertTableExists("test_almota_pony")
 
+    def test_alter_model_table_m2m(self):
+        """
+        AlterModelTable should rename auto-generated M2M tables.
+        """
+        app_label = "test_talflmltlm2m"
+        pony_db_table = 'pony_foo'
+        project_state = self.set_up_test_model(app_label, second_model=True, db_table=pony_db_table)
+        # Add the M2M field
+        first_state = project_state.clone()
+        operation = migrations.AddField("Pony", "stables", models.ManyToManyField("Stable"))
+        operation.state_forwards(app_label, first_state)
+        with connection.schema_editor() as editor:
+            operation.database_forwards(app_label, editor, project_state, first_state)
+        original_m2m_table = "%s_%s" % (pony_db_table, "stables")
+        new_m2m_table = "%s_%s" % (app_label, "pony_stables")
+        self.assertTableExists(original_m2m_table)
+        self.assertTableNotExists(new_m2m_table)
+        # Rename the Pony db_table which should also rename the m2m table.
+        second_state = first_state.clone()
+        operation = migrations.AlterModelTable(name='pony', table=None)
+        operation.state_forwards(app_label, second_state)
+        with connection.schema_editor() as editor:
+            operation.database_forwards(app_label, editor, first_state, second_state)
+        self.assertTableExists(new_m2m_table)
+        self.assertTableNotExists(original_m2m_table)
+        # And test reversal
+        with connection.schema_editor() as editor:
+            operation.database_backwards(app_label, editor, second_state, first_state)
+        self.assertTableExists(original_m2m_table)
+        self.assertTableNotExists(new_m2m_table)
+
     def test_alter_field(self):
         """
         Tests the AlterField operation.
@@ -948,7 +983,7 @@ class OperationTests(OperationTestBase):
         """
         Tests the RenameField operation.
         """
-        project_state = self.set_up_test_model("test_rnfl", unique_together=True)
+        project_state = self.set_up_test_model("test_rnfl", unique_together=True, index_together=True)
         # Test the state alteration
         operation = migrations.RenameField("Pony", "pink", "blue")
         self.assertEqual(operation.describe(), "Rename field pink on Pony to blue")
@@ -959,6 +994,9 @@ class OperationTests(OperationTestBase):
         # Make sure the unique_together has the renamed column too
         self.assertIn("blue", new_state.models["test_rnfl", "pony"].options['unique_together'][0])
         self.assertNotIn("pink", new_state.models["test_rnfl", "pony"].options['unique_together'][0])
+        # Make sure the index_together has the renamed column too
+        self.assertIn("blue", new_state.models["test_rnfl", "pony"].options['index_together'][0])
+        self.assertNotIn("pink", new_state.models["test_rnfl", "pony"].options['index_together'][0])
         # Test the database alteration
         self.assertColumnExists("test_rnfl_pony", "pink")
         self.assertColumnNotExists("test_rnfl_pony", "blue")
@@ -973,11 +1011,15 @@ class OperationTests(OperationTestBase):
                 with atomic():
                     cursor.execute("INSERT INTO test_rnfl_pony (blue, weight) VALUES (1, 1)")
             cursor.execute("DELETE FROM test_rnfl_pony")
+        # Ensure the index constraint has been ported over
+        self.assertIndexExists("test_rnfl_pony", ["weight", "blue"])
         # And test reversal
         with connection.schema_editor() as editor:
             operation.database_backwards("test_rnfl", editor, new_state, project_state)
         self.assertColumnExists("test_rnfl_pony", "pink")
         self.assertColumnNotExists("test_rnfl_pony", "blue")
+        # Ensure the index constraint has been reset
+        self.assertIndexExists("test_rnfl_pony", ["weight", "pink"])
 
     def test_alter_unique_together(self):
         """
@@ -1087,10 +1129,19 @@ class OperationTests(OperationTestBase):
         self.assertEqual(new_state.models["test_alorwrtto", "rider"].options.get("order_with_respect_to", None), "pony")
         # Make sure there's no matching index
         self.assertColumnNotExists("test_alorwrtto_rider", "_order")
+        # Create some rows before alteration
+        rendered_state = project_state.render()
+        pony = rendered_state.get_model("test_alorwrtto", "Pony").objects.create(weight=50)
+        rendered_state.get_model("test_alorwrtto", "Rider").objects.create(pony=pony, friend_id=1)
+        rendered_state.get_model("test_alorwrtto", "Rider").objects.create(pony=pony, friend_id=2)
         # Test the database alteration
         with connection.schema_editor() as editor:
             operation.database_forwards("test_alorwrtto", editor, project_state, new_state)
         self.assertColumnExists("test_alorwrtto_rider", "_order")
+        # Check for correct value in rows
+        updated_riders = new_state.render().get_model("test_alorwrtto", "Rider").objects.all()
+        self.assertEqual(updated_riders[0]._order, 0)
+        self.assertEqual(updated_riders[1]._order, 0)
         # And test reversal
         with connection.schema_editor() as editor:
             operation.database_backwards("test_alorwrtto", editor, new_state, project_state)
@@ -1177,6 +1228,12 @@ class OperationTests(OperationTestBase):
         self.assertEqual(len(new_state.models["test_runsql", "somethingelse"].fields), 1)
         # Make sure there's no table
         self.assertTableNotExists("i_love_ponies")
+        # Test SQL collection
+        with connection.schema_editor(collect_sql=True) as editor:
+            operation.database_forwards("test_runsql", editor, project_state, new_state)
+            self.assertIn("LIKE '%%ponies';", "\n".join(editor.collected_sql))
+            operation.database_backwards("test_runsql", editor, project_state, new_state)
+            self.assertIn("LIKE '%%Ponies%%';", "\n".join(editor.collected_sql))
         # Test the database alteration
         with connection.schema_editor() as editor:
             operation.database_forwards("test_runsql", editor, project_state, new_state)

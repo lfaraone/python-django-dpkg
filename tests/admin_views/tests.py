@@ -251,6 +251,23 @@ class AdminViewBasicTest(AdminViewBasicTestCase):
         response = self.client.post('/test_admin/%s/admin_views/section/1/' % self.urlbit, post_data)
         self.assertEqual(response.status_code, 302)  # redirect somewhere
 
+    def test_edit_save_as_delete_inline(self):
+        """
+        Should be able to "Save as new" while also deleting an inline.
+        """
+        post_data = self.inline_post_data.copy()
+        post_data.update({
+            '_saveasnew': 'Save+as+new',
+            "article_set-1-section": "1",
+            "article_set-2-section": "1",
+            "article_set-2-DELETE": "1",
+            "article_set-3-section": "1",
+        })
+        response = self.client.post('/test_admin/%s/admin_views/section/1/' % self.urlbit, post_data)
+        self.assertEqual(response.status_code, 302)
+        # started with 3 articles, one was deleted.
+        self.assertEqual(Section.objects.latest('id').article_set.count(), 2)
+
     def test_change_list_sorting_callable(self):
         """
         Ensure we can sort on a list_display field that is a callable
@@ -480,7 +497,7 @@ class AdminViewBasicTest(AdminViewBasicTestCase):
         response = self.client.get('/test_admin/%s/admin_views/thing/' % self.urlbit, {'notarealfield': '5'})
         self.assertRedirects(response, '/test_admin/%s/admin_views/thing/?e=1' % self.urlbit)
 
-        # Spanning relationships through an inexistant related object (Refs #16716)
+        # Spanning relationships through a nonexistent related object (Refs #16716)
         response = self.client.get('/test_admin/%s/admin_views/thing/' % self.urlbit, {'notarealfield__whatever': '5'})
         self.assertRedirects(response, '/test_admin/%s/admin_views/thing/?e=1' % self.urlbit)
 
@@ -606,33 +623,37 @@ class AdminViewBasicTest(AdminViewBasicTestCase):
             self.assertEqual(response.status_code, 400)
             self.assertEqual(len(calls), 1)
 
-        # Specifying a field that is not refered by any other model registered
+        # Specifying a field that is not referred by any other model registered
         # to this admin site should raise an exception.
         with patch_logger('django.security.DisallowedModelAdminToField', 'error') as calls:
             response = self.client.get("/test_admin/admin/admin_views/section/", {TO_FIELD_VAR: 'name'})
             self.assertEqual(response.status_code, 400)
             self.assertEqual(len(calls), 1)
 
-        # Specifying a field referenced by another model should be allowed.
-        response = self.client.get("/test_admin/admin/admin_views/section/", {TO_FIELD_VAR: 'id'})
+        # #23839 - Primary key should always be allowed, even if the referenced model isn't registered.
+        response = self.client.get("/test_admin/admin/admin_views/notreferenced/", {TO_FIELD_VAR: 'id'})
         self.assertEqual(response.status_code, 200)
 
         # Specifying a field referenced by another model though a m2m should be allowed.
-        response = self.client.get("/test_admin/admin/admin_views/m2mreference/", {TO_FIELD_VAR: 'id'})
+        # XXX: We're not testing against a non-primary key field since the admin doesn't
+        # support it yet, ref #23862
+        response = self.client.get("/test_admin/admin/admin_views/recipe/", {TO_FIELD_VAR: 'id'})
         self.assertEqual(response.status_code, 200)
 
-        # #23604 - Specifying the pk of this model should be allowed when this model defines a m2m relationship
+        # #23604 - Specifying a field referenced through a reverse m2m relationship should be allowed.
+        # XXX: We're not testing against a non-primary key field since the admin doesn't
+        # support it yet, ref #23862
         response = self.client.get("/test_admin/admin/admin_views/ingredient/", {TO_FIELD_VAR: 'id'})
         self.assertEqual(response.status_code, 200)
 
-        # #23329 - Specifying a field that is not refered by any other model directly registered
+        # #23329 - Specifying a field that is not referred by any other model directly registered
         # to this admin site but registered through inheritance should be allowed.
-        response = self.client.get("/test_admin/admin/admin_views/referencedbyparent/", {TO_FIELD_VAR: 'id'})
+        response = self.client.get("/test_admin/admin/admin_views/referencedbyparent/", {TO_FIELD_VAR: 'name'})
         self.assertEqual(response.status_code, 200)
 
-        # #23431 - Specifying a field that is only refered to by a inline of a registered
+        # #23431 - Specifying a field that is only referred to by a inline of a registered
         # model should be allowed.
-        response = self.client.get("/test_admin/admin/admin_views/referencedbyinline/", {TO_FIELD_VAR: 'id'})
+        response = self.client.get("/test_admin/admin/admin_views/referencedbyinline/", {TO_FIELD_VAR: 'name'})
         self.assertEqual(response.status_code, 200)
 
         # We also want to prevent the add and change view from leaking a
@@ -830,6 +851,7 @@ class AdminCustomTemplateTests(AdminViewBasicTestCase):
             '_selected_action': group.id
         }
         response = self.client.post('/test_admin/%s/auth/group/' % (self.urlbit), post_data)
+        self.assertEqual(response.context['site_header'], 'Django administration')
         self.assertContains(response, 'bodyclass_consistency_check ')
 
     def test_filter_with_custom_template(self):
@@ -5051,3 +5073,51 @@ class AdminGenericRelationTests(TestCase):
             validator.validate_list_filter(GenericFKAdmin, Plot)
         except ImproperlyConfigured:
             self.fail("Couldn't validate a GenericRelation -> FK path in ModelAdmin.list_filter")
+
+
+@override_settings(
+    PASSWORD_HASHERS=('django.contrib.auth.hashers.SHA1PasswordHasher',),
+    ROOT_URLCONF="admin_views.urls",
+)
+class GetFormsetsWithInlinesArgumentTest(TestCase):
+    """
+    #23934 - When adding a new model instance in the admin, the 'obj' argument
+    of get_formsets_with_inlines() should be None. When changing, it should be
+    equal to the existing model instance.
+    The GetFormsetsArgumentCheckingAdmin ModelAdmin throws an exception
+    if obj is not None during add_view or obj is None during change_view.
+    """
+    fixtures = ['admin-views-users.xml']
+
+    def setUp(self):
+        self.client.login(username='super', password='secret')
+
+    def test_explicitly_provided_pk(self):
+        post_data = {'name': '1'}
+        try:
+            response = self.client.post('/test_admin/admin/admin_views/explicitlyprovidedpk/add/', post_data)
+        except Exception as e:
+            self.fail(e)
+        self.assertEqual(response.status_code, 302)
+
+        post_data = {'name': '2'}
+        try:
+            response = self.client.post('/test_admin/admin/admin_views/explicitlyprovidedpk/1/', post_data)
+        except Exception as e:
+            self.fail(e)
+        self.assertEqual(response.status_code, 302)
+
+    def test_implicitly_generated_pk(self):
+        post_data = {'name': '1'}
+        try:
+            response = self.client.post('/test_admin/admin/admin_views/implicitlygeneratedpk/add/', post_data)
+        except Exception as e:
+            self.fail(e)
+        self.assertEqual(response.status_code, 302)
+
+        post_data = {'name': '2'}
+        try:
+            response = self.client.post('/test_admin/admin/admin_views/implicitlygeneratedpk/1/', post_data)
+        except Exception as e:
+            self.fail(e)
+        self.assertEqual(response.status_code, 302)

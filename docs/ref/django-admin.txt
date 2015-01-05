@@ -7,7 +7,7 @@ This document outlines all it can do.
 
 In addition, ``manage.py`` is automatically created in each Django project.
 ``manage.py`` is a thin wrapper around ``django-admin.py`` that takes care of
-two things for you before delegating to ``django-admin.py``:
+several things for you before delegating to ``django-admin.py``:
 
 * It puts your project's package on ``sys.path``.
 
@@ -389,15 +389,14 @@ onto which the data will be loaded.
 The :djadminopt:`--ignorenonexistent` option can be used to ignore fields that
 may have been removed from models since the fixture was originally generated.
 
-
-.. versionchanged:: 1.7
-
-    ``--app`` was added.
-
 .. django-admin-option:: --app
 
 The :djadminopt:`--app` option can be used to specify a single app to look
 for fixtures in rather than looking through all apps.
+
+.. versionchanged:: 1.7
+
+    ``--app`` was added.
 
 What's a "fixture"?
 ~~~~~~~~~~~~~~~~~~~
@@ -686,10 +685,11 @@ The behavior of this command changes depending on the arguments provided:
 * ``<app_label>``: The specified app has its migrations run, up to the most
   recent migration. This may involve running other apps' migrations too, due
   to dependencies.
-* ``<app_label> <migrationname>``: Brings the database schema to a state where it
-  would have just run the given migration, but no further - this may involve
-  unapplying migrations if you have previously migrated past the named
-  migration. Use the name ``zero`` to unapply all migrations for an app.
+* ``<app_label> <migrationname>``: Brings the database schema to a state where
+  the named migration is applied, but no later migrations in the same app are
+  applied. This may involve unapplying migrations if you have previously
+  migrated past the named migration. Use the name ``zero`` to unapply all
+  migrations for an app.
 
 Unlike ``syncdb``, this command does not prompt you to create a superuser if
 one doesn't exist (assuming you are using :mod:`django.contrib.auth`). Use
@@ -911,6 +911,9 @@ A hostname containing ASCII-only characters can also be used.
 If the :doc:`staticfiles</ref/contrib/staticfiles>` contrib app is enabled
 (default in new projects) the :djadmin:`runserver` command will be overridden
 with its own :ref:`runserver<staticfiles-runserver>` command.
+
+If :djadmin:`migrate` was not previousy executed, the table that stores the
+history of migrations is created at first run of ``runserver``.
 
 .. django-admin-option:: --noreload
 
