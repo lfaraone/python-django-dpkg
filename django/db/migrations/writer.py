@@ -1,10 +1,11 @@
 from __future__ import unicode_literals
 
-import datetime
-import inspect
-import decimal
 import collections
+import datetime
+import decimal
 from importlib import import_module
+import inspect
+import math
 import os
 import re
 import sys
@@ -155,10 +156,12 @@ class MigrationWriter(object):
         imports.discard("from django.db import models")
         items["imports"] = "\n".join(imports) + "\n" if imports else ""
         if migration_imports:
-            items["imports"] += "\n\n# Functions from the following migrations need manual copying.\n# Move them and any dependencies into this file, then update the\n# RunPython operations to refer to the local versions:\n# %s" % (
-                "\n# ".join(migration_imports)
-            )
-
+            items["imports"] += (
+                "\n\n# Functions from the following migrations need manual "
+                "copying.\n# Move them and any dependencies into this file, "
+                "then update the\n# RunPython operations to refer to the local "
+                "versions:\n# %s"
+            ) % "\n# ".join(migration_imports)
         # If there's a replaces, make a string for it
         if self.migration.replaces:
             items['replaces_str'] = "\n    replaces = %s\n" % self.serialize(self.migration.replaces)[0]
@@ -296,12 +299,18 @@ class MigrationWriter(object):
         # Times
         elif isinstance(value, datetime.time):
             value_repr = repr(value)
-            return value_repr, set(["import datetime"])
+            if isinstance(value, datetime_safe.time):
+                value_repr = "datetime.%s" % value_repr
+            return value_repr, {"import datetime"}
         # Settings references
         elif isinstance(value, SettingsReference):
             return "settings.%s" % value.setting_name, set(["from django.conf import settings"])
         # Simple types
-        elif isinstance(value, six.integer_types + (float, bool, type(None))):
+        elif isinstance(value, float):
+            if math.isnan(value) or math.isinf(value):
+                return 'float("{}")'.format(value), set()
+            return repr(value), set()
+        elif isinstance(value, six.integer_types + (bool, type(None))):
             return repr(value), set()
         elif isinstance(value, six.binary_type):
             value_repr = repr(value)
@@ -322,6 +331,20 @@ class MigrationWriter(object):
         elif isinstance(value, models.Field):
             attr_name, path, args, kwargs = value.deconstruct()
             return cls.serialize_deconstructed(path, args, kwargs)
+        # Classes
+        elif isinstance(value, type):
+            special_cases = [
+                (models.Model, "models.Model", []),
+            ]
+            for case, string, imports in special_cases:
+                if case is value:
+                    return string, set(imports)
+            if hasattr(value, "__module__"):
+                module = value.__module__
+                if module == six.moves.builtins.__name__:
+                    return value.__name__, set()
+                else:
+                    return "%s.%s" % (module, value.__name__), {"import %s" % module}
         # Anything that knows how to deconstruct itself.
         elif hasattr(value, 'deconstruct'):
             return cls.serialize_deconstructed(*value.deconstruct())
@@ -355,20 +378,6 @@ class MigrationWriter(object):
                     "For more information, see https://docs.djangoproject.com/en/1.7/topics/migrations/#serializing-values"
                     % (value.__name__, module_name))
             return "%s.%s" % (module_name, value.__name__), set(["import %s" % module_name])
-        # Classes
-        elif isinstance(value, type):
-            special_cases = [
-                (models.Model, "models.Model", []),
-            ]
-            for case, string, imports in special_cases:
-                if case is value:
-                    return string, set(imports)
-            if hasattr(value, "__module__"):
-                module = value.__module__
-                if module == six.moves.builtins.__name__:
-                    return value.__name__, set()
-                else:
-                    return "%s.%s" % (module, value.__name__), set(["import %s" % module])
         # Other iterables
         elif isinstance(value, collections.Iterable):
             imports = set()
@@ -394,7 +403,11 @@ class MigrationWriter(object):
             return "re.compile(%s)" % ', '.join(args), imports
         # Uh oh.
         else:
-            raise ValueError("Cannot serialize: %r\nThere are some values Django cannot serialize into migration files.\nFor more, see https://docs.djangoproject.com/en/dev/topics/migrations/#migration-serializing" % value)
+            raise ValueError(
+                "Cannot serialize: %r\nThere are some values Django cannot serialize into "
+                "migration files.\nFor more, see https://docs.djangoproject.com/en/dev/"
+                "topics/migrations/#migration-serializing" % value
+            )
 
 
 MIGRATION_TEMPLATE = """\

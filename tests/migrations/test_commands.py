@@ -11,7 +11,6 @@ from django.core.management import call_command, CommandError
 from django.db.migrations import questioner
 from django.test import override_settings, override_system_checks
 from django.utils import six
-from django.utils._os import upath
 from django.utils.encoding import force_text
 
 from .models import UnicodeModel, UnserializableModel
@@ -153,8 +152,6 @@ class MakeMigrationsTests(MigrationTestBase):
 
     def setUp(self):
         MakeMigrationsTests.creation_counter += 1
-        self._cwd = os.getcwd()
-        self.test_dir = os.path.abspath(os.path.dirname(upath(__file__)))
         self.migration_dir = os.path.join(self.test_dir, 'migrations_%d' % self.creation_counter)
         self.migration_pkg = "migrations.migrations_%d" % self.creation_counter
         self._old_models = apps.app_configs['migrations'].models.copy()
@@ -164,19 +161,21 @@ class MakeMigrationsTests(MigrationTestBase):
         apps.all_models['migrations'] = self._old_models
         apps.clear_cache()
 
+        _cwd = os.getcwd()
         os.chdir(self.test_dir)
         try:
-            self._rmrf(self.migration_dir)
-        except OSError:
-            pass
+            try:
+                self._rmrf(self.migration_dir)
+            except OSError:
+                pass
 
-        try:
-            self._rmrf(os.path.join(self.test_dir,
-                       "test_migrations_path_doesnt_exist"))
-        except OSError:
-            pass
-
-        os.chdir(self._cwd)
+            try:
+                self._rmrf(os.path.join(self.test_dir,
+                           "test_migrations_path_doesnt_exist"))
+            except OSError:
+                pass
+        finally:
+            os.chdir(_cwd)
 
     def _rmrf(self, dname):
         if os.path.commonprefix([self.test_dir, os.path.abspath(dname)]) != self.test_dir:
@@ -546,3 +545,46 @@ class MakeMigrationsTests(MigrationTestBase):
             questioner.input = old_input
             if os.path.exists(merge_file):
                 os.remove(merge_file)
+
+
+class SquashMigrationsTest(MigrationTestBase):
+    """
+    Tests running the squashmigrations command.
+    """
+
+    path = "test_migrations/0001_squashed_0002_second.py"
+    path = os.path.join(MigrationTestBase.test_dir, path)
+
+    def tearDown(self):
+        if os.path.exists(self.path):
+            os.remove(self.path)
+
+    @override_system_checks([])
+    @override_settings(MIGRATION_MODULES={"migrations": "migrations.test_migrations"})
+    def test_squashmigrations_squashes(self):
+        """
+        Tests that squashmigrations squashes migrations.
+        """
+        call_command("squashmigrations", "migrations", "0002", interactive=False, verbosity=0)
+        self.assertTrue(os.path.exists(self.path))
+
+    @override_system_checks([])
+    @override_settings(MIGRATION_MODULES={"migrations": "migrations.test_migrations"})
+    def test_squashmigrations_optimizes(self):
+        """
+        Tests that squashmigrations optimizes operations.
+        """
+        out = six.StringIO()
+        call_command("squashmigrations", "migrations", "0002", interactive=False, verbosity=1, stdout=out)
+        self.assertIn("Optimized from 7 operations to 5 operations.", out.getvalue())
+
+    @override_system_checks([])
+    @override_settings(MIGRATION_MODULES={"migrations": "migrations.test_migrations"})
+    def test_ticket_23799_squashmigrations_no_optimize(self):
+        """
+        Makes sure that squashmigrations --no-optimize really doesn't optimize operations.
+        """
+        out = six.StringIO()
+        call_command("squashmigrations", "migrations", "0002",
+                     interactive=False, verbosity=1, no_optimize=True, stdout=out)
+        self.assertIn("Skipping optimization", out.getvalue())
