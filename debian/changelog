@@ -1,3 +1,13 @@
+python-django (1.7.3-1) UNRELEASED; urgency=high
+
+  * New upstream security release.
+    - WSGI header spoofing via underscore/dash conflation (CVE-2015-0219)
+    - Possible XSS attack via user-supplied redirect URLs (CVE-2015-0220)
+    - DoS attack against django.views.static.serve (CVE-2015-0221)
+    - Database DoS with ModelMultipleChoiceField (CVE-2015-0222)
+
+ -- Luke Faraone <lfaraone@debian.org>  Thu, 15 Jan 2015 21:42:11 -0800
+
 python-django (1.7.2-1) experimental; urgency=medium
 
   [ Raphaël Hertzog ]
