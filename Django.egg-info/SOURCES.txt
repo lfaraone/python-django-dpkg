@@ -3981,6 +3981,7 @@ docs/releases/1.4.14.txt
 docs/releases/1.4.15.txt
 docs/releases/1.4.16.txt
 docs/releases/1.4.17.txt
+docs/releases/1.4.18.txt
 docs/releases/1.4.2.txt
 docs/releases/1.4.3.txt
 docs/releases/1.4.4.txt
@@ -4004,6 +4005,7 @@ docs/releases/1.5.8.txt
 docs/releases/1.5.9.txt
 docs/releases/1.5.txt
 docs/releases/1.6.1.txt
+docs/releases/1.6.10.txt
 docs/releases/1.6.2.txt
 docs/releases/1.6.3.txt
 docs/releases/1.6.4.txt
@@ -4015,6 +4017,7 @@ docs/releases/1.6.9.txt
 docs/releases/1.6.txt
 docs/releases/1.7.1.txt
 docs/releases/1.7.2.txt
+docs/releases/1.7.3.txt
 docs/releases/1.7.txt
 docs/releases/index.txt
 docs/releases/security.txt
@@ -5005,6 +5008,7 @@ tests/serializers_regress/models.py
 tests/serializers_regress/tests.py
 tests/servers/__init__.py
 tests/servers/models.py
+tests/servers/test_basehttp.py
 tests/servers/tests.py
 tests/servers/urls.py
 tests/servers/views.py
@@ -5363,6 +5367,7 @@ tests/view_tests/locale/ru/LC_MESSAGES/djangojs.po
 tests/view_tests/media/file.txt
 tests/view_tests/media/file.txt.gz
 tests/view_tests/media/file.unknown
+tests/view_tests/media/long-line.txt
 tests/view_tests/other_templates/render_dirs_test.html
 tests/view_tests/templates/jsi18n.html
 tests/view_tests/templates/debug/render_test.html
