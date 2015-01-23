@@ -8,6 +8,10 @@ python-django (1.7.3-1~exp1) experimental; urgency=high
     - Database DoS with ModelMultipleChoiceField (CVE-2015-0222)
     Closes: #775375
 
+  [ Raphaël Hertzog ]
+  * Add patch fix-24193-python34-test-failure.diff to fix a test failure with
+    Python3.4.
+
  -- Raphaël Hertzog <hertzog@debian.org>  Wed, 21 Jan 2015 09:56:19 +0100
 
 python-django (1.7.2-1) experimental; urgency=medium

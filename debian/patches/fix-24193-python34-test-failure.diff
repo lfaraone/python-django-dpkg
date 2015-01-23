@@ -1,0 +1,124 @@
+Author: Claude Paroz <claude@2xlibre.net>
+Date:   Wed Jan 21 20:59:40 2015 +0100
+
+    [1.7.x] Fixed #24193 -- Prevented unclosed file warnings in static.serve()
+    
+    This regression was caused by 818e59a3f0. The patch is a partial
+    backport of the new FileResponse class available in later Django
+    versions.
+    Thanks Raphaël Hertzog for the report, and Tim Graham and Collin
+    Anderson for the reviews.
+
+Origin: upstream, https://github.com/django/django/commit/b1bf8d64fbadcab860eb98662c49b8db33db0c3c
+Applied-Upstream: 1.7.4
+Bug: https://code.djangoproject.com/ticket/24193
+
+--- a/django/http/__init__.py
++++ b/django/http/__init__.py
+@@ -1,7 +1,8 @@
+ from django.http.cookie import SimpleCookie, parse_cookie
+ from django.http.request import (HttpRequest, QueryDict,
+     RawPostDataException, UnreadablePostError, build_request_repr)
+-from django.http.response import (HttpResponse, StreamingHttpResponse,
++from django.http.response import (
++    HttpResponse, StreamingHttpResponse, FileResponse,
+     HttpResponseRedirect, HttpResponsePermanentRedirect,
+     HttpResponseNotModified, HttpResponseBadRequest, HttpResponseForbidden,
+     HttpResponseNotFound, HttpResponseNotAllowed, HttpResponseGone,
+@@ -16,5 +17,5 @@ __all__ = [
+     'HttpResponseBadRequest', 'HttpResponseForbidden', 'HttpResponseNotFound',
+     'HttpResponseNotAllowed', 'HttpResponseGone', 'HttpResponseServerError',
+     'Http404', 'BadHeaderError', 'fix_location_header', 'JsonResponse',
+-    'conditional_content_removal',
++    'FileResponse', 'conditional_content_removal',
+ ]
+--- a/django/http/response.py
++++ b/django/http/response.py
+@@ -382,6 +382,9 @@ class StreamingHttpResponse(HttpResponse
+ 
+     @streaming_content.setter
+     def streaming_content(self, value):
++        self._set_streaming_content(value)
++
++    def _set_streaming_content(self, value):
+         # Ensure we can never iterate on "value" more than once.
+         self._iterator = iter(value)
+         if hasattr(value, 'close'):
+@@ -391,6 +394,21 @@ class StreamingHttpResponse(HttpResponse
+         return self.streaming_content
+ 
+ 
++class FileResponse(StreamingHttpResponse):
++    """
++    A streaming HTTP response class optimized for files.
++    """
++    block_size = 4096
++
++    def _set_streaming_content(self, value):
++        if hasattr(value, 'read'):
++            self._iterator = iter(lambda: value.read(self.block_size), b'')
++            if hasattr(value, 'close'):
++                self._closable_objects.append(value)
++        else:
++            super(FileResponse, self)._set_streaming_content(value)
++
++
+ class HttpResponseRedirectBase(HttpResponse):
+     allowed_schemes = ['http', 'https', 'ftp']
+ 
+--- a/django/views/static.py
++++ b/django/views/static.py
+@@ -11,14 +11,12 @@ import posixpath
+ import re
+ 
+ from django.http import (Http404, HttpResponse, HttpResponseRedirect,
+-    HttpResponseNotModified, StreamingHttpResponse)
++    HttpResponseNotModified, FileResponse)
+ from django.template import loader, Template, Context, TemplateDoesNotExist
+ from django.utils.http import http_date, parse_http_date
+ from django.utils.six.moves.urllib.parse import unquote
+ from django.utils.translation import ugettext as _, ugettext_lazy
+ 
+-STREAM_CHUNK_SIZE = 4096
+-
+ 
+ def serve(request, path, document_root=None, show_indexes=False):
+     """
+@@ -63,9 +61,7 @@ def serve(request, path, document_root=N
+         return HttpResponseNotModified()
+     content_type, encoding = mimetypes.guess_type(fullpath)
+     content_type = content_type or 'application/octet-stream'
+-    f = open(fullpath, 'rb')
+-    response = StreamingHttpResponse(iter(lambda: f.read(STREAM_CHUNK_SIZE), b''),
+-                                     content_type=content_type)
++    response = FileResponse(open(fullpath, 'rb'), content_type=content_type)
+     response["Last-Modified"] = http_date(statobj.st_mtime)
+     if stat.S_ISREG(statobj.st_mode):
+         response["Content-Length"] = statobj.st_size
+--- a/tests/view_tests/tests/test_static.py
++++ b/tests/view_tests/tests/test_static.py
+@@ -5,10 +5,10 @@ from os import path
+ import unittest
+ 
+ from django.conf.urls.static import static
+-from django.http import HttpResponseNotModified
++from django.http import FileResponse, HttpResponseNotModified
+ from django.test import SimpleTestCase, override_settings
+ from django.utils.http import http_date
+-from django.views.static import was_modified_since, STREAM_CHUNK_SIZE
++from django.views.static import was_modified_since
+ 
+ from .. import urls
+ from ..urls import media_dir
+@@ -37,9 +37,10 @@ class StaticTests(SimpleTestCase):
+         "The static view should stream files in chunks to avoid large memory usage"
+         response = self.client.get('/%s/%s' % (self.prefix, 'long-line.txt'))
+         first_chunk = next(response.streaming_content)
+-        self.assertEqual(len(first_chunk), STREAM_CHUNK_SIZE)
++        self.assertEqual(len(first_chunk), FileResponse.block_size)
+         second_chunk = next(response.streaming_content)
+         self.assertEqual(len(second_chunk), 1451)
++        response.close()
+ 
+     def test_unknown_mime_type(self):
+         response = self.client.get('/%s/file.unknown' % self.prefix)
