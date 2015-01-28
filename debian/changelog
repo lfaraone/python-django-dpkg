@@ -1,3 +1,10 @@
+python-django (1.7.4-1~exp1) experimental; urgency=medium
+
+  * New upstream bugfix release.
+  * Drop fix-24193-python34-test-failure.diff, merged upstream.
+
+ -- Raphaël Hertzog <hertzog@debian.org>  Wed, 28 Jan 2015 09:38:24 +0100
+
 python-django (1.7.3-1~exp1) experimental; urgency=high
 
   [ Luke Faraone ]
