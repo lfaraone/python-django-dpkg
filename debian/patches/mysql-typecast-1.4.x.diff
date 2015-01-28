@@ -29,11 +29,9 @@ appropriate type conversions, and users of the ``raw()`` and
 SQL or SQL fragments -- will be advised to ensure they perform
 appropriate manual type conversions prior to executing queries.
 
-diff --git a/django/db/models/fields/__init__.py b/django/db/models/fields/__init__.py
-index 527a3c0..690a671 100644
 --- a/django/db/models/fields/__init__.py
 +++ b/django/db/models/fields/__init__.py
-@@ -911,6 +911,12 @@ class FilePathField(Field):
+@@ -911,6 +911,12 @@
          kwargs['max_length'] = kwargs.get('max_length', 100)
          Field.__init__(self, verbose_name, name, **kwargs)
  
@@ -46,7 +44,7 @@ index 527a3c0..690a671 100644
      def formfield(self, **kwargs):
          defaults = {
              'path': self.path,
-@@ -1010,6 +1016,12 @@ class IPAddressField(Field):
+@@ -1010,6 +1016,12 @@
          kwargs['max_length'] = 15
          Field.__init__(self, *args, **kwargs)
  
@@ -59,7 +57,7 @@ index 527a3c0..690a671 100644
      def get_internal_type(self):
          return "IPAddressField"
  
-@@ -1047,12 +1059,14 @@ class GenericIPAddressField(Field):
+@@ -1047,12 +1059,14 @@
          return value or None
  
      def get_prep_value(self, value):
@@ -75,11 +73,9 @@ index 527a3c0..690a671 100644
  
      def formfield(self, **kwargs):
          defaults = {'form_class': forms.GenericIPAddressField}
-diff --git a/docs/howto/custom-model-fields.txt b/docs/howto/custom-model-fields.txt
-index daaede8..fcbda03 100644
 --- a/docs/howto/custom-model-fields.txt
 +++ b/docs/howto/custom-model-fields.txt
-@@ -482,6 +482,16 @@ For example::
+@@ -482,6 +482,16 @@
              return ''.join([''.join(l) for l in (value.north,
                      value.east, value.south, value.west)])
  
@@ -96,11 +92,9 @@ index daaede8..fcbda03 100644
  Converting query values to database values
  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  
-diff --git a/docs/ref/databases.txt b/docs/ref/databases.txt
-index 4c18658..2691979 100644
 --- a/docs/ref/databases.txt
 +++ b/docs/ref/databases.txt
-@@ -432,6 +432,22 @@ MySQL does not support the ``NOWAIT`` option to the ``SELECT ... FOR UPDATE``
+@@ -432,6 +432,22 @@
  statement. If ``select_for_update()`` is used with ``nowait=True`` then a
  ``DatabaseError`` will be raised.
  
@@ -123,11 +117,9 @@ index 4c18658..2691979 100644
  .. _sqlite-notes:
  
  SQLite notes
-diff --git a/docs/ref/models/querysets.txt b/docs/ref/models/querysets.txt
-index 022a251..2decddb 100644
 --- a/docs/ref/models/querysets.txt
 +++ b/docs/ref/models/querysets.txt
-@@ -1041,6 +1041,16 @@ of the arguments is required, but you should use at least one of them.
+@@ -1041,6 +1041,16 @@
  
        Entry.objects.extra(where=['headline=%s'], params=['Lennon'])
  
@@ -144,11 +136,9 @@ index 022a251..2decddb 100644
  defer
  ~~~~~
  
-diff --git a/docs/topics/db/sql.txt b/docs/topics/db/sql.txt
-index 80038e5..d387ad5 100644
 --- a/docs/topics/db/sql.txt
 +++ b/docs/topics/db/sql.txt
-@@ -69,6 +69,16 @@ options that make it very powerful.
+@@ -69,6 +69,16 @@
      database, but does nothing to enforce that. If the query does not
      return rows, a (possibly cryptic) error will result.
  
@@ -165,11 +155,9 @@ index 80038e5..d387ad5 100644
  Mapping query fields to model fields
  ------------------------------------
  
-diff --git a/tests/regressiontests/model_fields/tests.py b/tests/regressiontests/model_fields/tests.py
-index a71ea77..30f0e7d 100644
 --- a/tests/regressiontests/model_fields/tests.py
 +++ b/tests/regressiontests/model_fields/tests.py
-@@ -6,8 +6,15 @@ from decimal import Decimal
+@@ -6,8 +6,15 @@
  from django import test
  from django import forms
  from django.core.exceptions import ValidationError
@@ -186,7 +174,7 @@ index a71ea77..30f0e7d 100644
  from django.utils import unittest
  
  from .models import (Foo, Bar, Whiz, BigD, BigS, Image, BigInt, Post,
-@@ -373,3 +380,88 @@ class FileFieldTests(unittest.TestCase):
+@@ -373,3 +380,88 @@
          field = d._meta.get_field('myfile')
          field.save_form_data(d, 'else.txt')
          self.assertEqual(d.myfile, 'else.txt')

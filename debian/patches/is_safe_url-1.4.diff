@@ -26,11 +26,9 @@ To remedy this issue, the ``is_safe_url()`` function will be modified
 to properly recognize and reject URLs which specify a scheme other
 than HTTP or HTTPS.
 
-diff --git a/django/contrib/auth/tests/views.py b/django/contrib/auth/tests/views.py
-index 603d380..6d7029b 100644
 --- a/django/contrib/auth/tests/views.py
 +++ b/django/contrib/auth/tests/views.py
-@@ -309,7 +309,8 @@ class LoginTest(AuthViewsTestCase):
+@@ -309,7 +309,8 @@
          for bad_url in ('http://example.com',
                          'https://example.com',
                          'ftp://exampel.com',
@@ -40,7 +38,7 @@ index 603d380..6d7029b 100644
  
              nasty_url = '%(url)s?%(next)s=%(bad_url)s' % {
                  'url': login_url,
-@@ -330,6 +331,7 @@ class LoginTest(AuthViewsTestCase):
+@@ -330,6 +331,7 @@
                           '/view?param=ftp://exampel.com',
                           'view/?param=//example.com',
                           'https:///',
@@ -48,7 +46,7 @@ index 603d380..6d7029b 100644
                           '//testserver/',
                           '/url%20with%20spaces/'):  # see ticket #12534
              safe_url = '%(url)s?%(next)s=%(good_url)s' % {
-@@ -467,7 +469,8 @@ class LogoutTest(AuthViewsTestCase):
+@@ -467,7 +469,8 @@
          for bad_url in ('http://example.com',
                          'https://example.com',
                          'ftp://exampel.com',
@@ -58,7 +56,7 @@ index 603d380..6d7029b 100644
              nasty_url = '%(url)s?%(next)s=%(bad_url)s' % {
                  'url': logout_url,
                  'next': REDIRECT_FIELD_NAME,
-@@ -486,6 +489,7 @@ class LogoutTest(AuthViewsTestCase):
+@@ -486,6 +489,7 @@
                           '/view?param=ftp://exampel.com',
                           'view/?param=//example.com',
                           'https:///',
@@ -66,11 +64,9 @@ index 603d380..6d7029b 100644
                           '//testserver/',
                           '/url%20with%20spaces/'):  # see ticket #12534
              safe_url = '%(url)s?%(next)s=%(good_url)s' % {
-diff --git a/django/utils/http.py b/django/utils/http.py
-index d2e4eb5..21c84dc 100644
 --- a/django/utils/http.py
 +++ b/django/utils/http.py
-@@ -228,11 +228,12 @@ else:
+@@ -228,11 +228,12 @@
  def is_safe_url(url, host=None):
      """
      Return ``True`` if the url is a safe redirection (i.e. it doesn't point to

@@ -29,11 +29,9 @@ responses. The heuristic for this will be:
 3. The ``Vary: Cookie`` header is set on the response, then the
    response will not be cached.
 
-diff --git a/django/middleware/cache.py b/django/middleware/cache.py
-index 34bf0ca..760ba4e 100644
 --- a/django/middleware/cache.py
 +++ b/django/middleware/cache.py
-@@ -50,7 +50,8 @@ More details about how the caching works:
+@@ -50,7 +50,8 @@
  
  from django.conf import settings
  from django.core.cache import get_cache, DEFAULT_CACHE_ALIAS
@@ -43,7 +41,7 @@ index 34bf0ca..760ba4e 100644
  
  
  class UpdateCacheMiddleware(object):
-@@ -93,8 +94,15 @@ class UpdateCacheMiddleware(object):
+@@ -93,8 +94,15 @@
          if not self._should_update_cache(request, response):
              # We don't need to update the cache, just return.
              return response
@@ -59,11 +57,9 @@ index 34bf0ca..760ba4e 100644
          # Try to get the timeout from the "max-age" section of the "Cache-
          # Control" header before reverting to using the default cache_timeout
          # length.
-diff --git a/tests/regressiontests/cache/tests.py b/tests/regressiontests/cache/tests.py
-index bd29cde..b0be259 100644
 --- a/tests/regressiontests/cache/tests.py
 +++ b/tests/regressiontests/cache/tests.py
-@@ -17,10 +17,12 @@ from django.core import management
+@@ -17,10 +17,12 @@
  from django.core.cache import get_cache, DEFAULT_CACHE_ALIAS
  from django.core.cache.backends.base import (CacheKeyWarning,
      InvalidCacheBackendError)
@@ -76,7 +72,7 @@ index bd29cde..b0be259 100644
  from django.template import Template
  from django.template.response import TemplateResponse
  from django.test import TestCase, TransactionTestCase, RequestFactory
-@@ -1418,6 +1420,10 @@ def hello_world_view(request, value):
+@@ -1418,6 +1420,10 @@
      return HttpResponse('Hello World %s' % value)
  
  
@@ -87,7 +83,7 @@ index bd29cde..b0be259 100644
  class CacheMiddlewareTest(TestCase):
  
      def setUp(self):
-@@ -1635,6 +1641,27 @@ class CacheMiddlewareTest(TestCase):
+@@ -1635,6 +1641,27 @@
          response = other_with_timeout_view(request, '18')
          self.assertEqual(response.content, 'Hello World 18')
  
