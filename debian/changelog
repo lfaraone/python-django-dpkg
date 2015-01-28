@@ -1,3 +1,16 @@
+python-django (1.4.5-1+deb7u8) stable-security; urgency=medium
+
+  * New upstream security release:
+    https://www.djangoproject.com/weblog/2015/jan/13/security/
+    - WSGI header spoofing via underscore/dash conflation (CVE-2015-0219)
+    - Possible XSS attack via user-supplied redirect URLs (CVE-2015-0220)
+    - Denial-of-service attack against django.views.static.serve
+      (CVE-2015-0221)
+  * Also include a fix for a regression introduced by the patch for
+    CVE-2015-0221: https://code.djangoproject.com/ticket/24158
+
+ -- Raphaël Hertzog <hertzog@debian.org>  Wed, 28 Jan 2015 10:24:59 +0100
+
 python-django (1.4.5-1+deb7u7) stable-security; urgency=high
 
   * New upstream security release.

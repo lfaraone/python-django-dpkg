@@ -13,3 +13,8 @@ mysql-typecast-1.4.x.diff
 is_safe_url_1_4.diff
 drop_fix_ie_for_vary_1_4.diff
 FTBFS-exception-in-servers-tests-tear-down.patch
+CVE-2015-0219.diff
+CVE-2015-0220.diff
+CVE-2015-0221.diff
+CVE-2015-0221-regression-fix.diff
+
