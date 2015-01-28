@@ -5,12 +5,13 @@ from django.test import TransactionTestCase
 from django.db import connection, DatabaseError, IntegrityError, OperationalError
 from django.db.models.fields import (BinaryField, BooleanField, CharField, IntegerField,
     PositiveIntegerField, SlugField, TextField)
-from django.db.models.fields.related import ManyToManyField, ForeignKey
+from django.db.models.fields.related import ForeignKey, ManyToManyField, OneToOneField
 from django.db.transaction import atomic
+from .fields import CustomManyToManyField
 from .models import (Author, AuthorWithDefaultHeight, AuthorWithM2M, Book, BookWithLongName,
     BookWithSlug, BookWithM2M, Tag, TagIndexed, TagM2MTest, TagUniqueRename,
     UniqueTest, Thing, TagThrough, BookWithM2MThrough, AuthorTag, AuthorWithM2MThrough,
-    AuthorWithEvenLongerName, BookWeak, Note)
+    AuthorWithEvenLongerName, BookWeak, Note, BookWithO2O)
 
 
 class SchemaTests(TransactionTestCase):
@@ -28,7 +29,7 @@ class SchemaTests(TransactionTestCase):
         Author, AuthorWithM2M, Book, BookWithLongName, BookWithSlug,
         BookWithM2M, Tag, TagIndexed, TagM2MTest, TagUniqueRename, UniqueTest,
         Thing, TagThrough, BookWithM2MThrough, AuthorWithEvenLongerName,
-        BookWeak,
+        BookWeak, BookWithO2O,
     ]
 
     # Utility functions
@@ -534,6 +535,108 @@ class SchemaTests(TransactionTestCase):
                 break
         else:
             self.fail("No FK constraint for author_id found")
+
+    @unittest.skipUnless(connection.features.supports_foreign_keys, "No FK support")
+    def test_alter_o2o_to_fk(self):
+        """
+        #24163 - Tests altering of OneToOneField to ForeignKey
+        """
+        # Create the table
+        with connection.schema_editor() as editor:
+            editor.create_model(Author)
+            editor.create_model(BookWithO2O)
+        # Ensure the field is right to begin with
+        columns = self.column_classes(BookWithO2O)
+        self.assertEqual(columns['author_id'][0], "IntegerField")
+        # Ensure the field is unique
+        author = Author.objects.create(name="Joe")
+        BookWithO2O.objects.create(author=author, title="Django 1", pub_date=datetime.datetime.now())
+        with self.assertRaises(IntegrityError):
+            BookWithO2O.objects.create(author=author, title="Django 2", pub_date=datetime.datetime.now())
+        BookWithO2O.objects.all().delete()
+        # Make sure the FK constraint is present
+        constraints = self.get_constraints(BookWithO2O._meta.db_table)
+        author_is_fk = False
+        for name, details in constraints.items():
+            if details['columns'] == ['author_id']:
+                if details['foreign_key'] and details['foreign_key'] == ('schema_author', 'id'):
+                    author_is_fk = True
+        self.assertTrue(author_is_fk, "No FK constraint for author_id found")
+        # Alter the OneToOneField to ForeignKey
+        new_field = ForeignKey(Author)
+        new_field.set_attributes_from_name("author")
+        with connection.schema_editor() as editor:
+            editor.alter_field(
+                BookWithO2O,
+                BookWithO2O._meta.get_field("author"),
+                new_field,
+                strict=True,
+            )
+        # Ensure the field is right afterwards
+        columns = self.column_classes(Book)
+        self.assertEqual(columns['author_id'][0], "IntegerField")
+        # Ensure the field is not unique anymore
+        Book.objects.create(author=author, title="Django 1", pub_date=datetime.datetime.now())
+        Book.objects.create(author=author, title="Django 2", pub_date=datetime.datetime.now())
+        # Make sure the FK constraint is still present
+        constraints = self.get_constraints(Book._meta.db_table)
+        author_is_fk = False
+        for name, details in constraints.items():
+            if details['columns'] == ['author_id']:
+                if details['foreign_key'] and details['foreign_key'] == ('schema_author', 'id'):
+                    author_is_fk = True
+        self.assertTrue(author_is_fk, "No FK constraint for author_id found")
+
+    @unittest.skipUnless(connection.features.supports_foreign_keys, "No FK support")
+    def test_alter_fk_to_o2o(self):
+        """
+        #24163 - Tests altering of ForeignKey to OneToOneField
+        """
+        # Create the table
+        with connection.schema_editor() as editor:
+            editor.create_model(Author)
+            editor.create_model(Book)
+        # Ensure the field is right to begin with
+        columns = self.column_classes(Book)
+        self.assertEqual(columns['author_id'][0], "IntegerField")
+        # Ensure the field is not unique
+        author = Author.objects.create(name="Joe")
+        Book.objects.create(author=author, title="Django 1", pub_date=datetime.datetime.now())
+        Book.objects.create(author=author, title="Django 2", pub_date=datetime.datetime.now())
+        Book.objects.all().delete()
+        # Make sure the FK constraint is present
+        constraints = self.get_constraints(Book._meta.db_table)
+        author_is_fk = False
+        for name, details in constraints.items():
+            if details['columns'] == ['author_id']:
+                if details['foreign_key'] and details['foreign_key'] == ('schema_author', 'id'):
+                    author_is_fk = True
+        self.assertTrue(author_is_fk, "No FK constraint for author_id found")
+        # Alter the ForeignKey to OneToOneField
+        new_field = OneToOneField(Author)
+        new_field.set_attributes_from_name("author")
+        with connection.schema_editor() as editor:
+            editor.alter_field(
+                Book,
+                Book._meta.get_field("author"),
+                new_field,
+                strict=True,
+            )
+        # Ensure the field is right afterwards
+        columns = self.column_classes(BookWithO2O)
+        self.assertEqual(columns['author_id'][0], "IntegerField")
+        # Ensure the field is unique now
+        BookWithO2O.objects.create(author=author, title="Django 1", pub_date=datetime.datetime.now())
+        with self.assertRaises(IntegrityError):
+            BookWithO2O.objects.create(author=author, title="Django 2", pub_date=datetime.datetime.now())
+        # Make sure the FK constraint is present
+        constraints = self.get_constraints(BookWithO2O._meta.db_table)
+        author_is_fk = False
+        for name, details in constraints.items():
+            if details['columns'] == ['author_id']:
+                if details['foreign_key'] and details['foreign_key'] == ('schema_author', 'id'):
+                    author_is_fk = True
+        self.assertTrue(author_is_fk, "No FK constraint for author_id found")
 
     def test_alter_implicit_id_to_explicit(self):
         """
@@ -1208,3 +1311,47 @@ class SchemaTests(TransactionTestCase):
             cursor.execute("SELECT surname FROM schema_author;")
             item = cursor.fetchall()[0]
             self.assertEqual(item[0], None if connection.features.interprets_empty_strings_as_nulls else '')
+
+    def test_custom_manytomanyfield(self):
+        """
+        #24104 - Schema editors should look for internal type of field
+        """
+        # Create the tables
+        with connection.schema_editor() as editor:
+            editor.create_model(AuthorWithM2M)
+            editor.create_model(TagM2MTest)
+        # Create an M2M field
+        new_field = CustomManyToManyField("schema.TagM2MTest", related_name="authors")
+        new_field.contribute_to_class(AuthorWithM2M, "tags")
+        # Ensure there's no m2m table there
+        self.assertRaises(DatabaseError, self.column_classes, new_field.rel.through)
+        try:
+            # Add the field
+            with connection.schema_editor() as editor:
+                editor.add_field(
+                    AuthorWithM2M,
+                    new_field,
+                )
+            # Ensure there is now an m2m table there
+            columns = self.column_classes(new_field.rel.through)
+            self.assertEqual(columns['tagm2mtest_id'][0], "IntegerField")
+
+            # "Alter" the field. This should not rename the DB table to itself.
+            with connection.schema_editor() as editor:
+                editor.alter_field(
+                    AuthorWithM2M,
+                    new_field,
+                    new_field,
+                )
+
+            # Remove the M2M table again
+            with connection.schema_editor() as editor:
+                editor.remove_field(
+                    AuthorWithM2M,
+                    new_field,
+                )
+            # Ensure there's no m2m table there
+            self.assertRaises(DatabaseError, self.column_classes, new_field.rel.through)
+        finally:
+            # Cleanup model states
+            AuthorWithM2M._meta.local_many_to_many.remove(new_field)

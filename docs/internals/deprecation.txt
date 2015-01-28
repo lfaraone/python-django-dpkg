@@ -46,8 +46,8 @@ details on these changes.
 
 * ``AppCommand.handle_app()`` will no longer be supported.
 
-* ``RequestSite`` will be located in ``django.contrib.sites.requests`` and
-  ``get_current_site`` in ``django.contrib.sites.shortcuts``.
+* ``RequestSite`` and ``get_current_site()`` will no longer be importable from
+  ``django.contrib.sites.models``.
 
 * FastCGI support via the ``runfcgi`` management command will be
   removed. Please deploy your project using WSGI.
@@ -68,9 +68,9 @@ details on these changes.
 
 * ``ModelAdmin.get_formsets`` will be removed.
 
-* Remove the backward compatible shims introduced to rename the
+* The backward compatibility shim introduced to rename the
   ``BaseMemcachedCache._get_memcache_timeout()`` method to
-  ``get_backend_timeout()``.
+  ``get_backend_timeout()`` will be removed.
 
 * The ``--natural`` and ``-n`` options for :djadmin:`dumpdata` will be removed.
   Use :djadminopt:`--natural-foreign` instead.
@@ -78,7 +78,7 @@ details on these changes.
 * The ``use_natural_keys`` argument for ``serializers.serialize()`` will be
   removed. Use ``use_natural_foreign_keys`` instead.
 
-* ``django.forms.get_declared_fields`` will be removed.
+* Private API ``django.forms.forms.get_declared_fields()`` will be removed.
 
 * The ability to use a ``SplitDateTimeWidget`` with ``DateTimeField`` will be
   removed.
@@ -103,11 +103,15 @@ details on these changes.
   ``requires_system_checks``. Admin validators will be replaced by admin
   checks.
 
-* ``ModelAdmin.validator`` will be removed in favor of the new ``checks``
-  attribute.
+* The ``ModelAdmin.validator_class`` and ``default_validator_class`` attributes
+  will be removed.
+
+* ``ModelAdmin.validate()`` will be removed.
 
 * ``django.db.backends.DatabaseValidation.validate_field`` will be removed in
   favor of the ``check_field`` method.
+
+* The ``check`` management command will be removed.
 
 * ``django.utils.module_loading.import_by_path`` will be removed in favor of
   ``django.utils.module_loading.import_string``.
@@ -119,6 +123,23 @@ details on these changes.
 
 * Database test settings as independent entries in the database settings,
   prefixed by ``TEST_``, will no longer be supported.
+
+* The `cache_choices` option to :class:`~django.forms.ModelChoiceField` and
+  :class:`~django.forms.ModelMultipleChoiceField` will be removed.
+
+* The default value of the
+  :attr:`RedirectView.permanent <django.views.generic.base.RedirectView.permanent>`
+  attribute will change from ``True`` to ``False``.
+
+* ``django.contrib.sitemaps.FlatPageSitemap`` will be removed in favor of
+  ``django.contrib.flatpages.sitemaps.FlatPageSitemap``.
+
+* Private API ``django.test.utils.TestTemplateLoader`` will be removed.
+
+* The ``django.contrib.contenttypes.generic`` module will be removed.
+
+* Private APIs ``django.db.models.sql.where.WhereNode.make_atom()`` and
+  ``django.db.models.sql.where.Constraint`` will be removed.
 
 .. _deprecation-removed-in-1.8:
 

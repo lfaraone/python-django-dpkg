@@ -668,7 +668,7 @@ subclass::
 
       .. versionadded:: 1.7
 
-      To indicate descending order with ``admin_model_field`` you can use a
+      To indicate descending order with ``admin_order_field`` you can use a
       hyphen prefix on the field name. Using the above example, this would
       look like::
 
@@ -1516,6 +1516,8 @@ templates used by the :class:`ModelAdmin` views:
                     yield inline.get_formset(request, obj)
 
 .. method:: ModelAdmin.get_formsets_with_inlines(request, obj=None)
+
+    .. versionadded:: 1.7
 
     Yields (``FormSet``, :class:`InlineModelAdmin`) pairs for use in admin add
     and change views.
