@@ -1,3 +1,16 @@
+python-django (1.2.3-3+squeeze12) squeeze-lts; urgency=medium
+
+  * Backport multiple security fixes released in 1.4 branch:
+    https://www.djangoproject.com/weblog/2015/jan/13/security/
+     - WSGI header spoofing via underscore/dash conflation (CVE-2015-0219)
+     - Possible XSS attack via user-supplied redirect URLs (CVE-2015-0220)
+     - Denial-of-service attack against django.views.static.serve
+       (CVE-2015-0221)
+   * Also include a fix for a regression introduced by the patch for
+     CVE-2015-0221: https://code.djangoproject.com/ticket/24158
+
+ -- Raphaël Hertzog <hertzog@debian.org>  Wed, 28 Jan 2015 18:39:56 +0100
+
 python-django (1.2.3-3+squeeze11) squeeze-lts; urgency=low
 
   * LTS security upload:

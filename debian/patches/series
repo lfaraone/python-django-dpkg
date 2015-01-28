@@ -37,3 +37,8 @@ CVE-2014-0483.patch
 CVE-2014-0480.patch
 get-random-string-backport.patch
 CVE-2014-0481.patch
+CVE-2015-0219.diff
+CVE-2015-0220.diff
+CVE-2015-0221.diff
+CVE-2015-0221-regression-fix.diff
+
