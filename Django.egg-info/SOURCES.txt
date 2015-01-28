@@ -3982,6 +3982,7 @@ docs/releases/1.4.15.txt
 docs/releases/1.4.16.txt
 docs/releases/1.4.17.txt
 docs/releases/1.4.18.txt
+docs/releases/1.4.19.txt
 docs/releases/1.4.2.txt
 docs/releases/1.4.3.txt
 docs/releases/1.4.4.txt
@@ -4018,6 +4019,7 @@ docs/releases/1.6.txt
 docs/releases/1.7.1.txt
 docs/releases/1.7.2.txt
 docs/releases/1.7.3.txt
+docs/releases/1.7.4.txt
 docs/releases/1.7.txt
 docs/releases/index.txt
 docs/releases/security.txt
@@ -4986,6 +4988,7 @@ tests/save_delete_hooks/__init__.py
 tests/save_delete_hooks/models.py
 tests/save_delete_hooks/tests.py
 tests/schema/__init__.py
+tests/schema/fields.py
 tests/schema/models.py
 tests/schema/tests.py
 tests/select_for_update/__init__.py
