@@ -1,6 +1,10 @@
 python-django (1.7.1-2) UNRELEASED; urgency=medium
 
+  [ Raphaël Hertzog ]
   * Add geoip-database-extra as an alternative to geoip-database-contrib.
+
+  [ Chris Lamb ]
+  * Remove myself from Uploaders.
 
  -- Raphaël Hertzog <hertzog@debian.org>  Mon, 15 Dec 2014 08:33:25 +0100
 
