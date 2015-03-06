@@ -677,9 +677,9 @@ to change the default address (in the case, for example, where the 8081 port is
 already taken) then you may pass a different one to the :djadmin:`test` command
 via the :djadminopt:`--liveserver` option, for example:
 
-.. code-block:: bash
+.. code-block:: console
 
-    ./manage.py test --liveserver=localhost:8082
+    $ ./manage.py test --liveserver=localhost:8082
 
 Another way of changing the default server address is by setting the
 `DJANGO_LIVE_TEST_SERVER_ADDRESS` environment variable somewhere in your
@@ -697,9 +697,9 @@ tests might randomly fail with an "Address already in use" error. To avoid this
 problem, you can pass a comma-separated list of ports or ranges of ports (at
 least as many as the number of potential parallel processes). For example:
 
-.. code-block:: bash
+.. code-block:: console
 
-    ./manage.py test --liveserver=localhost:8082,8090-8100,9000-9200,7041
+    $ ./manage.py test --liveserver=localhost:8082,8090-8100,9000-9200,7041
 
 Then, during test execution, each new live test server will try every specified
 port until it finds one that is free and takes it.
@@ -710,9 +710,9 @@ To demonstrate how to use ``LiveServerTestCase``, let's write a simple Selenium
 test. First of all, you need to install the `selenium package`_ into your
 Python path:
 
-.. code-block:: bash
+.. code-block:: console
 
-   pip install selenium
+    $ pip install selenium
 
 Then, add a ``LiveServerTestCase``-based test to your app's tests module
 (for example: ``myapp/tests.py``). The code for this test may look as follows:
@@ -745,9 +745,9 @@ Then, add a ``LiveServerTestCase``-based test to your app's tests module
 
 Finally, you may run the test as follows:
 
-.. code-block:: bash
+.. code-block:: console
 
-    ./manage.py test myapp.tests.MySeleniumTests.test_login
+    $ ./manage.py test myapp.tests.MySeleniumTests.test_login
 
 This example will automatically open Firefox then go to the login page, enter
 the credentials and press the "Log in" button. Selenium offers other drivers in
@@ -762,23 +762,15 @@ out the `full reference`_ for more details.
 
 .. versionchanged:: 1.7
 
-    Before Django 1.7 ``LiveServerTestCase`` used to rely on the
-    :doc:`staticfiles contrib app </howto/static-files/index>` to get the
-    static assets of the application(s) under test transparently served at their
-    expected locations during the execution of these tests.
+    In older versions, ``LiveServerTestCase`` relied on the :doc:`staticfiles
+    contrib app </howto/static-files/index>` to transparently serve static
+    files during the execution of tests. This functionality has been moved to
+    the :class:`~django.contrib.staticfiles.testing.StaticLiveServerTestCase`
+    subclass, so use that subclass if you need :ref:`the original behavior
+    <staticfiles-testing-support>`.
 
-    In Django 1.7 this dependency of core functionality on a ``contrib``
-    application has been removed, because of which ``LiveServerTestCase``
-    ability in this respect has been retrofitted to simply publish the contents
-    of the file system under :setting:`STATIC_ROOT` at the :setting:`STATIC_URL`
-    URL.
-
-    If you use the ``staticfiles`` app in your project and need to perform live
-    testing then you might want to consider using the
-    :class:`~django.contrib.staticfiles.testing.StaticLiveServerTestCase`
-    subclass shipped with it instead because it's the one that implements the
-    original behavior now. See :ref:`the relevant documentation
-    <staticfiles-testing-support>` for more details.
+    ``LiveServerTestCase`` now simply publishes the contents of the file system
+    under :setting:`STATIC_ROOT` at the :setting:`STATIC_URL`.
 
 .. note::
 

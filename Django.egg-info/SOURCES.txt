@@ -34,6 +34,8 @@ django/conf/locale/ar/LC_MESSAGES/django.mo
 django/conf/locale/ar/LC_MESSAGES/django.po
 django/conf/locale/ast/LC_MESSAGES/django.mo
 django/conf/locale/ast/LC_MESSAGES/django.po
+django/conf/locale/az/__init__.py
+django/conf/locale/az/formats.py
 django/conf/locale/az/LC_MESSAGES/django.mo
 django/conf/locale/az/LC_MESSAGES/django.po
 django/conf/locale/be/LC_MESSAGES/django.mo
@@ -4020,6 +4022,7 @@ docs/releases/1.7.1.txt
 docs/releases/1.7.2.txt
 docs/releases/1.7.3.txt
 docs/releases/1.7.4.txt
+docs/releases/1.7.5.txt
 docs/releases/1.7.txt
 docs/releases/index.txt
 docs/releases/security.txt
