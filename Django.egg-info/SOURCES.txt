@@ -4023,6 +4023,7 @@ docs/releases/1.7.2.txt
 docs/releases/1.7.3.txt
 docs/releases/1.7.4.txt
 docs/releases/1.7.5.txt
+docs/releases/1.7.6.txt
 docs/releases/1.7.txt
 docs/releases/index.txt
 docs/releases/security.txt
