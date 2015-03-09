@@ -1,3 +1,12 @@
+python-django (1.7.6-1) unstable; urgency=high
+
+  * New upstream security release:
+    https://www.djangoproject.com/weblog/2015/mar/09/security-releases/
+  * Fixes CVE-2015-2241: XSS attack via properties in
+    ModelAdmin.readonly_fields
+
+ -- Raphaël Hertzog <hertzog@debian.org>  Mon, 09 Mar 2015 21:40:34 +0100
+
 python-django (1.7.5-1) unstable; urgency=medium
 
   [ Chris Lamb ]
