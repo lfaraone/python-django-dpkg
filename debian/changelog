@@ -1,3 +1,11 @@
+python-django (1.4.5-1+deb7u10) wheezy-security; urgency=high
+
+  * New upstream security release:
+    https://www.djangoproject.com/weblog/2015/mar/18/security-releases/
+    - Possible XSS attack via user-supplied redirect URLs (CVE-2015-2317)
+
+ -- Luke Faraone <lfaraone@debian.org>  Thu, 19 Mar 2015 05:14:59 +0000
+
 python-django (1.4.5-1+deb7u9) wheezy-security; urgency=high
 
   * New upstream security release:
