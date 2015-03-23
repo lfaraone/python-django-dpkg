@@ -1,3 +1,15 @@
+python-django (1.7.7-1) unstable; urgency=high
+
+  * New upstream security and bugfix release:
+    https://www.djangoproject.com/weblog/2015/mar/18/security-releases/
+    It fixes:
+    - CVE-2015-2317: possible XSS attack via user-supplied redirect URLs
+      Closes: #780873
+    - CVE-2015-2316: Denial-of-service possibility with strip_tags()
+      Closes: #780874
+
+ -- Raphaël Hertzog <hertzog@debian.org>  Mon, 23 Mar 2015 20:41:13 +0100
+
 python-django (1.7.6-1) unstable; urgency=high
 
   * New upstream security release:
