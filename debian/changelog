@@ -1,3 +1,10 @@
+python-django (1.4.5-1+deb7u11) wheezy-security; urgency=high
+
+  * Non-maintainer upload by the Security Team.
+  * No change rebuild. Brings back missing jquery symlinks. 
+
+ -- Salvatore Bonaccorso <carnil@debian.org>  Tue, 24 Mar 2015 19:37:38 +0100
+
 python-django (1.4.5-1+deb7u10) wheezy-security; urgency=high
 
   * New upstream security release:
