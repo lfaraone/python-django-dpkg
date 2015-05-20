@@ -4,28 +4,33 @@ import datetime
 import os
 from decimal import Decimal
 from unittest import skipUnless
-import warnings
 
 from django import forms
-from django.core.exceptions import FieldError, NON_FIELD_ERRORS
+from django.core.exceptions import (
+    NON_FIELD_ERRORS, FieldError, ImproperlyConfigured,
+)
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.validators import ValidationError
 from django.db import connection
 from django.db.models.query import EmptyQuerySet
-from django.forms.models import (construct_instance, fields_for_model,
-    model_to_dict, modelform_factory, ModelFormMetaclass)
+from django.forms.models import (
+    ModelFormMetaclass, construct_instance, fields_for_model, model_to_dict,
+    modelform_factory,
+)
+from django.template import Context, Template
 from django.test import TestCase, skipUnlessDBFeature
-from django.utils.deprecation import RemovedInDjango18Warning
-from django.utils._os import upath
 from django.utils import six
+from django.utils._os import upath
 
-from .models import (Article, ArticleStatus, Author, Author1, BetterWriter, BigInt, Book,
-    Category, CommaSeparatedInteger, CustomFF, CustomFieldForExclusionModel,
-    DerivedBook, DerivedPost, Document, ExplicitPK, FilePathModel, FlexibleDatePost, Homepage,
-    ImprovedArticle, ImprovedArticleWithParentLink, Inventory, Person, Photo, Post, Price,
-    Product, Publication, TextFile, Triple, Writer, WriterProfile,
-    Colour, ColourfulItem, ArticleStatusNote, DateTimePost, CustomErrorMessage,
-    test_images, StumpJoke, Character)
+from .models import (
+    Article, ArticleStatus, Author, Author1, BetterWriter, BigInt, Book,
+    Category, Character, Colour, ColourfulItem, CommaSeparatedInteger,
+    CustomErrorMessage, CustomFF, CustomFieldForExclusionModel, DateTimePost,
+    DerivedBook, DerivedPost, Document, ExplicitPK, FilePathModel,
+    FlexibleDatePost, Homepage, ImprovedArticle, ImprovedArticleWithParentLink,
+    Inventory, Person, Photo, Post, Price, Product, Publication, Student,
+    StumpJoke, TextFile, Triple, Writer, WriterProfile, test_images,
+)
 
 if test_images:
     from .models import ImageFile, OptionalImageFile
@@ -201,24 +206,44 @@ class ModelFormBaseTest(TestCase):
         instance = construct_instance(form, Person(), fields=())
         self.assertEqual(instance.name, '')
 
-    def test_missing_fields_attribute(self):
-        with warnings.catch_warnings(record=True):
-            warnings.simplefilter("always", RemovedInDjango18Warning)
+    def test_blank_with_null_foreign_key_field(self):
+        """
+        #13776 -- ModelForm's with models having a FK set to null=False and
+        required=False should be valid.
+        """
+        class FormForTestingIsValid(forms.ModelForm):
+            class Meta:
+                model = Student
+                fields = '__all__'
 
+            def __init__(self, *args, **kwargs):
+                super(FormForTestingIsValid, self).__init__(*args, **kwargs)
+                self.fields['character'].required = False
+
+        char = Character.objects.create(username='user',
+                                        last_action=datetime.datetime.today())
+        data = {'study': 'Engineering'}
+        data2 = {'study': 'Engineering', 'character': char.pk}
+
+        # form is valid because required=False for field 'character'
+        f1 = FormForTestingIsValid(data)
+        self.assertTrue(f1.is_valid())
+
+        f2 = FormForTestingIsValid(data2)
+        self.assertTrue(f2.is_valid())
+        obj = f2.save()
+        self.assertEqual(obj.character, char)
+
+    def test_missing_fields_attribute(self):
+        message = (
+            "Creating a ModelForm without either the 'fields' attribute "
+            "or the 'exclude' attribute is prohibited; form "
+            "MissingFieldsForm needs updating."
+        )
+        with self.assertRaisesMessage(ImproperlyConfigured, message):
             class MissingFieldsForm(forms.ModelForm):
                 class Meta:
                     model = Category
-
-        # There is some internal state in warnings module which means that
-        # if a warning has been seen already, the catch_warnings won't
-        # have recorded it. The following line therefore will not work reliably:
-
-        # self.assertEqual(w[0].category, RemovedInDjango18Warning)
-
-        # Until end of the deprecation cycle, should still create the
-        # form as before:
-        self.assertEqual(list(MissingFieldsForm.base_fields),
-                         ['name', 'slug', 'url'])
 
     def test_extra_fields(self):
         class ExtraFields(BaseCategoryForm):
@@ -239,7 +264,7 @@ class ModelFormBaseTest(TestCase):
         except FieldError as e:
             # Make sure the exception contains some reference to the
             # field responsible for the problem.
-            self.assertTrue('no-field' in e.args[0])
+            self.assertIn('no-field', e.args[0])
         else:
             self.fail('Invalid "no-field" field not caught')
 
@@ -936,10 +961,10 @@ class ModelToDictTests(TestCase):
         with self.assertNumQueries(0):
             d = model_to_dict(art)
 
-        #Ensure all many-to-many categories appear in model_to_dict
+        # Ensure all many-to-many categories appear in model_to_dict
         for c in categories:
             self.assertIn(c.pk, d['categories'])
-        #Ensure many-to-many relation appears as a list
+        # Ensure many-to-many relation appears as a list
         self.assertIsInstance(d['categories'], list)
 
 
@@ -1004,7 +1029,7 @@ class ModelFormBasicTests(TestCase):
 <option value="%s" selected="selected">Entertainment</option>
 <option value="%s" selected="selected">It&#39;s a test</option>
 <option value="%s">Third test</option>
-</select> <span class="helptext"> Hold down "Control", or "Command" on a Mac, to select more than one.</span></li>
+</select></li>
 <li>Status: <select name="status">
 <option value="" selected="selected">---------</option>
 <option value="1">Draft</option>
@@ -1040,7 +1065,7 @@ class ModelFormBasicTests(TestCase):
 <option value="%s">Entertainment</option>
 <option value="%s">It&#39;s a test</option>
 <option value="%s">Third test</option>
-</select> <span class="helptext"> Hold down "Control", or "Command" on a Mac, to select more than one.</span></li>
+</select></li>
 <li>Status: <select name="status">
 <option value="" selected="selected">---------</option>
 <option value="1">Draft</option>
@@ -1084,7 +1109,7 @@ class ModelFormBasicTests(TestCase):
 <option value="%d" selected="selected">Entertainment</option>
 <option value="%d" selected="selected">It&39;s a test</option>
 <option value="%d">Third test</option>
-</select> <span class="helptext"> Hold down "Control", or "Command" on a Mac, to select more than one.</span></li>"""
+</select></li>"""
             % (self.c1.pk, self.c2.pk, self.c3.pk))
 
     def test_basic_creation(self):
@@ -1147,7 +1172,7 @@ class ModelFormBasicTests(TestCase):
 <option value="%s">Entertainment</option>
 <option value="%s">It&#39;s a test</option>
 <option value="%s">Third test</option>
-</select><br /><span class="helptext"> Hold down "Control", or "Command" on a Mac, to select more than one.</span></td></tr>
+</select></td></tr>
 <tr><th>Status:</th><td><select name="status">
 <option value="" selected="selected">---------</option>
 <option value="1">Draft</option>
@@ -1175,7 +1200,7 @@ class ModelFormBasicTests(TestCase):
 <option value="%s" selected="selected">Entertainment</option>
 <option value="%s">It&#39;s a test</option>
 <option value="%s">Third test</option>
-</select> <span class="helptext"> Hold down "Control", or "Command" on a Mac, to select more than one.</span></li>
+</select></li>
 <li>Status: <select name="status">
 <option value="" selected="selected">---------</option>
 <option value="1">Draft</option>
@@ -1316,7 +1341,7 @@ class ModelFormBasicTests(TestCase):
 <option value="%s">Entertainment</option>
 <option value="%s">It&#39;s a test</option>
 <option value="%s">Third test</option>
-</select> <span class="helptext"> Hold down "Control", or "Command" on a Mac, to select more than one.</span></li>
+</select> </li>
 <li>Status: <select name="status">
 <option value="" selected="selected">---------</option>
 <option value="1">Draft</option>
@@ -1341,7 +1366,7 @@ class ModelFormBasicTests(TestCase):
 <option value="%s">It&#39;s a test</option>
 <option value="%s">Third test</option>
 <option value="%s">Fourth</option>
-</select> <span class="helptext"> Hold down "Control", or "Command" on a Mac, to select more than one.</span></li>
+</select></li>
 <li>Status: <select name="status">
 <option value="" selected="selected">---------</option>
 <option value="1">Draft</option>
@@ -1373,6 +1398,13 @@ class ModelChoiceFieldTests(TestCase):
             f.clean(None)
         with self.assertRaises(ValidationError):
             f.clean(0)
+
+        # Invalid types that require TypeError to be caught (#22808).
+        with self.assertRaises(ValidationError):
+            f.clean([['fail']])
+        with self.assertRaises(ValidationError):
+            f.clean([{'foo': 'bar'}])
+
         self.assertEqual(f.clean(self.c2.id).name, "It's a test")
         self.assertEqual(f.clean(self.c3.id).name, 'Third')
 
@@ -1438,8 +1470,23 @@ class ModelChoiceFieldTests(TestCase):
         field1 = form1.fields['category']
         # To allow the widget to change the queryset of field1.widget.choices correctly,
         # without affecting other forms, the following must hold:
-        self.assertTrue(field1 is not ModelChoiceForm.base_fields['category'])
-        self.assertTrue(field1.widget.choices.field is field1)
+        self.assertIsNot(field1, ModelChoiceForm.base_fields['category'])
+        self.assertIs(field1.widget.choices.field, field1)
+
+    def test_modelchoicefield_22745(self):
+        """
+        #22745 -- Make sure that ModelChoiceField with RadioSelect widget
+        doesn't produce unnecessary db queries when accessing its BoundField's
+        attrs.
+        """
+        class ModelChoiceForm(forms.Form):
+            category = forms.ModelChoiceField(Category.objects.all(), widget=forms.RadioSelect)
+
+        form = ModelChoiceForm()
+        field = form['category']  # BoundField
+        template = Template('{{ field.name }}{{ field }}{{ field.help_text }}')
+        with self.assertNumQueries(1):
+            template.render(Context({'field': field}))
 
 
 class ModelMultipleChoiceFieldTests(TestCase):
@@ -1476,6 +1523,12 @@ class ModelMultipleChoiceFieldTests(TestCase):
             f.clean('hello')
         with self.assertRaises(ValidationError):
             f.clean(['fail'])
+
+        # Invalid types that require TypeError to be caught (#22808).
+        with self.assertRaises(ValidationError):
+            f.clean([['fail']])
+        with self.assertRaises(ValidationError):
+            f.clean([{'foo': 'bar'}])
 
         # Add a Category object *after* the ModelMultipleChoiceField has already been
         # instantiated. This proves clean() checks the database during clean() rather
@@ -1572,6 +1625,21 @@ class ModelMultipleChoiceFieldTests(TestCase):
                                 'persons': [str(person2.pk)]})
         self.assertTrue(form.is_valid())
         self.assertTrue(form.has_changed())
+
+    def test_model_multiple_choice_field_22745(self):
+        """
+        #22745 -- Make sure that ModelMultipleChoiceField with
+        CheckboxSelectMultiple widget doesn't produce unnecessary db queries
+        when accessing its BoundField's attrs.
+        """
+        class ModelMultipleChoiceForm(forms.Form):
+            categories = forms.ModelMultipleChoiceField(Category.objects.all(), widget=forms.CheckboxSelectMultiple)
+
+        form = ModelMultipleChoiceForm()
+        field = form['categories']  # BoundField
+        template = Template('{{ field.name }}{{ field }}{{ field.help_text }}')
+        with self.assertNumQueries(1):
+            template.render(Context({'field': field}))
 
     def test_show_hidden_initial_changed_queries_efficiently(self):
         class WriterForm(forms.Form):
@@ -1723,14 +1791,14 @@ class FileAndImageFieldTests(TestCase):
                 fields = '__all__'
 
         form = DocumentForm()
-        self.assertTrue('name="myfile"' in six.text_type(form))
-        self.assertTrue('myfile-clear' not in six.text_type(form))
+        self.assertIn('name="myfile"', six.text_type(form))
+        self.assertNotIn('myfile-clear', six.text_type(form))
         form = DocumentForm(files={'myfile': SimpleUploadedFile('something.txt', b'content')})
         self.assertTrue(form.is_valid())
         doc = form.save(commit=False)
         self.assertEqual(doc.myfile.name, 'something.txt')
         form = DocumentForm(instance=doc)
-        self.assertTrue('myfile-clear' in six.text_type(form))
+        self.assertIn('myfile-clear', six.text_type(form))
         form = DocumentForm(instance=doc, data={'myfile-clear': 'true'})
         doc = form.save(commit=False)
         self.assertEqual(bool(doc.myfile), False)
@@ -1756,8 +1824,8 @@ class FileAndImageFieldTests(TestCase):
         self.assertEqual(form.errors['myfile'],
                          ['Please either submit a file or check the clear checkbox, not both.'])
         rendered = six.text_type(form)
-        self.assertTrue('something.txt' in rendered)
-        self.assertTrue('myfile-clear' in rendered)
+        self.assertIn('something.txt', rendered)
+        self.assertIn('myfile-clear', rendered)
 
     def test_file_field_data(self):
         # Test conditions when files is either not given or empty.
@@ -1903,7 +1971,7 @@ class FileAndImageFieldTests(TestCase):
         names.sort()
         self.assertEqual(names, ['---------', '__init__.py', 'models.py', 'tests.py'])
 
-    @skipUnless(test_images, "Pillow/PIL not installed")
+    @skipUnless(test_images, "Pillow not installed")
     def test_image_field(self):
         # ImageField and FileField are nearly identical, but they differ slightly when
         # it comes to validation. This specifically tests that #6302 is fixed for
@@ -2110,7 +2178,7 @@ class ModelOtherFieldTests(TestCase):
 
         form = HomepageForm({'url': 'example.com'})
         self.assertTrue(form.is_valid())
-        self.assertEqual(form.cleaned_data['url'], 'http://example.com/')
+        self.assertEqual(form.cleaned_data['url'], 'http://example.com')
 
         form = HomepageForm({'url': 'example.com/test'})
         self.assertTrue(form.is_valid())
@@ -2203,7 +2271,7 @@ class OtherModelFormTests(TestCase):
             """<p><label for="id_name">Name:</label> <input id="id_name" type="text" name="name" maxlength="50" /></p>
         <p><label for="id_colours">Colours:</label> <select multiple="multiple" name="colours" id="id_colours">
         <option value="%(blue_pk)s">Blue</option>
-        </select> <span class="helptext"> Hold down "Control", or "Command" on a Mac, to select more than one.</span></p>"""
+        </select></p>"""
             % {'blue_pk': colour.pk})
 
 
@@ -2281,36 +2349,6 @@ class CustomCleanTests(TestCase):
         form = CategoryForm(data)
         category = form.save()
         self.assertEqual(category.name, 'TEST')
-
-
-class M2mHelpTextTest(TestCase):
-    """Tests for ticket #9321."""
-    def test_multiple_widgets(self):
-        """Help text of different widgets for ManyToManyFields model fields"""
-        class StatusNoteForm(forms.ModelForm):
-            class Meta:
-                model = ArticleStatusNote
-                fields = '__all__'
-
-        class StatusNoteCBM2mForm(forms.ModelForm):
-            class Meta:
-                model = ArticleStatusNote
-                fields = '__all__'
-                widgets = {'status': forms.CheckboxSelectMultiple}
-
-        dreaded_help_text = '<span class="helptext"> Hold down "Control", or "Command" on a Mac, to select more than one.</span>'
-
-        # Default widget (SelectMultiple):
-        std_form = StatusNoteForm()
-        self.assertInHTML(dreaded_help_text, std_form.as_p())
-
-        # Overridden widget (CheckboxSelectMultiple, a subclass of
-        # SelectMultiple but with a UI that doesn't involve Control/Command
-        # keystrokes to extend selection):
-        form = StatusNoteCBM2mForm()
-        html = form.as_p()
-        self.assertInHTML('<ul id="id_status">', html)
-        self.assertInHTML(dreaded_help_text, html, count=0)
 
 
 class ModelFormInheritanceTests(TestCase):
@@ -2437,7 +2475,7 @@ class FormFieldCallbackTests(TestCase):
                 fields = "__all__"
 
         Form = modelform_factory(Person, form=BaseForm)
-        self.assertTrue(Form.base_fields['name'].widget is widget)
+        self.assertIs(Form.base_fields['name'].widget, widget)
 
     def test_factory_with_widget_argument(self):
         """ Regression for #15315: modelform_factory should accept widgets
@@ -2455,11 +2493,12 @@ class FormFieldCallbackTests(TestCase):
 
     def test_modelform_factory_without_fields(self):
         """ Regression for #19733 """
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always", RemovedInDjango18Warning)
-            # This should become an error once deprecation cycle is complete.
+        message = (
+            "Calling modelform_factory without defining 'fields' or 'exclude' "
+            "explicitly is prohibited."
+        )
+        with self.assertRaisesMessage(ImproperlyConfigured, message):
             modelform_factory(Person)
-        self.assertEqual(w[0].category, RemovedInDjango18Warning)
 
     def test_modelform_factory_with_all_fields(self):
         """ Regression for #19733 """

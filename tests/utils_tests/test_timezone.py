@@ -3,13 +3,13 @@ import datetime
 import pickle
 import unittest
 
+from django.test import override_settings
+from django.utils import timezone
+
 try:
     import pytz
 except ImportError:
     pytz = None
-
-from django.test import override_settings
-from django.utils import timezone
 
 
 if pytz is not None:
@@ -67,6 +67,36 @@ class TimezoneTests(unittest.TestCase):
 
             with timezone.override(None):
                 self.assertIs(default, timezone.get_current_timezone())
+            self.assertIs(default, timezone.get_current_timezone())
+        finally:
+            timezone.deactivate()
+
+    def test_override_decorator(self):
+        default = timezone.get_default_timezone()
+
+        @timezone.override(EAT)
+        def func_tz_eat():
+            self.assertIs(EAT, timezone.get_current_timezone())
+
+        @timezone.override(None)
+        def func_tz_none():
+            self.assertIs(default, timezone.get_current_timezone())
+
+        try:
+            timezone.activate(ICT)
+
+            func_tz_eat()
+            self.assertIs(ICT, timezone.get_current_timezone())
+
+            func_tz_none()
+            self.assertIs(ICT, timezone.get_current_timezone())
+
+            timezone.deactivate()
+
+            func_tz_eat()
+            self.assertIs(default, timezone.get_current_timezone())
+
+            func_tz_none()
             self.assertIs(default, timezone.get_current_timezone())
         finally:
             timezone.deactivate()

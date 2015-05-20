@@ -4,12 +4,12 @@ from __future__ import unicode_literals
 import copy
 
 from django.core.exceptions import ValidationError
-from django.forms.utils import flatatt, ErrorDict, ErrorList
+from django.forms.utils import ErrorDict, ErrorList, flatatt
 from django.test import TestCase
-from django.utils.safestring import mark_safe
 from django.utils import six
+from django.utils.encoding import force_text, python_2_unicode_compatible
+from django.utils.safestring import mark_safe
 from django.utils.translation import ugettext_lazy
-from django.utils.encoding import python_2_unicode_compatible
 
 
 class FormsUtilsTestCase(TestCase):
@@ -22,7 +22,27 @@ class FormsUtilsTestCase(TestCase):
 
         self.assertEqual(flatatt({'id': "header"}), ' id="header"')
         self.assertEqual(flatatt({'class': "news", 'title': "Read this"}), ' class="news" title="Read this"')
+        self.assertEqual(flatatt({'class': "news", 'title': "Read this", 'required': "required"}), ' class="news" required="required" title="Read this"')
+        self.assertEqual(flatatt({'class': "news", 'title': "Read this", 'required': True}), ' class="news" title="Read this" required')
+        self.assertEqual(flatatt({'class': "news", 'title': "Read this", 'required': False}), ' class="news" title="Read this"')
         self.assertEqual(flatatt({}), '')
+
+    def test_flatatt_no_side_effects(self):
+        """
+        Fixes #23883 -- Check that flatatt does not modify the dict passed in
+        """
+        attrs = {'foo': 'bar', 'true': True, 'false': False}
+        attrs_copy = copy.copy(attrs)
+        self.assertEqual(attrs, attrs_copy)
+
+        first_run = flatatt(attrs)
+        self.assertEqual(attrs, attrs_copy)
+        self.assertEqual(first_run, ' foo="bar" true')
+
+        second_run = flatatt(attrs)
+        self.assertEqual(attrs, attrs_copy)
+
+        self.assertEqual(first_run, second_run)
 
     def test_validation_error(self):
         ###################
@@ -111,3 +131,14 @@ class FormsUtilsTestCase(TestCase):
         e_deepcopy = copy.deepcopy(e)
         self.assertEqual(e, e_deepcopy)
         self.assertEqual(e.as_data(), e_copy.as_data())
+
+    def test_error_dict_html_safe(self):
+        e = ErrorDict()
+        e['username'] = 'Invalid username.'
+        self.assertTrue(hasattr(ErrorDict, '__html__'))
+        self.assertEqual(force_text(e), e.__html__())
+
+    def test_error_list_html_safe(self):
+        e = ErrorList(['Invalid username.'])
+        self.assertTrue(hasattr(ErrorList, '__html__'))
+        self.assertEqual(force_text(e), e.__html__())

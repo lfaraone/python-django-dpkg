@@ -6,7 +6,7 @@ from django.contrib.admin.sites import site
 from django.core.exceptions import ImproperlyConfigured
 from django.test import TestCase
 
-from .models import Person, Place, Location, Traveler
+from .models import Location, Person, Place, Traveler
 
 
 class NameAdmin(admin.ModelAdmin):
@@ -69,6 +69,15 @@ class TestRegistration(TestCase):
         Refs #12004.
         """
         self.assertRaises(ImproperlyConfigured, self.site.register, Location)
+
+    def test_is_registered_model(self):
+        "Checks for registered models should return true."
+        self.site.register(Person)
+        self.assertTrue(self.site.is_registered(Person))
+
+    def test_is_registered_not_registered_model(self):
+        "Checks for unregistered models should return false."
+        self.assertFalse(self.site.is_registered(Person))
 
 
 class TestRegistrationDecorator(TestCase):

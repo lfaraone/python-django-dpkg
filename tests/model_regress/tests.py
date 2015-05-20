@@ -2,22 +2,18 @@ from __future__ import unicode_literals
 
 import datetime
 from operator import attrgetter
-import os
-import pickle
-import subprocess
-import sys
-import unittest
 
 from django.core.exceptions import ValidationError
-from django.core.files.temp import NamedTemporaryFile
+from django.db import router
+from django.db.models.sql import InsertQuery
 from django.test import TestCase, skipUnlessDBFeature
 from django.utils import six
 from django.utils.timezone import get_fixed_timezone
-from django.db import connection, router
-from django.db.models.sql import InsertQuery
 
-from .models import (Worker, Article, Party, Event, Department,
-    BrokenUnicodeMethod, NonAutoPK, Model1, Model2, Model3)
+from .models import (
+    Article, BrokenUnicodeMethod, Department, Event, Model1, Model2, Model3,
+    NonAutoPK, Party, Worker,
+)
 
 
 class ModelTests(TestCase):
@@ -148,11 +144,6 @@ class ModelTests(TestCase):
             attrgetter("when")
         )
 
-    if (3,) <= sys.version_info < (3, 3) and connection.vendor == 'mysql':
-        # In Python < 3.3, datetime.strftime raises an exception for years
-        # below 1000, and existing MySQL DB-API drivers hit this problem.
-        test_date_lookup = unittest.expectedFailure(test_date_lookup)
-
     def test_date_filter_null(self):
         # Date filtering was failing with NULL date values in SQLite
         # (regression test for #3501, among other things).
@@ -249,43 +240,3 @@ class EvaluateMethodTest(TestCase):
         dept = Department.objects.create(pk=1, name='abc')
         dept.evaluate = 'abc'
         Worker.objects.filter(department=dept)
-
-
-class ModelPickleTestCase(TestCase):
-    def test_unpickling_when_appregistrynotready(self):
-        """
-        #24007 -- Verifies that a pickled model can be unpickled without having
-        to manually setup the apps registry beforehand.
-        """
-        script_template = """#!/usr/bin/env python
-import pickle
-
-from django.conf import settings
-
-data = %r
-
-settings.configure(DEBUG=False, INSTALLED_APPS=('model_regress',), SECRET_KEY = "blah")
-article = pickle.loads(data)
-print(article.headline)"""
-        a = Article.objects.create(
-            headline="Some object",
-            pub_date=datetime.datetime.now(),
-            article_text="This is an article",
-        )
-
-        with NamedTemporaryFile(mode='w+', suffix=".py", dir='.') as script:
-            script.write(script_template % pickle.dumps(a))
-            script.flush()
-            env = {
-                # Needed to run test outside of tests directory
-                str('PYTHONPATH'): os.pathsep.join(sys.path),
-                # Needed on Windows because http://bugs.python.org/issue8557
-                str('PATH'): os.environ['PATH'],
-            }
-            if 'SYSTEMROOT' in os.environ:  # Windows http://bugs.python.org/issue20614
-                env[str('SYSTEMROOT')] = os.environ['SYSTEMROOT']
-            try:
-                result = subprocess.check_output([sys.executable, script.name], env=env)
-            except subprocess.CalledProcessError:
-                self.fail("Unable to reload model pickled data")
-        self.assertEqual(result.strip().decode(), "Some object")

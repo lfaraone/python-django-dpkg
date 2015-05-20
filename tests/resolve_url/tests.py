@@ -1,19 +1,20 @@
 from __future__ import unicode_literals
 
-from django.core.urlresolvers import NoReverseMatch, reverse_lazy
 from django.contrib.auth.views import logout
+from django.core.urlresolvers import NoReverseMatch, reverse_lazy
 from django.shortcuts import resolve_url
-from django.test import TestCase
+from django.test import TestCase, ignore_warnings, override_settings
 from django.utils import six
+from django.utils.deprecation import RemovedInDjango20Warning
 
 from .models import UnimportantThing
 
 
+@override_settings(ROOT_URLCONF='resolve_url.urls')
 class ResolveUrlTests(TestCase):
     """
     Tests for the ``resolve_url`` function.
     """
-    urls = 'resolve_url.urls'
 
     def test_url_path(self):
         """
@@ -65,6 +66,7 @@ class ResolveUrlTests(TestCase):
         self.assertIsInstance(resolved_url, six.text_type)
         self.assertEqual('/accounts/logout/', resolved_url)
 
+    @ignore_warnings(category=RemovedInDjango20Warning)
     def test_valid_view_name(self):
         """
         Tests that passing a view function to ``resolve_url`` will result in

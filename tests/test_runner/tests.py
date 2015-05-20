@@ -3,24 +3,23 @@ Tests for django test runner
 """
 from __future__ import unicode_literals
 
-from optparse import make_option
-import types
 import unittest
 
+from admin_scripts.tests import AdminScriptTestCase
+
 from django import db
+from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.core.management import call_command
 from django.db.backends.dummy.base import DatabaseCreation
-from django.test import runner, TestCase, TransactionTestCase, skipUnlessDBFeature
-from django.test.testcases import connections_support_transactions
-from django.test.utils import (
-    IgnoreAllDeprecationWarningsMixin,
-    override_settings,
-    override_system_checks
+from django.test import (
+    TestCase, TransactionTestCase, mock, skipUnlessDBFeature,
 )
+from django.test.runner import DiscoverRunner, dependency_ordered
+from django.test.testcases import connections_support_transactions
 from django.utils import six
+from django.utils.encoding import force_text
 
-from admin_scripts.tests import AdminScriptTestCase
 from .models import Person
 
 
@@ -37,7 +36,7 @@ class DependencyOrderingTests(unittest.TestCase):
             'bravo': ['charlie'],
         }
 
-        ordered = runner.dependency_ordered(raw, dependencies=dependencies)
+        ordered = dependency_ordered(raw, dependencies=dependencies)
         ordered_sigs = [sig for sig, value in ordered]
 
         self.assertIn('s1', ordered_sigs)
@@ -57,7 +56,7 @@ class DependencyOrderingTests(unittest.TestCase):
             'bravo': ['charlie'],
         }
 
-        ordered = runner.dependency_ordered(raw, dependencies=dependencies)
+        ordered = dependency_ordered(raw, dependencies=dependencies)
         ordered_sigs = [sig for sig, value in ordered]
 
         self.assertIn('s1', ordered_sigs)
@@ -84,7 +83,7 @@ class DependencyOrderingTests(unittest.TestCase):
             'delta': ['charlie'],
         }
 
-        ordered = runner.dependency_ordered(raw, dependencies=dependencies)
+        ordered = dependency_ordered(raw, dependencies=dependencies)
         ordered_sigs = [sig for sig, aliases in ordered]
 
         self.assertIn('s1', ordered_sigs)
@@ -111,7 +110,7 @@ class DependencyOrderingTests(unittest.TestCase):
             'alpha': ['bravo'],
         }
 
-        self.assertRaises(ImproperlyConfigured, runner.dependency_ordered, raw, dependencies=dependencies)
+        self.assertRaises(ImproperlyConfigured, dependency_ordered, raw, dependencies=dependencies)
 
     def test_own_alias_dependency(self):
         raw = [
@@ -122,7 +121,7 @@ class DependencyOrderingTests(unittest.TestCase):
         }
 
         with self.assertRaises(ImproperlyConfigured):
-            runner.dependency_ordered(raw, dependencies=dependencies)
+            dependency_ordered(raw, dependencies=dependencies)
 
         # reordering aliases shouldn't matter
         raw = [
@@ -130,17 +129,14 @@ class DependencyOrderingTests(unittest.TestCase):
         ]
 
         with self.assertRaises(ImproperlyConfigured):
-            runner.dependency_ordered(raw, dependencies=dependencies)
+            dependency_ordered(raw, dependencies=dependencies)
 
 
 class MockTestRunner(object):
-    invoked = False
-
     def __init__(self, *args, **kwargs):
         pass
 
-    def run_tests(self, test_labels, extra_tests=None, **kwargs):
-        MockTestRunner.invoked = True
+MockTestRunner.run_tests = mock.Mock(return_value=[])
 
 
 class ManageCommandTests(unittest.TestCase):
@@ -148,8 +144,7 @@ class ManageCommandTests(unittest.TestCase):
     def test_custom_test_runner(self):
         call_command('test', 'sites',
                      testrunner='test_runner.tests.MockTestRunner')
-        self.assertTrue(MockTestRunner.invoked,
-                        "The custom test runner has not been invoked")
+        MockTestRunner.run_tests.assert_called_with(('sites',))
 
     def test_bad_test_runner(self):
         with self.assertRaises(AttributeError):
@@ -157,12 +152,7 @@ class ManageCommandTests(unittest.TestCase):
                 testrunner='test_runner.NonExistentRunner')
 
 
-class CustomOptionsTestRunner(runner.DiscoverRunner):
-    option_list = (
-        make_option('--option_a', '-a', action='store', dest='option_a', default='1'),
-        make_option('--option_b', '-b', action='store', dest='option_b', default='2'),
-        make_option('--option_c', '-c', action='store', dest='option_c', default='3'),
-    )
+class CustomOptionsTestRunner(DiscoverRunner):
 
     def __init__(self, verbosity=1, interactive=True, failfast=True, option_a=None, option_b=None, option_c=None, **kwargs):
         super(CustomOptionsTestRunner, self).__init__(verbosity=verbosity, interactive=interactive,
@@ -170,6 +160,12 @@ class CustomOptionsTestRunner(runner.DiscoverRunner):
         self.option_a = option_a
         self.option_b = option_b
         self.option_c = option_c
+
+    @classmethod
+    def add_arguments(cls, parser):
+        parser.add_argument('--option_a', '-a', action='store', dest='option_a', default='1'),
+        parser.add_argument('--option_b', '-b', action='store', dest='option_b', default='2'),
+        parser.add_argument('--option_c', '-c', action='store', dest='option_c', default='3'),
 
     def run_tests(self, test_labels, extra_tests=None, **kwargs):
         print("%s:%s:%s" % (self.option_a, self.option_b, self.option_c))
@@ -226,48 +222,10 @@ class Ticket17477RegressionTests(AdminScriptTestCase):
         self.assertNoOutput(err)
 
 
-class ModulesTestsPackages(IgnoreAllDeprecationWarningsMixin, unittest.TestCase):
-
-    def test_get_tests(self):
-        "Check that the get_tests helper function can find tests in a directory"
-        from django.apps import AppConfig
-        from django.test.simple import get_tests
-        app_config = AppConfig.create('test_runner.valid_app')
-        app_config.import_models({})
-        tests = get_tests(app_config)
-        self.assertIsInstance(tests, types.ModuleType)
-
-    def test_import_error(self):
-        "Test for #12658 - Tests with ImportError's shouldn't fail silently"
-        from django.apps import AppConfig
-        from django.test.simple import get_tests
-        app_config = AppConfig.create('test_runner_invalid_app')
-        app_config.import_models({})
-        with self.assertRaises(ImportError):
-            get_tests(app_config)
-
-
-class LabelDiscoveryTest(IgnoreAllDeprecationWarningsMixin, TestCase):
-
-    @override_settings(INSTALLED_APPS=['test_runner.valid_app'])
-    def test_discover_within_package(self):
-        """
-        Verify labels like applabel.TestCase find tests defined in
-        applabel/tests/__init__.py. Fixes #22478.
-        """
-
-        from django.test.simple import build_test
-        suite = build_test('valid_app.SampleTest')
-        self.assertEqual(suite.countTestCases(), 1)
-
-
 class Sqlite3InMemoryTestDbs(TestCase):
 
     available_apps = []
 
-    # `setup_databases` triggers system check framework, but we do not want to
-    # perform checks.
-    @override_system_checks([])
     @unittest.skipUnless(all(db.connections[conn].vendor == 'sqlite' for conn in db.connections),
                          "This is an sqlite-specific issue")
     def test_transaction_support(self):
@@ -287,7 +245,7 @@ class Sqlite3InMemoryTestDbs(TestCase):
                     },
                 })
                 other = db.connections['other']
-                runner.DiscoverRunner(verbosity=0).setup_databases()
+                DiscoverRunner(verbosity=0).setup_databases()
                 msg = "DATABASES setting '%s' option set to sqlite3's ':memory:' value shouldn't interfere with transaction support detection." % option_key
                 # Transaction support should be properly initialized for the 'other' DB
                 self.assertTrue(other.features.supports_transactions, msg)
@@ -302,7 +260,7 @@ class DummyBackendTest(unittest.TestCase):
         """
         Test that setup_databases() doesn't fail with dummy database backend.
         """
-        runner_instance = runner.DiscoverRunner(verbosity=0)
+        runner_instance = DiscoverRunner(verbosity=0)
         old_db_connections = db.connections
         try:
             db.connections = db.ConnectionHandler({})
@@ -320,7 +278,7 @@ class AliasedDefaultTestSetupTest(unittest.TestCase):
         """
         Test that setup_datebases() doesn't fail when 'default' is aliased
         """
-        runner_instance = runner.DiscoverRunner(verbosity=0)
+        runner_instance = DiscoverRunner(verbosity=0)
         old_db_connections = db.connections
         try:
             db.connections = db.ConnectionHandler({
@@ -346,7 +304,7 @@ class SetupDatabasesTests(unittest.TestCase):
         self._old_db_connections = db.connections
         self._old_destroy_test_db = DatabaseCreation.destroy_test_db
         self._old_create_test_db = DatabaseCreation.create_test_db
-        self.runner_instance = runner.DiscoverRunner(verbosity=0)
+        self.runner_instance = DiscoverRunner(verbosity=0)
 
     def tearDown(self):
         DatabaseCreation.create_test_db = self._old_create_test_db
@@ -379,6 +337,18 @@ class SetupDatabasesTests(unittest.TestCase):
         self.runner_instance.teardown_databases(old_config)
 
         self.assertEqual(destroyed_names.count('dbname'), 1)
+
+    def test_destroy_test_db_restores_db_name(self):
+        db.connections = db.ConnectionHandler({
+            'default': {
+                'ENGINE': settings.DATABASES[db.DEFAULT_DB_ALIAS]["ENGINE"],
+                'NAME': 'xxx_test_database',
+            },
+        })
+        # Using the real current name as old_name to not mess with the test suite.
+        old_name = settings.DATABASES[db.DEFAULT_DB_ALIAS]["NAME"]
+        db.connections['default'].creation.destroy_test_db(old_name, verbosity=0, keepdb=True)
+        self.assertEqual(db.connections['default'].settings_dict["NAME"], old_name)
 
     def test_serialization(self):
         serialize = []
@@ -422,7 +392,7 @@ class DeprecationDisplayTest(AdminScriptTestCase):
     def test_runner_deprecation_verbosity_default(self):
         args = ['test', '--settings=test_project.settings', 'test_runner_deprecation_app']
         out, err = self.run_django_admin(args)
-        self.assertIn("Ran 1 test", err)
+        self.assertIn("Ran 1 test", force_text(err))
         six.assertRegex(self, err, r"RemovedInDjango\d\dWarning: warning from test")
         six.assertRegex(self, err, r"RemovedInDjango\d\dWarning: module-level warning from deprecation_app")
 
@@ -430,7 +400,7 @@ class DeprecationDisplayTest(AdminScriptTestCase):
         args = ['test', '--settings=test_project.settings', '--verbosity=0', 'test_runner_deprecation_app']
         out, err = self.run_django_admin(args)
         self.assertIn("Ran 1 test", err)
-        self.assertFalse("warning from test" in err)
+        self.assertNotIn("warning from test", err)
 
 
 class AutoIncrementResetTest(TransactionTestCase):

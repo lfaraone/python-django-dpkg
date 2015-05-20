@@ -1,7 +1,7 @@
 from django.db.models.fields.related import (
+    RECURSIVE_RELATIONSHIP_CONSTANT, ManyToManyField, ManyToManyRel,
+    RelatedField, ReverseManyRelatedObjectsDescriptor,
     create_many_to_many_intermediary_model,
-    ManyToManyField, ManyToManyRel, RelatedField,
-    RECURSIVE_RELATIONSHIP_CONSTANT, ReverseManyRelatedObjectsDescriptor,
 )
 from django.utils.functional import curry
 
@@ -11,15 +11,15 @@ class CustomManyToManyField(RelatedField):
     Ticket #24104 - Need to have a custom ManyToManyField,
     which is not an inheritor of ManyToManyField.
     """
+    many_to_many = True
 
     def __init__(self, to, db_constraint=True, swappable=True, **kwargs):
         try:
             to._meta
         except AttributeError:
             to = str(to)
-        kwargs['verbose_name'] = kwargs.get('verbose_name', None)
         kwargs['rel'] = ManyToManyRel(
-            to,
+            self, to,
             related_name=kwargs.pop('related_name', None),
             related_query_name=kwargs.pop('related_query_name', None),
             limit_choices_to=kwargs.pop('limit_choices_to', None),
@@ -34,10 +34,10 @@ class CustomManyToManyField(RelatedField):
             assert self.db_table is None, "Cannot specify a db_table if an intermediary model is used."
         super(CustomManyToManyField, self).__init__(**kwargs)
 
-    def contribute_to_class(self, cls, name):
+    def contribute_to_class(self, cls, name, **kwargs):
         if self.rel.symmetrical and (self.rel.to == "self" or self.rel.to == cls._meta.object_name):
             self.rel.related_name = "%s_rel_+" % name
-        super(CustomManyToManyField, self).contribute_to_class(cls, name)
+        super(CustomManyToManyField, self).contribute_to_class(cls, name, **kwargs)
         if not self.rel.through and not cls._meta.abstract and not cls._meta.swapped:
             self.rel.through = create_many_to_many_intermediary_model(self, cls)
         setattr(cls, self.name, ReverseManyRelatedObjectsDescriptor(self))
@@ -48,7 +48,6 @@ class CustomManyToManyField(RelatedField):
 
     # Copy those methods from ManyToManyField because they don't call super() internally
     contribute_to_related_class = ManyToManyField.__dict__['contribute_to_related_class']
-    set_attributes_from_rel = ManyToManyField.__dict__['set_attributes_from_rel']
     _get_m2m_attr = ManyToManyField.__dict__['_get_m2m_attr']
     _get_m2m_reverse_attr = ManyToManyField.__dict__['_get_m2m_reverse_attr']
     _get_m2m_db_table = ManyToManyField.__dict__['_get_m2m_db_table']

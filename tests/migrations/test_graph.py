@@ -1,5 +1,10 @@
+from unittest import expectedFailure
+
+from django.db.migrations.graph import (
+    CircularDependencyError, MigrationGraph, NodeNotFoundError,
+)
 from django.test import TestCase
-from django.db.migrations.graph import MigrationGraph, CircularDependencyError
+from django.utils.encoding import force_text
 
 
 class GraphTests(TestCase):
@@ -148,7 +153,23 @@ class GraphTests(TestCase):
             graph.forwards_plan, ('C', '0001')
         )
 
-    def test_dfs(self):
+    def test_deep_graph(self):
+        graph = MigrationGraph()
+        root = ("app_a", "1")
+        graph.add_node(root, None)
+        expected = [root]
+        for i in range(2, 750):
+            parent = ("app_a", str(i - 1))
+            child = ("app_a", str(i))
+            graph.add_node(child, None)
+            graph.add_dependency(str(i), child, parent)
+            expected.append(child)
+
+        actual = graph.node_map[root].descendants()
+        self.assertEqual(expected[::-1], actual)
+
+    @expectedFailure
+    def test_recursion_depth(self):
         graph = MigrationGraph()
         root = ("app_a", "1")
         graph.add_node(root, None)
@@ -160,7 +181,7 @@ class GraphTests(TestCase):
             graph.add_dependency(str(i), child, parent)
             expected.append(child)
 
-        actual = graph.dfs(root, lambda x: graph.dependents.get(x, set()))
+        actual = graph.node_map[root].descendants()
         self.assertEqual(expected[::-1], actual)
 
     def test_plan_invalid_node(self):
@@ -170,10 +191,10 @@ class GraphTests(TestCase):
         graph = MigrationGraph()
         message = "Node ('app_b', '0001') not a valid node"
 
-        with self.assertRaisesMessage(ValueError, message):
+        with self.assertRaisesMessage(NodeNotFoundError, message):
             graph.forwards_plan(("app_b", "0001"))
 
-        with self.assertRaisesMessage(ValueError, message):
+        with self.assertRaisesMessage(NodeNotFoundError, message):
             graph.backwards_plan(("app_b", "0001"))
 
     def test_missing_parent_nodes(self):
@@ -189,7 +210,7 @@ class GraphTests(TestCase):
         graph.add_dependency("app_a.0003", ("app_a", "0003"), ("app_a", "0002"))
         graph.add_dependency("app_a.0002", ("app_a", "0002"), ("app_a", "0001"))
         msg = "Migration app_a.0001 dependencies reference nonexistent parent node ('app_b', '0002')"
-        with self.assertRaisesMessage(KeyError, msg):
+        with self.assertRaisesMessage(NodeNotFoundError, msg):
             graph.add_dependency("app_a.0001", ("app_a", "0001"), ("app_b", "0002"))
 
     def test_missing_child_nodes(self):
@@ -200,7 +221,7 @@ class GraphTests(TestCase):
         graph = MigrationGraph()
         graph.add_node(("app_a", "0001"), None)
         msg = "Migration app_a.0002 dependencies reference nonexistent child node ('app_a', '0002')"
-        with self.assertRaisesMessage(KeyError, msg):
+        with self.assertRaisesMessage(NodeNotFoundError, msg):
             graph.add_dependency("app_a.0002", ("app_a", "0002"), ("app_a", "0001"))
 
     def test_infinite_loop(self):
@@ -213,7 +234,7 @@ class GraphTests(TestCase):
                        /               \
         app_c:   0001<-  <------------- x 0002
 
-        And apply sqashing on app_c.
+        And apply squashing on app_c.
         """
         graph = MigrationGraph()
 
@@ -229,3 +250,18 @@ class GraphTests(TestCase):
 
         with self.assertRaises(CircularDependencyError):
             graph.forwards_plan(("app_c", "0001_squashed_0002"))
+
+    def test_stringify(self):
+        graph = MigrationGraph()
+        self.assertEqual(force_text(graph), "Graph: 0 nodes, 0 edges")
+
+        graph.add_node(("app_a", "0001"), None)
+        graph.add_node(("app_a", "0002"), None)
+        graph.add_node(("app_a", "0003"), None)
+        graph.add_node(("app_b", "0001"), None)
+        graph.add_node(("app_b", "0002"), None)
+        graph.add_dependency("app_a.0002", ("app_a", "0002"), ("app_a", "0001"))
+        graph.add_dependency("app_a.0003", ("app_a", "0003"), ("app_a", "0002"))
+        graph.add_dependency("app_a.0003", ("app_a", "0003"), ("app_b", "0002"))
+
+        self.assertEqual(force_text(graph), "Graph: 5 nodes, 3 edges")

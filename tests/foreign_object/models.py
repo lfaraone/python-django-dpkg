@@ -1,7 +1,8 @@
 import datetime
 
 from django.db import models
-from django.db.models.fields.related import ReverseSingleRelatedObjectDescriptor
+from django.db.models.fields.related import \
+    ReverseSingleRelatedObjectDescriptor
 from django.utils.encoding import python_2_unicode_compatible
 from django.utils.translation import get_language
 
@@ -117,7 +118,8 @@ class ColConstraint(object):
     def __init__(self, alias, col, value):
         self.alias, self.col, self.value = alias, col, value
 
-    def as_sql(self, qn, connection):
+    def as_sql(self, compiler, connection):
+        qn = compiler.quote_name_unless_alias
         return '%s.%s = %%s' % (qn(self.alias), qn(self.col)), [self.value]
 
 

@@ -1,8 +1,8 @@
 import os
 import sys
-
-from setuptools import setup, find_packages
 from distutils.sysconfig import get_python_lib
+
+from setuptools import find_packages, setup
 
 # Warn if we are installing over top of an existing installation. This can
 # cause issues where files that were deleted from a more recent Django are
@@ -47,6 +47,9 @@ setup(
     entry_points={'console_scripts': [
         'django-admin = django.core.management:execute_from_command_line',
     ]},
+    extras_require={
+        "bcrypt": ["bcrypt"],
+    },
     zip_safe=False,
     classifiers=[
         'Development Status :: 5 - Production/Stable',

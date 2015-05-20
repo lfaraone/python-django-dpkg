@@ -1,25 +1,26 @@
 from __future__ import unicode_literals
 
 from datetime import date
-import warnings
 
 from django import forms
-from django.contrib.admin.options import (ModelAdmin, TabularInline,
-     HORIZONTAL, VERTICAL)
+from django.contrib.admin import BooleanFieldListFilter, SimpleListFilter
+from django.contrib.admin.options import (
+    HORIZONTAL, VERTICAL, ModelAdmin, TabularInline,
+)
 from django.contrib.admin.sites import AdminSite
-from django.contrib.admin.widgets import AdminDateWidget, AdminRadioSelect
 from django.contrib.admin.validation import ModelAdminValidator
-from django.contrib.admin import (SimpleListFilter,
-     BooleanFieldListFilter)
+from django.contrib.admin.widgets import AdminDateWidget, AdminRadioSelect
 from django.core.checks import Error
 from django.core.exceptions import ImproperlyConfigured
 from django.forms.models import BaseModelFormSet
 from django.forms.widgets import Select
-from django.test import TestCase
+from django.test import TestCase, ignore_warnings
 from django.utils import six
 from django.utils.deprecation import RemovedInDjango19Warning
 
-from .models import Band, Concert, ValidationTestModel, ValidationTestInlineModel
+from .models import (
+    Band, Concert, ValidationTestInlineModel, ValidationTestModel,
+)
 
 
 class MockRequest(object):
@@ -356,30 +357,30 @@ class ModelAdminTests(TestCase):
         form = ma.get_form(request)()
 
         self.assertHTMLEqual(str(form["main_band"]),
-            '<select name="main_band" id="id_main_band">\n'
-            '<option value="" selected="selected">---------</option>\n'
-            '<option value="%d">The Beatles</option>\n'
-            '<option value="%d">The Doors</option>\n'
-            '</select>' % (band2.id, self.band.id))
+            '<div class="related-widget-wrapper">'
+            '<select name="main_band" id="id_main_band">'
+            '<option value="" selected="selected">---------</option>'
+            '<option value="%d">The Beatles</option>'
+            '<option value="%d">The Doors</option>'
+            '</select></div>' % (band2.id, self.band.id))
 
         class AdminConcertForm(forms.ModelForm):
-            pass
-
             def __init__(self, *args, **kwargs):
                 super(AdminConcertForm, self).__init__(*args, **kwargs)
                 self.fields["main_band"].queryset = Band.objects.filter(name='The Doors')
 
-        class ConcertAdmin(ModelAdmin):
+        class ConcertAdminWithForm(ModelAdmin):
             form = AdminConcertForm
 
-        ma = ConcertAdmin(Concert, self.site)
+        ma = ConcertAdminWithForm(Concert, self.site)
         form = ma.get_form(request)()
 
         self.assertHTMLEqual(str(form["main_band"]),
-            '<select name="main_band" id="id_main_band">\n'
-            '<option value="" selected="selected">---------</option>\n'
-            '<option value="%d">The Doors</option>\n'
-            '</select>' % self.band.id)
+            '<div class="related-widget-wrapper">'
+            '<select name="main_band" id="id_main_band">'
+            '<option value="" selected="selected">---------</option>'
+            '<option value="%d">The Doors</option>'
+            '</select></div>' % self.band.id)
 
     def test_regression_for_ticket_15820(self):
         """
@@ -1505,19 +1506,18 @@ class FormsetCheckTests(CheckTestCase):
 
 
 class CustomModelAdminTests(CheckTestCase):
+    @ignore_warnings(category=RemovedInDjango19Warning)
     def test_deprecation(self):
         "Deprecated Custom Validator definitions still work with the check framework."
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", category=RemovedInDjango19Warning)
 
-            class CustomValidator(ModelAdminValidator):
-                def validate_me(self, model_admin, model):
-                    raise ImproperlyConfigured('error!')
+        class CustomValidator(ModelAdminValidator):
+            def validate_me(self, model_admin, model):
+                raise ImproperlyConfigured('error!')
 
-            class CustomModelAdmin(ModelAdmin):
-                validator_class = CustomValidator
+        class CustomModelAdmin(ModelAdmin):
+            validator_class = CustomValidator
 
-            self.assertIsInvalid(CustomModelAdmin, ValidationTestModel, 'error!')
+        self.assertIsInvalid(CustomModelAdmin, ValidationTestModel, 'error!')
 
 
 class ListDisplayEditableTests(CheckTestCase):
@@ -1542,3 +1542,98 @@ class ListDisplayEditableTests(CheckTestCase):
             list_editable = ['name', 'slug']
             list_display_links = ['pub_date']
         self.assertIsValid(ProductAdmin, ValidationTestModel)
+
+
+class ModelAdminPermissionTests(TestCase):
+
+    class MockUser(object):
+        def has_module_perms(self, app_label):
+            if app_label == "modeladmin":
+                return True
+            return False
+
+    class MockAddUser(MockUser):
+        def has_perm(self, perm):
+            if perm == "modeladmin.add_band":
+                return True
+            return False
+
+    class MockChangeUser(MockUser):
+        def has_perm(self, perm):
+            if perm == "modeladmin.change_band":
+                return True
+            return False
+
+    class MockDeleteUser(MockUser):
+        def has_perm(self, perm):
+            if perm == "modeladmin.delete_band":
+                return True
+            return False
+
+    def test_has_add_permission(self):
+        """
+        Ensure that has_add_permission returns True for users who can add
+        objects and False for users who can't.
+        """
+        ma = ModelAdmin(Band, AdminSite())
+        request = MockRequest()
+        request.user = self.MockAddUser()
+        self.assertTrue(ma.has_add_permission(request))
+        request.user = self.MockChangeUser()
+        self.assertFalse(ma.has_add_permission(request))
+        request.user = self.MockDeleteUser()
+        self.assertFalse(ma.has_add_permission(request))
+
+    def test_has_change_permission(self):
+        """
+        Ensure that has_change_permission returns True for users who can edit
+        objects and False for users who can't.
+        """
+        ma = ModelAdmin(Band, AdminSite())
+        request = MockRequest()
+        request.user = self.MockAddUser()
+        self.assertFalse(ma.has_change_permission(request))
+        request.user = self.MockChangeUser()
+        self.assertTrue(ma.has_change_permission(request))
+        request.user = self.MockDeleteUser()
+        self.assertFalse(ma.has_change_permission(request))
+
+    def test_has_delete_permission(self):
+        """
+        Ensure that has_delete_permission returns True for users who can delete
+        objects and False for users who can't.
+        """
+        ma = ModelAdmin(Band, AdminSite())
+        request = MockRequest()
+        request.user = self.MockAddUser()
+        self.assertFalse(ma.has_delete_permission(request))
+        request.user = self.MockChangeUser()
+        self.assertFalse(ma.has_delete_permission(request))
+        request.user = self.MockDeleteUser()
+        self.assertTrue(ma.has_delete_permission(request))
+
+    def test_has_module_permission(self):
+        """
+        Ensure that has_module_permission returns True for users who have any
+        permission for the module and False for users who don't.
+        """
+        ma = ModelAdmin(Band, AdminSite())
+        request = MockRequest()
+        request.user = self.MockAddUser()
+        self.assertTrue(ma.has_module_permission(request))
+        request.user = self.MockChangeUser()
+        self.assertTrue(ma.has_module_permission(request))
+        request.user = self.MockDeleteUser()
+        self.assertTrue(ma.has_module_permission(request))
+
+        original_app_label = ma.opts.app_label
+        ma.opts.app_label = 'anotherapp'
+        try:
+            request.user = self.MockAddUser()
+            self.assertFalse(ma.has_module_permission(request))
+            request.user = self.MockChangeUser()
+            self.assertFalse(ma.has_module_permission(request))
+            request.user = self.MockDeleteUser()
+            self.assertFalse(ma.has_module_permission(request))
+        finally:
+            ma.opts.app_label = original_app_label
