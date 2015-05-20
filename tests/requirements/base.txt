@@ -1,6 +1,9 @@
 bcrypt
 docutils
-numpy < 1.9
+jinja2
+# move to py2.txt when dropping Python 3.2
+mock
+numpy
 Pillow
 PyYAML
 pytz > dev

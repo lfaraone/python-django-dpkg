@@ -114,6 +114,13 @@ described here.
     Django version N+1. Pickles should not be used as part of a long-term
     archival strategy.
 
+    .. versionadded:: 1.8
+
+    Since pickle compatibility errors can be difficult to diagnose, such as
+    silently corrupted objects, a ``RuntimeWarning`` is raised when you try to
+    unpickle a queryset in a Django version that is different than the one in
+    which it was pickled.
+
 .. _queryset-api:
 
 QuerySet API
@@ -171,6 +178,9 @@ The lookup parameters (``**kwargs``) should be in the format described in
 `Field lookups`_ below. Multiple parameters are joined via ``AND`` in the
 underlying SQL statement.
 
+If you need to execute more complex queries (for example, queries with ``OR`` statements),
+you can use :class:`Q objects <django.db.models.Q>`.
+
 exclude
 ~~~~~~~
 
@@ -206,14 +216,26 @@ In SQL terms, that evaluates to::
 
 Note the second example is more restrictive.
 
+If you need to execute more complex queries (for example, queries with ``OR`` statements),
+you can use :class:`Q objects <django.db.models.Q>`.
+
 annotate
 ~~~~~~~~
 
 .. method:: annotate(*args, **kwargs)
 
-Annotates each object in the ``QuerySet`` with the provided list of
-aggregate values (averages, sums, etc) that have been computed over
-the objects that are related to the objects in the ``QuerySet``.
+Annotates each object in the ``QuerySet`` with the provided list of :doc:`query
+expressions </ref/models/expressions>`. An expression may be a simple value, a
+reference to a field on the model (or any related models), or an aggregate
+expression (averages, sums, etc) that has been computed over the objects that
+are related to the objects in the ``QuerySet``.
+
+.. versionadded:: 1.8
+
+    Previous versions of Django only allowed aggregate functions to be used as
+    annotations. It is now possible to annotate a model with all kinds of
+    expressions.
+
 Each argument to ``annotate()`` is an annotation that will be added
 to each object in the ``QuerySet`` that is returned.
 
@@ -223,7 +245,9 @@ in `Aggregation Functions`_ below.
 Annotations specified using keyword arguments will use the keyword as
 the alias for the annotation. Anonymous arguments will have an alias
 generated for them based upon the name of the aggregate function and
-the model field that is being aggregated.
+the model field that is being aggregated. Only aggregate expressions
+that reference a single field can be anonymous arguments. Everything
+else must be a keyword argument.
 
 For example, if you were manipulating a list of blogs, you may want
 to determine how many entries have been made in each blog::
@@ -296,17 +320,28 @@ identical to::
 
     Entry.objects.order_by('blog__name')
 
+It is also possible to order a queryset by a related field, without incurring
+the cost of a JOIN, by referring to the ``_id`` of the related field::
+
+    # No Join
+    Entry.objects.order_by('blog_id')
+
+    # Join
+    Entry.objects.order_by('blog__id')
+
 .. versionadded:: 1.7
 
-    Note that it is also possible to order a queryset by a related field,
-    without incurring the cost of a JOIN, by referring to the ``_id`` of the
-    related field::
+    The ability to order a queryset by a related field, without incurring
+    the cost of a JOIN was added.
 
-        # No Join
-        Entry.objects.order_by('blog_id')
+You can also order by :doc:`query expressions </ref/models/expressions>` by
+calling ``asc()`` or ``desc()`` on the expression::
 
-        # Join
-        Entry.objects.order_by('blog__id')
+    Entry.objects.order_by(Coalesce('summary', 'headline').desc())
+
+.. versionadded:: 1.8
+
+    Ordering by query expressions was added.
 
 Be cautious when ordering by fields in related models if you are also using
 :meth:`distinct()`. See the note in :meth:`distinct` for an explanation of how
@@ -340,6 +375,16 @@ related model ordering can change the expected results.
 There's no way to specify whether ordering should be case sensitive. With
 respect to case-sensitivity, Django will order results however your database
 backend normally orders them.
+
+You can order by a field converted to lowercase with
+:class:`~django.db.models.functions.Lower` which will achieve case-consistent
+ordering::
+
+    Entry.objects.order_by(Lower('headline').desc())
+
+.. versionadded:: 1.8
+
+    The ability to order by expressions like ``Lower`` was added.
 
 If you don't want any ordering to be applied to a query, not even the default
 ordering, call :meth:`order_by()` with no parameters.
@@ -518,7 +563,7 @@ A few subtleties that are worth mentioning:
   For example::
 
     >>> Entry.objects.values()
-    [{'blog_id': 1, 'headline': u'First Entry', ...}, ...]
+    [{'blog_id': 1, 'headline': 'First Entry', ...}, ...]
 
     >>> Entry.objects.values('blog')
     [{'blog': 1}, ...]
@@ -588,7 +633,7 @@ respective field passed into the ``values_list()`` call — so the first item is
 the first field, etc. For example::
 
     >>> Entry.objects.values_list('id', 'headline')
-    [(1, u'First entry'), ...]
+    [(1, 'First entry'), ...]
 
 If you only pass in a single field, you can also pass in the ``flat``
 parameter. If ``True``, this will mean the returned results are single values,
@@ -619,16 +664,7 @@ Returns a ``DateQuerySet`` — a ``QuerySet`` that evaluates to a list of
 :class:`datetime.date` objects representing all available dates of a
 particular kind within the contents of the ``QuerySet``.
 
-.. versionchanged:: 1.6
-
-    ``dates`` used to return a list of :class:`datetime.datetime` objects.
-
 ``field`` should be the name of a ``DateField`` of your model.
-
-.. versionchanged:: 1.6
-
-    ``dates`` used to accept operating on a ``DateTimeField``.
-
 ``kind`` should be either ``"year"``, ``"month"`` or ``"day"``. Each
 ``datetime.date`` object in the result list is "truncated" to the given
 ``type``.
@@ -658,13 +694,11 @@ Examples::
 datetimes
 ~~~~~~~~~
 
-.. versionadded:: 1.6
-
 .. method:: datetimes(field_name, kind, order='ASC', tzinfo=None)
 
-Returns a ``DateTimeQuerySet`` — a ``QuerySet`` that evaluates to a list of
-:class:`datetime.datetime` objects representing all available dates of a
-particular kind within the contents of the ``QuerySet``.
+Returns a ``QuerySet`` that evaluates to a list of :class:`datetime.datetime`
+objects representing all available dates of a particular kind within the
+contents of the ``QuerySet``.
 
 ``field_name`` should be the name of a ``DateTimeField`` of your model.
 
@@ -825,8 +859,6 @@ follow all non-null foreign keys it can find - nullable foreign keys must be
 specified. This is not recommended in most cases as it is likely to make the
 underlying query more complex, and return more data, than is actually needed.
 
-.. versionadded:: 1.6
-
 If you need to clear the list of related fields added by past calls of
 ``select_related`` on a ``QuerySet``, you can pass ``None`` as a parameter::
 
@@ -880,8 +912,8 @@ For example, suppose you have these models::
         toppings = models.ManyToManyField(Topping)
 
         def __str__(self):              # __unicode__ on Python 2
-            return "%s (%s)" % (self.name, ", ".join([topping.name
-                                                      for topping in self.toppings.all()]))
+            return "%s (%s)" % (self.name, ", ".join(topping.name
+                                                     for topping in self.toppings.all()))
 
 and run::
 
@@ -1177,11 +1209,12 @@ of the arguments is required, but you should use at least one of them.
           select=OrderedDict([('a', '%s'), ('b', '%s')]),
           select_params=('one', 'two'))
 
-  The only thing to be careful about when using select parameters in
-  ``extra()`` is to avoid using the substring ``"%%s"`` (that's *two*
-  percent characters before the ``s``) in the select strings. Django's
-  tracking of parameters looks for ``%s`` and an escaped ``%`` character
-  like this isn't detected. That will lead to incorrect results.
+  If you need to use a literal ``%s`` inside your select string, use
+  the sequence ``%%s``.
+
+  .. versionchanged:: 1.8
+
+      Prior to 1.8, you were unable to escape a literal ``%s``.
 
 * ``where`` / ``tables``
 
@@ -1345,6 +1378,30 @@ one, doing so will result in an error.
     might otherwise call ``defer()``. This makes your code more explicit to the
     reader, is slightly faster and consumes a little less memory in the Python
     process.
+
+    For example, both of these models use the same underlying database table::
+
+        class CommonlyUsedModel(models.Model):
+            f1 = models.CharField(max_length=10)
+
+            class Meta:
+                managed = False
+                db_table = 'app_largetable'
+
+        class ManagedModel(models.Model):
+            f1 = models.CharField(max_length=10)
+            f2 = models.CharField(max_length=10)
+
+            class Meta:
+                db_table = 'app_largetable'
+
+        # Two equivalent QuerySets:
+        CommonlyUsedModel.objects.all()
+        ManagedModel.objects.all().defer('f2')
+
+    If many fields need to be duplicated in the unmanaged model, it may be best
+    to create an abstract model with the shared fields and then have the
+    unmanaged and managed models inherit from the abstract model.
 
 .. note::
 
@@ -1570,10 +1627,6 @@ get_or_create
 A convenience method for looking up an object with the given ``kwargs`` (may be
 empty if your model has defaults for all fields), creating one if necessary.
 
-.. versionchanged:: 1.6
-
-    Older versions of Django required ``kwargs``.
-
 Returns a tuple of ``(object, created)``, where ``object`` is the retrieved or
 created object and ``created`` is a boolean specifying whether a new object was
 created.
@@ -1601,7 +1654,7 @@ found, ``get_or_create()`` will instantiate and save a new object, returning a
 tuple of the new object and ``True``. The new object will be created roughly
 according to this algorithm::
 
-    params = dict([(k, v) for k, v in kwargs.items() if '__' not in k])
+    params = {k: v for k, v in kwargs.items() if '__' not in k}
     params.update(defaults)
     obj = self.model(**params)
     obj.save()
@@ -1863,16 +1916,13 @@ earliest
 
 .. method:: earliest(field_name=None)
 
-.. versionadded:: 1.6
-
 Works otherwise like :meth:`~django.db.models.query.QuerySet.latest` except
 the direction is changed.
 
 first
 ~~~~~
-.. method:: first()
 
-.. versionadded:: 1.6
+.. method:: first()
 
 Returns the first object matched by the queryset, or ``None`` if there
 is no matching object. If the ``QuerySet`` has no ordering defined, then the
@@ -1894,8 +1944,6 @@ last
 ~~~~
 .. method:: last()
 
-.. versionadded:: 1.6
-
 Works like  :meth:`first()`, but returns the last object in the queryset.
 
 aggregate
@@ -1908,12 +1956,15 @@ the ``QuerySet``. Each argument to ``aggregate()`` specifies a value that will
 be included in the dictionary that is returned.
 
 The aggregation functions that are provided by Django are described in
-`Aggregation Functions`_ below.
+`Aggregation Functions`_ below. Since aggregates are also :doc:`query
+expressions </ref/models/expressions>`, you may combine aggregates with other
+aggregates or values to create complex aggregates.
 
 Aggregates specified using keyword arguments will use the keyword as the name
 for the annotation. Anonymous arguments will have a name generated for them
 based upon the name of the aggregate function and the model field that is being
-aggregated.
+aggregated. Complex aggregates cannot use anonymous arguments and must specify
+a keyword argument as an alias.
 
 For example, when you are working with blog entries, you may want to know the
 number of authors that have contributed blog entries::
@@ -2537,8 +2588,6 @@ in the database <database-time-zone-definitions>`.
 hour
 ~~~~
 
-.. versionadded:: 1.6
-
 For datetime fields, an exact hour match. Takes an integer between 0 and 23.
 
 Example::
@@ -2559,8 +2608,6 @@ zone before filtering.
 minute
 ~~~~~~
 
-.. versionadded:: 1.6
-
 For datetime fields, an exact minute match. Takes an integer between 0 and 59.
 
 Example::
@@ -2580,8 +2627,6 @@ zone before filtering.
 
 second
 ~~~~~~
-
-.. versionadded:: 1.6
 
 For datetime fields, an exact second match. Takes an integer between 0 and 59.
 
@@ -2695,8 +2740,9 @@ Aggregation functions
 
 Django provides the following aggregation functions in the
 ``django.db.models`` module. For details on how to use these
-aggregate functions, see
-:doc:`the topic guide on aggregation </topics/db/aggregation>`.
+aggregate functions, see :doc:`the topic guide on aggregation
+</topics/db/aggregation>`. See the :class:`~django.db.models.Aggregate`
+documentation to learn how to create your aggregates.
 
 .. warning::
 
@@ -2713,12 +2759,47 @@ aggregate functions, see
     instead of ``0`` if the ``QuerySet`` contains no entries. An exception is
     ``Count``, which does return ``0`` if the ``QuerySet`` is empty.
 
+All aggregates have the following parameters in common:
+
+``expression``
+~~~~~~~~~~~~~~
+
+A string that references a field on the model, or a :doc:`query expression
+</ref/models/expressions>`.
+
+.. versionadded:: 1.8
+
+    Aggregate functions are now able to reference multiple fields in complex
+    computations.
+
+``output_field``
+~~~~~~~~~~~~~~~~
+
+An optional argument that represents the :doc:`model field </ref/models/fields>`
+of the return value
+
+.. versionadded:: 1.8
+
+    The ``output_field`` argument was added.
+
+.. note::
+
+    When combining multiple field types, Django can only determine the
+    ``output_field`` if all fields are of the same type. Otherwise, you
+    must provide the ``output_field`` yourself.
+
+``**extra``
+~~~~~~~~~~~
+
+Keyword arguments that can provide extra context for the SQL generated
+by the aggregate.
+
 Avg
 ~~~
 
-.. class:: Avg(field)
+.. class:: Avg(expression, output_field=None, **extra)
 
-    Returns the mean value of the given field, which must be numeric.
+    Returns the mean value of the given expression, which must be numeric.
 
     * Default alias: ``<field>__avg``
     * Return type: ``float``
@@ -2726,9 +2807,10 @@ Avg
 Count
 ~~~~~
 
-.. class:: Count(field, distinct=False)
+.. class:: Count(expression, distinct=False, **extra)
 
-    Returns the number of objects that are related through the provided field.
+    Returns the number of objects that are related through the provided
+    expression.
 
     * Default alias: ``<field>__count``
     * Return type: ``int``
@@ -2744,29 +2826,29 @@ Count
 Max
 ~~~
 
-.. class:: Max(field)
+.. class:: Max(expression, output_field=None, **extra)
 
-    Returns the maximum value of the given field.
+    Returns the maximum value of the given expression.
 
     * Default alias: ``<field>__max``
-    * Return type: same as input field
+    * Return type: same as input field, or ``output_field`` if supplied
 
 Min
 ~~~
 
-.. class:: Min(field)
+.. class:: Min(expression, output_field=None, **extra)
 
-    Returns the minimum value of the given field.
+    Returns the minimum value of the given expression.
 
     * Default alias: ``<field>__min``
-    * Return type: same as input field
+    * Return type: same as input field, or ``output_field`` if supplied
 
 StdDev
 ~~~~~~
 
-.. class:: StdDev(field, sample=False)
+.. class:: StdDev(expression, sample=False, **extra)
 
-    Returns the standard deviation of the data in the provided field.
+    Returns the standard deviation of the data in the provided expression.
 
     * Default alias: ``<field>__stddev``
     * Return type: ``float``
@@ -2788,19 +2870,19 @@ StdDev
 Sum
 ~~~
 
-.. class:: Sum(field)
+.. class:: Sum(expression, output_field=None, **extra)
 
-    Computes the sum of all values of the given field.
+    Computes the sum of all values of the given expression.
 
     * Default alias: ``<field>__sum``
-    * Return type: same as input field
+    * Return type: same as input field, or ``output_field`` if supplied
 
 Variance
 ~~~~~~~~
 
-.. class:: Variance(field, sample=False)
+.. class:: Variance(expression, sample=False, **extra)
 
-    Returns the variance of the data in the provided field.
+    Returns the variance of the data in the provided expression.
 
     * Default alias: ``<field>__variance``
     * Return type: ``float``
@@ -2820,3 +2902,72 @@ Variance
         extension.
 
 .. _SQLite documentation: http://www.sqlite.org/contrib
+
+Query-related classes
+=====================
+
+This section provides reference material for query-related tools not documented
+elsewhere.
+
+``Q()`` objects
+---------------
+
+.. class:: Q
+
+A ``Q()`` object, like an :class:`~django.db.models.F` object, encapsulates a
+SQL expression in a Python object that can be used in database-related
+operations.
+
+In general, ``Q() objects`` make it possible to define and reuse conditions.
+This permits the :ref:`construction of complex database queries
+<complex-lookups-with-q>` using ``|`` (``OR``) and ``&`` (``AND``) operators;
+in particular, it is not otherwise possible to use ``OR`` in ``QuerySets``.
+
+``Prefetch()`` objects
+----------------------
+
+.. versionadded:: 1.7
+
+.. class:: Prefetch(lookup, queryset=None, to_attr=None)
+
+The ``Prefetch()`` object can be used to control the operation of
+:meth:`~django.db.models.query.QuerySet.prefetch_related()`.
+
+The ``lookup`` argument describes the relations to follow and works the same
+as the string based lookups passed to
+:meth:`~django.db.models.query.QuerySet.prefetch_related()`. For example:
+
+    >>> Question.objects.prefetch_related(Prefetch('choice_set')).get().choice_set.all()
+    [<Choice: Not much>, <Choice: The sky>, <Choice: Just hacking again>]
+    # This will only execute two queries regardless of the number of Question
+    # and Choice objects.
+    >>> Question.objects.prefetch_related(Prefetch('choice_set')).all()
+    [<Question: Question object>]
+
+The ``queryset`` argument supplies a base ``QuerySet`` for the given lookup.
+This is useful to further filter down the prefetch operation, or to call
+:meth:`~django.db.models.query.QuerySet.select_related()` from the prefetched
+relation, hence reducing the number of queries even further:
+
+    >>> voted_choices = Choice.objects.filter(votes__gt=0)
+    >>> voted_choices
+    [<Choice: The sky>]
+    >>> prefetch = Prefetch('choice_set', queryset=voted_choices)
+    >>> Question.objects.prefetch_related(prefetch).get().choice_set.all()
+    [<Choice: The sky>]
+
+The ``to_attr`` argument sets the result of the prefetch operation to a custom
+attribute:
+
+    >>> prefetch = Prefetch('choice_set', queryset=voted_choices, to_attr='voted_choices')
+    >>> Question.objects.prefetch_related(prefetch).get().voted_choices
+    [<Choice: The sky>]
+    >>> Question.objects.prefetch_related(prefetch).get().choice_set.all()
+    [<Choice: Not much>, <Choice: The sky>, <Choice: Just hacking again>]
+
+.. note::
+
+    When using ``to_attr`` the prefetched result is stored in a list. This can
+    provide a significant speed improvement over traditional
+    ``prefetch_related`` calls which store the cached result within a
+    ``QuerySet`` instance.

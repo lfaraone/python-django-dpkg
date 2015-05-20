@@ -5,29 +5,32 @@ import datetime
 from django.contrib import admin
 from django.contrib.admin.options import IncorrectLookupParameters
 from django.contrib.admin.templatetags.admin_list import pagination
-from django.contrib.admin.views.main import ChangeList, SEARCH_VAR, ALL_VAR
 from django.contrib.admin.tests import AdminSeleniumWebDriverTestCase
+from django.contrib.admin.views.main import ALL_VAR, SEARCH_VAR, ChangeList
 from django.contrib.auth.models import User
 from django.core.urlresolvers import reverse
 from django.template import Context, Template
 from django.test import TestCase, override_settings
 from django.test.client import RequestFactory
-from django.utils import formats
-from django.utils import six
+from django.utils import formats, six
 
-from .admin import (ChildAdmin, QuartetAdmin, BandAdmin, ChordsBandAdmin,
-    GroupAdmin, ParentAdmin, DynamicListDisplayChildAdmin,
-    DynamicListDisplayLinksChildAdmin, CustomPaginationAdmin,
-    FilteredChildAdmin, CustomPaginator, site as custom_site,
-    SwallowAdmin, DynamicListFilterChildAdmin, InvitationAdmin,
-    DynamicSearchFieldsChildAdmin, NoListDisplayLinksParentAdmin)
-from .models import (Event, Child, Parent, Genre, Band, Musician, Group,
-    Quartet, Membership, ChordsMusician, ChordsBand, Invitation, Swallow,
-    UnorderedObject, OrderedObject, CustomIdUser)
+from .admin import (
+    BandAdmin, ChildAdmin, ChordsBandAdmin, CustomPaginationAdmin,
+    CustomPaginator, DynamicListDisplayChildAdmin,
+    DynamicListDisplayLinksChildAdmin, DynamicListFilterChildAdmin,
+    DynamicSearchFieldsChildAdmin, FilteredChildAdmin, GroupAdmin,
+    InvitationAdmin, NoListDisplayLinksParentAdmin, ParentAdmin, QuartetAdmin,
+    SwallowAdmin, site as custom_site,
+)
+from .models import (
+    Band, Child, ChordsBand, ChordsMusician, CustomIdUser, Event, Genre, Group,
+    Invitation, Membership, Musician, OrderedObject, Parent, Quartet, Swallow,
+    UnorderedObject,
+)
 
 
+@override_settings(ROOT_URLCONF="admin_changelist.urls")
 class ChangeListTests(TestCase):
-    urls = "admin_changelist.urls"
 
     def setUp(self):
         self.factory = RequestFactory()
@@ -93,7 +96,7 @@ class ChangeListTests(TestCase):
         table_output = template.render(context)
         link = reverse('admin:admin_changelist_child_change', args=(new_child.id,))
         row_html = '<tbody><tr class="row1"><th class="field-name"><a href="%s">name</a></th><td class="field-parent nowrap">(None)</td></tr></tbody>' % link
-        self.assertFalse(table_output.find(row_html) == -1,
+        self.assertNotEqual(table_output.find(row_html), -1,
             'Failed to find expected row element: %s' % table_output)
 
     def test_result_list_html(self):
@@ -116,7 +119,7 @@ class ChangeListTests(TestCase):
         table_output = template.render(context)
         link = reverse('admin:admin_changelist_child_change', args=(new_child.id,))
         row_html = '<tbody><tr class="row1"><th class="field-name"><a href="%s">name</a></th><td class="field-parent nowrap">Parent object</td></tr></tbody>' % link
-        self.assertFalse(table_output.find(row_html) == -1,
+        self.assertNotEqual(table_output.find(row_html), -1,
             'Failed to find expected row element: %s' % table_output)
 
     def test_result_list_editable_html(self):
@@ -365,7 +368,7 @@ class ChangeListTests(TestCase):
             username='super', email='super@localhost', password='secret')
         self.client.login(username='super', password='secret')
         event = Event.objects.create(date=datetime.date.today())
-        response = self.client.get('/admin/admin_changelist/event/')
+        response = self.client.get(reverse('admin:admin_changelist_event_changelist'))
         self.assertContains(response, formats.localize(event.date))
         self.assertNotContains(response, six.text_type(event.date))
 
@@ -664,12 +667,12 @@ class AdminLogNodeTestCase(TestCase):
         self.assertEqual(template.render(context), '')
 
 
-@override_settings(PASSWORD_HASHERS=('django.contrib.auth.hashers.SHA1PasswordHasher',))
+@override_settings(PASSWORD_HASHERS=('django.contrib.auth.hashers.SHA1PasswordHasher',),
+                   ROOT_URLCONF="admin_changelist.urls")
 class SeleniumFirefoxTests(AdminSeleniumWebDriverTestCase):
 
     available_apps = ['admin_changelist'] + AdminSeleniumWebDriverTestCase.available_apps
     fixtures = ['users.json']
-    urls = "admin_changelist.urls"
     webdriver_class = 'selenium.webdriver.firefox.webdriver.WebDriver'
 
     def test_add_row_selection(self):
@@ -678,7 +681,7 @@ class SeleniumFirefoxTests(AdminSeleniumWebDriverTestCase):
         """
         self.admin_login(username='super', password='secret')
         self.selenium.get('%s%s' % (self.live_server_url,
-                                    '/admin/auth/user/'))
+                                    reverse('admin:auth_user_changelist')))
 
         form_id = '#changelist-form'
 

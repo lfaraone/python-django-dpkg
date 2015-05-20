@@ -7,26 +7,149 @@ import os
 import re
 import tokenize
 import unittest
-import warnings
 
-from django.core.validators import RegexValidator, EmailValidator
-from django.db import models, migrations
-from django.db.migrations.writer import MigrationWriter, SettingsReference
-from django.test import TestCase
-from django.conf import settings
-from django.utils import datetime_safe, six
-from django.utils.deconstruct import deconstructible
-from django.utils.translation import ugettext_lazy as _
-from django.utils.timezone import get_default_timezone, utc, FixedOffset
-
-import custom_migration_operations.operations
 import custom_migration_operations.more_operations
+import custom_migration_operations.operations
+
+from django.conf import settings
+from django.core.validators import EmailValidator, RegexValidator
+from django.db import migrations, models
+from django.db.migrations.writer import (
+    MigrationWriter, OperationWriter, SettingsReference,
+)
+from django.test import SimpleTestCase, TestCase, ignore_warnings
+from django.utils import datetime_safe, six
+from django.utils._os import upath
+from django.utils.deconstruct import deconstructible
+from django.utils.timezone import FixedOffset, get_default_timezone, utc
+from django.utils.translation import ugettext_lazy as _
+
+from .models import FoodManager, FoodQuerySet
 
 
 class TestModel1(object):
     def upload_to(self):
         return "somewhere dynamic"
     thing = models.FileField(upload_to=upload_to)
+
+
+class OperationWriterTests(SimpleTestCase):
+
+    def test_empty_signature(self):
+        operation = custom_migration_operations.operations.TestOperation()
+        buff, imports = OperationWriter(operation, indentation=0).serialize()
+        self.assertEqual(imports, {'import custom_migration_operations.operations'})
+        self.assertEqual(
+            buff,
+            'custom_migration_operations.operations.TestOperation(\n'
+            '),'
+        )
+
+    def test_args_signature(self):
+        operation = custom_migration_operations.operations.ArgsOperation(1, 2)
+        buff, imports = OperationWriter(operation, indentation=0).serialize()
+        self.assertEqual(imports, {'import custom_migration_operations.operations'})
+        self.assertEqual(
+            buff,
+            'custom_migration_operations.operations.ArgsOperation(\n'
+            '    arg1=1,\n'
+            '    arg2=2,\n'
+            '),'
+        )
+
+    def test_kwargs_signature(self):
+        operation = custom_migration_operations.operations.KwargsOperation(kwarg1=1)
+        buff, imports = OperationWriter(operation, indentation=0).serialize()
+        self.assertEqual(imports, {'import custom_migration_operations.operations'})
+        self.assertEqual(
+            buff,
+            'custom_migration_operations.operations.KwargsOperation(\n'
+            '    kwarg1=1,\n'
+            '),'
+        )
+
+    def test_args_kwargs_signature(self):
+        operation = custom_migration_operations.operations.ArgsKwargsOperation(1, 2, kwarg2=4)
+        buff, imports = OperationWriter(operation, indentation=0).serialize()
+        self.assertEqual(imports, {'import custom_migration_operations.operations'})
+        self.assertEqual(
+            buff,
+            'custom_migration_operations.operations.ArgsKwargsOperation(\n'
+            '    arg1=1,\n'
+            '    arg2=2,\n'
+            '    kwarg2=4,\n'
+            '),'
+        )
+
+    def test_nested_args_signature(self):
+        operation = custom_migration_operations.operations.ArgsOperation(
+            custom_migration_operations.operations.ArgsOperation(1, 2),
+            custom_migration_operations.operations.KwargsOperation(kwarg1=3, kwarg2=4)
+        )
+        buff, imports = OperationWriter(operation, indentation=0).serialize()
+        self.assertEqual(imports, {'import custom_migration_operations.operations'})
+        self.assertEqual(
+            buff,
+            'custom_migration_operations.operations.ArgsOperation(\n'
+            '    arg1=custom_migration_operations.operations.ArgsOperation(\n'
+            '        arg1=1,\n'
+            '        arg2=2,\n'
+            '    ),\n'
+            '    arg2=custom_migration_operations.operations.KwargsOperation(\n'
+            '        kwarg1=3,\n'
+            '        kwarg2=4,\n'
+            '    ),\n'
+            '),'
+        )
+
+    def test_multiline_args_signature(self):
+        operation = custom_migration_operations.operations.ArgsOperation("test\n    arg1", "test\narg2")
+        buff, imports = OperationWriter(operation, indentation=0).serialize()
+        self.assertEqual(imports, {'import custom_migration_operations.operations'})
+        self.assertEqual(
+            buff,
+            "custom_migration_operations.operations.ArgsOperation(\n"
+            "    arg1='test\\n    arg1',\n"
+            "    arg2='test\\narg2',\n"
+            "),"
+        )
+
+    def test_expand_args_signature(self):
+        operation = custom_migration_operations.operations.ExpandArgsOperation([1, 2])
+        buff, imports = OperationWriter(operation, indentation=0).serialize()
+        self.assertEqual(imports, {'import custom_migration_operations.operations'})
+        self.assertEqual(
+            buff,
+            'custom_migration_operations.operations.ExpandArgsOperation(\n'
+            '    arg=[\n'
+            '        1,\n'
+            '        2,\n'
+            '    ],\n'
+            '),'
+        )
+
+    def test_nested_operation_expand_args_signature(self):
+        operation = custom_migration_operations.operations.ExpandArgsOperation(
+            arg=[
+                custom_migration_operations.operations.KwargsOperation(
+                    kwarg1=1,
+                    kwarg2=2,
+                ),
+            ]
+        )
+        buff, imports = OperationWriter(operation, indentation=0).serialize()
+        self.assertEqual(imports, {'import custom_migration_operations.operations'})
+        self.assertEqual(
+            buff,
+            'custom_migration_operations.operations.ExpandArgsOperation(\n'
+            '    arg=[\n'
+            '        custom_migration_operations.operations.KwargsOperation(\n'
+            '            kwarg1=1,\n'
+            '            kwarg2=2,\n'
+            '        ),\n'
+            '    ],\n'
+            '),'
+        )
 
 
 class WriterTests(TestCase):
@@ -82,10 +205,18 @@ class WriterTests(TestCase):
         string, imports = MigrationWriter.serialize("foobar")
         self.assertEqual(string, "'foobar'")
 
+    def test_serialize_multiline_strings(self):
+        self.assertSerializedEqual(b"foo\nbar")
+        string, imports = MigrationWriter.serialize(b"foo\nbar")
+        self.assertEqual(string, "b'foo\\nbar'")
+        self.assertSerializedEqual("föo\nbár")
+        string, imports = MigrationWriter.serialize("foo\nbar")
+        self.assertEqual(string, "'foo\\nbar'")
+
     def test_serialize_collections(self):
         self.assertSerializedEqual({1: 2})
         self.assertSerializedEqual(["a", 2, True, None])
-        self.assertSerializedEqual(set([2, 3, "eighty"]))
+        self.assertSerializedEqual({2, 3, "eighty"})
         self.assertSerializedEqual({"lalalala": ["yeah", "no", "maybe"]})
         self.assertSerializedEqual(_('Hello'))
 
@@ -148,7 +279,7 @@ class WriterTests(TestCase):
         self.assertSerializedEqual(SettingsReference(settings.AUTH_USER_MODEL, "AUTH_USER_MODEL"))
         self.assertSerializedResultEqual(
             SettingsReference("someapp.model", "AUTH_USER_MODEL"),
-            ("settings.AUTH_USER_MODEL", set(["from django.conf import settings"]))
+            ("settings.AUTH_USER_MODEL", {"from django.conf import settings"})
         )
         self.assertSerializedResultEqual(
             ((x, x * x) for x in range(3)),
@@ -253,6 +384,19 @@ class WriterTests(TestCase):
                 '^Could not find function upload_to in migrations.test_writer'):
             self.serialize_round_trip(TestModel2.thing)
 
+    def test_serialize_managers(self):
+        self.assertSerializedEqual(models.Manager())
+        self.assertSerializedResultEqual(
+            FoodQuerySet.as_manager(),
+            ('migrations.models.FoodQuerySet.as_manager()', {'import migrations.models'})
+        )
+        self.assertSerializedEqual(FoodManager('a', 'b'))
+        self.assertSerializedEqual(FoodManager('x', 'y', c=3, d=4))
+
+    def test_serialize_timedelta(self):
+        self.assertSerializedEqual(datetime.timedelta())
+        self.assertSerializedEqual(datetime.timedelta(minutes=42))
+
     def test_simple_migration(self):
         """
         Tests serializing a simple migration.
@@ -297,6 +441,10 @@ class WriterTests(TestCase):
                     )
                 )
 
+    # Silence warning on Python 2: Not importing directory
+    # 'tests/migrations/migrations_test_apps/without_init_file/migrations':
+    # missing __init__.py
+    @ignore_warnings(category=ImportWarning)
     def test_migration_path(self):
         test_apps = [
             'migrations.migrations_test_apps.normal',
@@ -304,19 +452,14 @@ class WriterTests(TestCase):
             'migrations.migrations_test_apps.without_init_file',
         ]
 
-        base_dir = os.path.dirname(os.path.dirname(__file__))
+        base_dir = os.path.dirname(os.path.dirname(upath(__file__)))
 
         for app in test_apps:
             with self.modify_settings(INSTALLED_APPS={'append': app}):
                 migration = migrations.Migration('0001_initial', app.split('.')[-1])
                 expected_path = os.path.join(base_dir, *(app.split('.') + ['migrations', '0001_initial.py']))
                 writer = MigrationWriter(migration)
-                # Silence warning on Python 2: Not importing directory
-                # 'tests/migrations/migrations_test_apps/without_init_file/migrations':
-                # missing __init__.py
-                with warnings.catch_warnings():
-                    warnings.filterwarnings("ignore", category=ImportWarning)
-                    self.assertEqual(writer.path, expected_path)
+                self.assertEqual(writer.path, expected_path)
 
     def test_custom_operation(self):
         migration = type(str("Migration"), (migrations.Migration,), {

@@ -5,14 +5,17 @@ Tests for stuff in django.utils.datastructures.
 import copy
 import pickle
 
-from django.test import SimpleTestCase
-from django.test.utils import IgnorePendingDeprecationWarningsMixin
-from django.utils.datastructures import (DictWrapper, ImmutableList,
-    MultiValueDict, MultiValueDictKeyError, MergeDict, SortedDict)
+from django.test import SimpleTestCase, ignore_warnings
 from django.utils import six
+from django.utils.datastructures import (
+    DictWrapper, ImmutableList, MergeDict, MultiValueDict,
+    MultiValueDictKeyError, OrderedSet, SortedDict,
+)
+from django.utils.deprecation import RemovedInDjango19Warning
 
 
-class SortedDictTests(IgnorePendingDeprecationWarningsMixin, SimpleTestCase):
+@ignore_warnings(category=RemovedInDjango19Warning)
+class SortedDictTests(SimpleTestCase):
     def setUp(self):
         super(SortedDictTests, self).setUp()
         self.d1 = SortedDict()
@@ -136,7 +139,8 @@ class SortedDictTests(IgnorePendingDeprecationWarningsMixin, SimpleTestCase):
         self.assertEqual(list(reversed(self.d2)), [7, 0, 9, 1])
 
 
-class MergeDictTests(IgnorePendingDeprecationWarningsMixin, SimpleTestCase):
+@ignore_warnings(category=RemovedInDjango19Warning)
+class MergeDictTests(SimpleTestCase):
 
     def test_simple_mergedict(self):
         d1 = {'chris': 'cool', 'camri': 'cute', 'cotton': 'adorable',
@@ -177,7 +181,7 @@ class MergeDictTests(IgnorePendingDeprecationWarningsMixin, SimpleTestCase):
         self.assertEqual(sorted(six.iterkeys(mm)), ['key1', 'key2', 'key4'])
         self.assertEqual(len(list(six.itervalues(mm))), 3)
 
-        self.assertTrue('value1' in six.itervalues(mm))
+        self.assertIn('value1', six.itervalues(mm))
 
         self.assertEqual(
             sorted(six.iteritems(mm), key=lambda k: k[0]),
@@ -204,6 +208,16 @@ class MergeDictTests(IgnorePendingDeprecationWarningsMixin, SimpleTestCase):
         d1 = MergeDict({'key1': 42})
         with six.assertRaisesRegex(self, KeyError, 'key2'):
             d1['key2']
+
+
+class OrderedSetTests(SimpleTestCase):
+
+    def test_bool(self):
+        # Refs #23664
+        s = OrderedSet()
+        self.assertFalse(s)
+        s.add(1)
+        self.assertTrue(s)
 
 
 class MultiValueDictTests(SimpleTestCase):

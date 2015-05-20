@@ -1,4 +1,6 @@
-from django.db.backends.schema import BaseDatabaseSchemaEditor
+import psycopg2
+
+from django.db.backends.base.schema import BaseDatabaseSchemaEditor
 
 
 class DatabaseSchemaEditor(BaseDatabaseSchemaEditor):
@@ -10,8 +12,6 @@ class DatabaseSchemaEditor(BaseDatabaseSchemaEditor):
     sql_create_text_index = "CREATE INDEX %(name)s ON %(table)s (%(columns)s text_pattern_ops)%(extra)s"
 
     def quote_value(self, value):
-        # Inner import so backend fails nicely if it's not present
-        import psycopg2
         return psycopg2.extensions.adapt(value)
 
     def _model_indexes_sql(self, model):
@@ -34,11 +34,12 @@ class DatabaseSchemaEditor(BaseDatabaseSchemaEditor):
                         model, [field], suffix='_like', sql=self.sql_create_text_index))
         return output
 
-    def _alter_column_type_sql(self, table, column, type):
+    def _alter_column_type_sql(self, table, old_field, new_field, new_type):
         """
         Makes ALTER TYPE with SERIAL make sense.
         """
-        if type.lower() == "serial":
+        if new_type.lower() == "serial":
+            column = new_field.column
             sequence_name = "%s_%s_seq" % (table, column)
             return (
                 (
@@ -82,4 +83,6 @@ class DatabaseSchemaEditor(BaseDatabaseSchemaEditor):
                 ],
             )
         else:
-            return super(DatabaseSchemaEditor, self)._alter_column_type_sql(table, column, type)
+            return super(DatabaseSchemaEditor, self)._alter_column_type_sql(
+                table, old_field, new_field, new_type
+            )

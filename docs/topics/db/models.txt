@@ -190,9 +190,9 @@ ones:
         >>> p = Person(name="Fred Flintstone", shirt_size="L")
         >>> p.save()
         >>> p.shirt_size
-        u'L'
+        'L'
         >>> p.get_shirt_size_display()
-        u'Large'
+        'Large'
 
 :attr:`~Field.default`
     The default value for the field. This can be a value or a callable
@@ -558,7 +558,7 @@ querying the ``Membership`` model::
     >>> ringos_membership.date_joined
     datetime.date(1962, 8, 16)
     >>> ringos_membership.invite_reason
-    u'Needed a new drummer.'
+    'Needed a new drummer.'
 
 Another way to access the same information is by querying the
 :ref:`many-to-many reverse relationship<m2m-reverse-relationships>` from a
@@ -568,7 +568,7 @@ Another way to access the same information is by querying the
     >>> ringos_membership.date_joined
     datetime.date(1962, 8, 16)
     >>> ringos_membership.invite_reason
-    u'Needed a new drummer.'
+    'Needed a new drummer.'
 
 
 One-to-one relationships
@@ -698,8 +698,9 @@ Model attributes
     :class:`~django.db.models.Manager`. It's the interface through which
     database query operations are provided to Django models and is used to
     :ref:`retrieve the instances <retrieving-objects>` from the database. If no
-    custom ``Manager`` is defined, the default name is ``objects``. Managers
-    are only accessible via model classes, not the model instances.
+    custom ``Manager`` is defined, the default name is
+    :attr:`~django.db.models.Model.objects`. Managers are only accessible via
+    model classes, not the model instances.
 
 .. _model-methods:
 
@@ -1193,9 +1194,6 @@ can't inherit from multiple non-abstract models as the proxy model doesn't
 provide any connection between the rows in the different database tables. A
 proxy model can inherit from any number of abstract model classes, providing
 they do *not* define any model fields.
-
-Proxy models inherit any ``Meta`` options that they don't define from their
-non-abstract model parent (the model they are proxying for).
 
 Proxy model managers
 ~~~~~~~~~~~~~~~~~~~~

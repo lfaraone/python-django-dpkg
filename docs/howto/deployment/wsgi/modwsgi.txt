@@ -87,10 +87,10 @@ string to ``WSGIPythonPath`` must be quoted:
 
 .. code-block:: apache
 
-    WSGIPythonPath /path/to/mysite.com:/path/to/your/venv/lib/python2.X/site-packages
+    WSGIPythonPath /path/to/mysite.com:/path/to/your/venv/lib/python3.X/site-packages
 
 Make sure you give the correct path to your virtualenv, and replace
-``python2.X`` with the correct Python version (e.g. ``python2.7``).
+``python3.X`` with the correct Python version (e.g. ``python3.4``).
 
 .. _virtualenv: http://www.virtualenv.org
 
@@ -136,11 +136,8 @@ server you choose.
 We recommend using a separate Web server -- i.e., one that's not also running
 Django -- for serving media. Here are some good choices:
 
-* lighttpd_
 * Nginx_
-* TUX_
 * A stripped-down version of Apache_
-* Cherokee_
 
 If, however, you have no option but to serve media files on the same Apache
 ``VirtualHost`` as Django, you can set up Apache to serve some URLs as
@@ -179,11 +176,8 @@ If you are using a version of Apache older than 2.4, replace
 ``Require all granted`` with ``Allow from all`` and also add the line
 ``Order deny,allow`` above it.
 
-.. _lighttpd: http://www.lighttpd.net/
 .. _Nginx: http://wiki.nginx.org/Main
-.. _TUX: http://en.wikipedia.org/wiki/TUX_web_server
 .. _Apache: http://httpd.apache.org/
-.. _Cherokee: http://www.cherokee-project.com/
 
 .. More details on configuring a mod_wsgi site to serve static files can be found
 .. in the mod_wsgi documentation on `hosting static files`_.

@@ -4,19 +4,20 @@ from __future__ import unicode_literals
 import logging
 import warnings
 
-from django.core import mail
-from django.test import TestCase, RequestFactory, override_settings
-from django.test.utils import patch_logger
-from django.utils.encoding import force_text
-from django.utils.deprecation import RemovedInNextVersionWarning
-from django.utils.log import (CallbackFilter, RequireDebugFalse,
-    RequireDebugTrue)
-from django.utils.six import StringIO
-
 from admin_scripts.tests import AdminScriptTestCase
 
-from .logconfig import MyEmailBackend
+from django.core import mail
+from django.core.files.temp import NamedTemporaryFile
+from django.test import RequestFactory, TestCase, override_settings
+from django.test.utils import patch_logger
+from django.utils.deprecation import RemovedInNextVersionWarning
+from django.utils.encoding import force_text
+from django.utils.log import (
+    AdminEmailHandler, CallbackFilter, RequireDebugFalse, RequireDebugTrue,
+)
+from django.utils.six import StringIO
 
+from .logconfig import MyEmailBackend
 
 # logging config prior to using filter with mail_admins
 OLD_LOGGING = {
@@ -124,7 +125,7 @@ class WarningLoggerTests(TestCase):
             warnings.filterwarnings('always')
             warnings.warn('Foo Deprecated', RemovedInNextVersionWarning)
             output = force_text(self.outputs[0].getvalue())
-            self.assertTrue('Foo Deprecated' in output)
+            self.assertIn('Foo Deprecated', output)
 
     def test_warnings_capture_debug_false(self):
         with warnings.catch_warnings():
@@ -266,8 +267,8 @@ class AdminEmailHandlerTest(TestCase):
         self.logger.error(message)
 
         self.assertEqual(len(mail.outbox), 1)
-        self.assertFalse('\n' in mail.outbox[0].subject)
-        self.assertFalse('\r' in mail.outbox[0].subject)
+        self.assertNotIn('\n', mail.outbox[0].subject)
+        self.assertNotIn('\r', mail.outbox[0].subject)
         self.assertEqual(mail.outbox[0].subject, expected_subject)
 
     @override_settings(
@@ -344,6 +345,22 @@ class AdminEmailHandlerTest(TestCase):
         self.assertEqual(msg.subject, "[Django] ERROR (EXTERNAL IP): message")
         self.assertIn("path:%s" % url_path, msg.body)
 
+    @override_settings(
+        MANAGERS=(('manager', 'manager@example.com'),),
+        DEBUG=False,
+    )
+    def test_customize_send_mail_method(self):
+        class ManagerEmailHandler(AdminEmailHandler):
+            def send_mail(self, subject, message, *args, **kwargs):
+                mail.mail_managers(subject, message, *args, connection=self.connection(), **kwargs)
+
+        handler = ManagerEmailHandler()
+        record = self.logger.makeRecord('name', logging.ERROR, 'function', 'lno', 'message', None, None)
+        self.assertEqual(len(mail.outbox), 0)
+        handler.emit(record)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ['manager@example.com'])
+
 
 class SettingsConfigTest(AdminScriptTestCase):
     """
@@ -381,17 +398,16 @@ class SetupConfigureLogging(TestCase):
     """
     Test that calling django.setup() initializes the logging configuration.
     """
-    @override_settings(LOGGING_CONFIG='logging_tests.tests.dictConfig')
+    @override_settings(LOGGING_CONFIG='logging_tests.tests.dictConfig',
+                       LOGGING=OLD_LOGGING)
     def test_configure_initializes_logging(self):
         from django import setup
         setup()
         self.assertTrue(dictConfig.called)
 
 
-@override_settings(DEBUG=True)
+@override_settings(DEBUG=True, ROOT_URLCONF='logging_tests.urls')
 class SecurityLoggerTest(TestCase):
-
-    urls = 'logging_tests.urls'
 
     def test_suspicious_operation_creates_log_message(self):
         with patch_logger('django.security.SuspiciousOperation', 'error') as calls:
@@ -413,3 +429,42 @@ class SecurityLoggerTest(TestCase):
         self.client.get('/suspicious/')
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn('path:/suspicious/,', mail.outbox[0].body)
+
+
+class SettingsCustomLoggingTest(AdminScriptTestCase):
+    """
+    Test that using a logging defaults are still applied when using a custom
+    callable in LOGGING_CONFIG (i.e., logging.config.fileConfig).
+    """
+    def setUp(self):
+        logging_conf = """
+[loggers]
+keys=root
+[handlers]
+keys=stream
+[formatters]
+keys=simple
+[logger_root]
+handlers=stream
+[handler_stream]
+class=StreamHandler
+formatter=simple
+args=(sys.stdout,)
+[formatter_simple]
+format=%(message)s
+"""
+        self.temp_file = NamedTemporaryFile()
+        self.temp_file.write(logging_conf.encode('utf-8'))
+        self.temp_file.flush()
+        sdict = {'LOGGING_CONFIG': '"logging.config.fileConfig"',
+                 'LOGGING': 'r"%s"' % self.temp_file.name}
+        self.write_settings('settings.py', sdict=sdict)
+
+    def tearDown(self):
+        self.temp_file.close()
+        self.remove_settings('settings.py')
+
+    def test_custom_logging(self):
+        out, err = self.run_manage(['validate'])
+        self.assertNoOutput(err)
+        self.assertOutput(out, "System check identified no issues (0 silenced).")

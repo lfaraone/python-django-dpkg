@@ -8,15 +8,13 @@ import os
 import socket
 
 from django.core.exceptions import ImproperlyConfigured
-from django.test import LiveServerTestCase
-from django.test import override_settings
+from django.test import LiveServerTestCase, override_settings
+from django.utils._os import upath
 from django.utils.http import urlencode
 from django.utils.six.moves.urllib.error import HTTPError
 from django.utils.six.moves.urllib.request import urlopen
-from django.utils._os import upath
 
 from .models import Person
-
 
 TEST_ROOT = os.path.dirname(upath(__file__))
 TEST_SETTINGS = {
@@ -27,6 +25,7 @@ TEST_SETTINGS = {
 }
 
 
+@override_settings(ROOT_URLCONF='servers.urls', **TEST_SETTINGS)
 class LiveServerBase(LiveServerTestCase):
 
     available_apps = [
@@ -36,20 +35,6 @@ class LiveServerBase(LiveServerTestCase):
         'django.contrib.sessions',
     ]
     fixtures = ['testdata.json']
-    urls = 'servers.urls'
-
-    @classmethod
-    def setUpClass(cls):
-        # Override settings
-        cls.settings_override = override_settings(**TEST_SETTINGS)
-        cls.settings_override.enable()
-        super(LiveServerBase, cls).setUpClass()
-
-    @classmethod
-    def tearDownClass(cls):
-        # Restore original settings
-        cls.settings_override.disable()
-        super(LiveServerBase, cls).tearDownClass()
 
     def urlopen(self, url):
         return urlopen(self.live_server_url + url)

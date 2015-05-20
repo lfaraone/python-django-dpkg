@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
+
 import warnings
 
 from django.contrib import admin
@@ -9,24 +10,26 @@ from django.contrib.contenttypes.admin import GenericTabularInline
 from django.contrib.contenttypes.forms import generic_inlineformset_factory
 from django.forms.formsets import DEFAULT_MAX_NUM
 from django.forms.models import ModelForm
-from django.test import TestCase, override_settings, RequestFactory
+from django.test import (
+    RequestFactory, TestCase, ignore_warnings, override_settings,
+)
+from django.utils.deprecation import RemovedInDjango19Warning
 
-# local test models
 from .admin import MediaInline, MediaPermanentInline, site as admin_site
-from .models import Episode, Media, EpisodePermanent, Category
+from .models import Category, Episode, EpisodePermanent, Media
 
 
-@override_settings(PASSWORD_HASHERS=('django.contrib.auth.hashers.SHA1PasswordHasher',),
-                   TEMPLATE_DEBUG=True)
+# Set DEBUG to True to ensure {% include %} will raise exceptions.
+# That is how inlines are rendered and #9498 will bubble up if it is an issue.
+@override_settings(
+    DEBUG=True,
+    PASSWORD_HASHERS=('django.contrib.auth.hashers.SHA1PasswordHasher',),
+    ROOT_URLCONF="generic_inline_admin.urls",
+)
 class GenericAdminViewTest(TestCase):
-    urls = "generic_inline_admin.urls"
     fixtures = ['users.xml']
 
     def setUp(self):
-        # set TEMPLATE_DEBUG to True to ensure {% include %} will raise
-        # exceptions since that is how inlines are rendered and #9498 will
-        # bubble up if it is an issue.
-
         self.client.login(username='super', password='secret')
 
         # Can't load content via a fixture (since the GenericForeignKey
@@ -41,9 +44,6 @@ class GenericAdminViewTest(TestCase):
         m = Media(content_object=e, url='http://example.com/logo.png')
         m.save()
         self.png_media_pk = m.pk
-
-    def tearDown(self):
-        self.client.logout()
 
     def test_basic_add_GET(self):
         """
@@ -129,17 +129,14 @@ class GenericAdminViewTest(TestCase):
         self.assertTrue(formset.get_queryset().ordered)
 
 
-@override_settings(PASSWORD_HASHERS=('django.contrib.auth.hashers.SHA1PasswordHasher',))
+@override_settings(PASSWORD_HASHERS=('django.contrib.auth.hashers.SHA1PasswordHasher',),
+                   ROOT_URLCONF="generic_inline_admin.urls")
 class GenericInlineAdminParametersTest(TestCase):
-    urls = "generic_inline_admin.urls"
     fixtures = ['users.xml']
 
     def setUp(self):
         self.client.login(username='super', password='secret')
         self.factory = RequestFactory()
-
-    def tearDown(self):
-        self.client.logout()
 
     def _create_object(self, model):
         """
@@ -279,16 +276,13 @@ class GenericInlineAdminParametersTest(TestCase):
         self.assertEqual(formset.max_num, 2)
 
 
-@override_settings(PASSWORD_HASHERS=('django.contrib.auth.hashers.SHA1PasswordHasher',))
+@override_settings(PASSWORD_HASHERS=('django.contrib.auth.hashers.SHA1PasswordHasher',),
+                   ROOT_URLCONF="generic_inline_admin.urls")
 class GenericInlineAdminWithUniqueTogetherTest(TestCase):
-    urls = "generic_inline_admin.urls"
     fixtures = ['users.xml']
 
     def setUp(self):
         self.client.login(username='super', password='secret')
-
-    def tearDown(self):
-        self.client.logout()
 
     def test_add(self):
         category_id = Category.objects.create(name='male').pk
@@ -308,12 +302,11 @@ class GenericInlineAdminWithUniqueTogetherTest(TestCase):
         self.assertEqual(response.status_code, 302)  # redirect somewhere
 
 
+@override_settings(ROOT_URLCONF="generic_inline_admin.urls")
 class NoInlineDeletionTest(TestCase):
-    urls = "generic_inline_admin.urls"
 
     def test_no_deletion(self):
-        fake_site = object()
-        inline = MediaPermanentInline(EpisodePermanent, fake_site)
+        inline = MediaPermanentInline(EpisodePermanent, admin_site)
         fake_request = object()
         formset = inline.get_formset(fake_request)
         self.assertFalse(formset.can_delete)
@@ -331,8 +324,8 @@ request = MockRequest()
 request.user = MockSuperUser()
 
 
+@override_settings(ROOT_URLCONF="generic_inline_admin.urls")
 class GenericInlineModelAdminTest(TestCase):
-    urls = "generic_inline_admin.urls"
 
     def setUp(self):
         self.site = AdminSite()
@@ -473,7 +466,7 @@ class GenericInlineModelAdminTest(TestCase):
             # Verify that the deprecation warning was triggered when get_formsets was called
             # This verifies that we called that method.
             self.assertEqual(len(w), 1)
-            self.assertTrue(issubclass(w[0].category, PendingDeprecationWarning))
+            self.assertTrue(issubclass(w[0].category, RemovedInDjango19Warning))
 
         class EpisodeAdmin(admin.ModelAdmin):
             inlines = [
@@ -485,6 +478,7 @@ class GenericInlineModelAdminTest(TestCase):
             list(ma.get_formsets_with_inlines(request))
             self.assertEqual(len(w), 0)
 
+    @ignore_warnings(category=RemovedInDjango19Warning)
     def test_get_formsets_with_inlines_returns_tuples(self):
         """
         Ensure that get_formsets_with_inlines() returns the correct tuples.
@@ -517,14 +511,12 @@ class GenericInlineModelAdminTest(TestCase):
             ]
 
             def get_formsets(self, request, obj=None):
-                # Catch the deprecation warning to force the usage of get_formsets
-                with warnings.catch_warnings(record=True):
-                    warnings.simplefilter("always")
-                    return super(EpisodeAdmin, self).get_formsets(request, obj)
+                # Override get_formsets to force the usage of get_formsets in
+                # ModelAdmin.get_formsets_with_inlines() then ignore the
+                # warning raised by ModelAdmin.get_formsets_with_inlines()
+                return self._get_formsets(request, obj)
 
         ma = EpisodeAdmin(Episode, self.site)
         inlines = ma.get_inline_instances(request)
-        with warnings.catch_warnings(record=True):
-            warnings.simplefilter("always")
-            for (formset, inline), other_inline in zip(ma.get_formsets_with_inlines(request), inlines):
-                self.assertIsInstance(formset, other_inline.get_formset(request).__class__)
+        for (formset, inline), other_inline in zip(ma.get_formsets_with_inlines(request), inlines):
+            self.assertIsInstance(formset, other_inline.get_formset(request).__class__)

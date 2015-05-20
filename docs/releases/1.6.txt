@@ -71,10 +71,6 @@ should improve performance. The existing APIs were deprecated, and new APIs
 were introduced, as described in the :doc:`transaction management docs
 </topics/db/transactions>`.
 
-Please review carefully the list of :ref:`known backwards-incompatibilities
-<transactions-upgrading-from-1.5>` to determine if you need to make changes in
-your code.
-
 Persistent database connections
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -131,9 +127,9 @@ binary data in the database.
 GeoDjango form widgets
 ~~~~~~~~~~~~~~~~~~~~~~
 
-GeoDjango now provides :ref:`form fields and widgets <ref-gis-forms-api>` for
-its geo-specialized fields. They are OpenLayers-based by default, but they can
-be customized to use any other JS framework.
+GeoDjango now provides :doc:`form fields and widgets </ref/contrib/gis/forms-api>`
+for its geo-specialized fields. They are OpenLayers-based by default, but they
+can be customized to use any other JS framework.
 
 ``check`` management command added for verifying compatibility
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -233,7 +229,7 @@ Minor features
   PostgreSQL.
 
 * The :ttag:`blocktrans` template tag now respects
-  :setting:`TEMPLATE_STRING_IF_INVALID` for variables not present in the
+  ``TEMPLATE_STRING_IF_INVALID`` for variables not present in the
   context, just like other template constructs.
 
 * ``SimpleLazyObject``\s will now present more helpful representations in shell
@@ -393,9 +389,7 @@ Behavior changes
 
 Database-level autocommit is enabled by default in Django 1.6. While this
 doesn't change the general spirit of Django's transaction management, there
-are a few known backwards-incompatibilities, described in the :ref:`transaction
-management docs <transactions-upgrading-from-1.5>`. You should review your
-code to determine if you're affected.
+are a few backwards-incompatibilities.
 
 Savepoints and ``assertNumQueries``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -413,8 +407,8 @@ Autocommit option for PostgreSQL
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 In previous versions, database-level autocommit was only an option for
-PostgreSQL, and it was disabled by default. This option is now :ref:`ignored
-<postgresql-autocommit-mode>` and can be removed.
+PostgreSQL, and it was disabled by default. This option is now ignored and can
+be removed.
 
 .. _new-test-runner:
 
@@ -442,7 +436,7 @@ If you wish to delay updates to your test suite, you can set your
 to fully restore the old test behavior. ``DjangoTestSuiteRunner`` is deprecated
 but will not be removed from Django until version 1.8.
 
-.. _recommendations in the Python documentation: http://docs.python.org/2/library/doctest.html#unittest-api
+.. _recommendations in the Python documentation: https://docs.python.org/library/doctest.html#unittest-api
 
 Removal of ``django.contrib.gis.tests.GeoDjangoTestSuiteRunner`` GeoDjango custom test runner
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -603,7 +597,7 @@ your code. You will also have to replace special characters in URLs used in
 Storage of IP addresses in the comments app
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The :doc:`comments </ref/contrib/comments/index>` app now uses a
+The comments app now uses a
 ``GenericIPAddressField`` for storing commenters' IP addresses, to support
 comments submitted from IPv6 addresses. Until now, it stored them in an
 ``IPAddressField``, which is only meant to support IPv4. When saving a comment
@@ -863,7 +857,7 @@ Miscellaneous
   :meth:`~django.db.models.query.QuerySet.none` has been called:
   ``isinstance(qs.none(), EmptyQuerySet)``
 
-* If your CSS/Javascript code used to access HTML input widgets by type, you
+* If your CSS/JavaScript code used to access HTML input widgets by type, you
   should review it as ``type='text'`` widgets might be now output as
   ``type='email'``, ``type='url'`` or ``type='number'`` depending on their
   corresponding field type.
@@ -983,9 +977,6 @@ current APIs are deprecated:
 - ``django.db.transaction.commit_on_success``
 - ``django.db.transaction.commit_manually``
 - the ``TRANSACTIONS_MANAGED`` setting
-
-The reasons for this change and the upgrade path are described in the
-:ref:`transactions documentation <transactions-upgrading-from-1.5>`.
 
 ``django.contrib.comments``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -1,15 +1,18 @@
 import os
 import sys
-from types import ModuleType
 import unittest
 import warnings
+from types import ModuleType
 
 from django.conf import LazySettings, Settings, settings
 from django.core.exceptions import ImproperlyConfigured
 from django.http import HttpRequest
-from django.test import (SimpleTestCase, TransactionTestCase, TestCase,
-    modify_settings, override_settings, signals)
+from django.test import (
+    SimpleTestCase, TestCase, TransactionTestCase, modify_settings,
+    override_settings, signals,
+)
 from django.utils import six
+from django.utils.encoding import force_text
 
 
 @modify_settings(ITEMS={
@@ -106,8 +109,18 @@ class ClassDecoratedTestCaseSuper(TestCase):
 
 @override_settings(TEST='override')
 class ClassDecoratedTestCase(ClassDecoratedTestCaseSuper):
+
+    @classmethod
+    def setUpClass(cls):
+        super(cls, ClassDecoratedTestCase).setUpClass()
+        cls.foo = getattr(settings, 'TEST', 'BUG')
+
     def test_override(self):
         self.assertEqual(settings.TEST, 'override')
+
+    def test_setupclass_override(self):
+        """Test that settings are overridden within setUpClass -- refs #21281"""
+        self.assertEqual(self.foo, 'override')
 
     @override_settings(TEST='override2')
     def test_method_override(self):
@@ -265,14 +278,6 @@ class SettingsTests(TestCase):
         self.assertRaises(AttributeError, getattr, settings, 'TEST')
         self.assertRaises(AttributeError, getattr, settings, 'TEST2')
 
-    def test_allowed_include_roots_string(self):
-        """
-        ALLOWED_INCLUDE_ROOTS is not allowed to be incorrectly set to a string
-        rather than a tuple.
-        """
-        self.assertRaises(ValueError, setattr, settings,
-            'ALLOWED_INCLUDE_ROOTS', '/var/www/ssi/')
-
 
 class TestComplexSettingOverride(TestCase):
     def setUp(self):
@@ -281,7 +286,7 @@ class TestComplexSettingOverride(TestCase):
 
     def tearDown(self):
         signals.COMPLEX_OVERRIDE_SETTINGS = self.old_warn_override_settings
-        self.assertFalse('TEST_WARN' in signals.COMPLEX_OVERRIDE_SETTINGS)
+        self.assertNotIn('TEST_WARN', signals.COMPLEX_OVERRIDE_SETTINGS)
 
     def test_complex_override_warning(self):
         """Regression test for #19031"""
@@ -366,18 +371,18 @@ class TrailingSlashURLTests(TestCase):
         If the value ends in more than one slash, presume they know what
         they're doing.
         """
-        self.settings_module.MEDIA_URL = '/stupid//'
-        self.assertEqual('/stupid//', self.settings_module.MEDIA_URL)
+        self.settings_module.MEDIA_URL = '/wrong//'
+        self.assertEqual('/wrong//', self.settings_module.MEDIA_URL)
 
-        self.settings_module.MEDIA_URL = 'http://media.foo.com/stupid//'
-        self.assertEqual('http://media.foo.com/stupid//',
+        self.settings_module.MEDIA_URL = 'http://media.foo.com/wrong//'
+        self.assertEqual('http://media.foo.com/wrong//',
                          self.settings_module.MEDIA_URL)
 
-        self.settings_module.STATIC_URL = '/stupid//'
-        self.assertEqual('/stupid//', self.settings_module.STATIC_URL)
+        self.settings_module.STATIC_URL = '/wrong//'
+        self.assertEqual('/wrong//', self.settings_module.STATIC_URL)
 
-        self.settings_module.STATIC_URL = 'http://static.foo.com/stupid//'
-        self.assertEqual('http://static.foo.com/stupid//',
+        self.settings_module.STATIC_URL = 'http://static.foo.com/wrong//'
+        self.assertEqual('http://static.foo.com/wrong//',
                          self.settings_module.STATIC_URL)
 
 
@@ -428,11 +433,81 @@ class IsOverriddenTest(TestCase):
             s = Settings('fake_settings_module')
 
             self.assertTrue(s.is_overridden('SECRET_KEY'))
-            self.assertFalse(s.is_overridden('TEMPLATE_LOADERS'))
+            self.assertFalse(s.is_overridden('ALLOWED_HOSTS'))
         finally:
             del sys.modules['fake_settings_module']
 
     def test_override(self):
-        self.assertFalse(settings.is_overridden('TEMPLATE_LOADERS'))
-        with override_settings(TEMPLATE_LOADERS=[]):
-            self.assertTrue(settings.is_overridden('TEMPLATE_LOADERS'))
+        self.assertFalse(settings.is_overridden('ALLOWED_HOSTS'))
+        with override_settings(ALLOWED_HOSTS=[]):
+            self.assertTrue(settings.is_overridden('ALLOWED_HOSTS'))
+
+
+class TestTupleSettings(unittest.TestCase):
+    """
+    Make sure settings that should be tuples throw ImproperlyConfigured if they
+    are set to a string instead of a tuple.
+    """
+    tuple_settings = (
+        "ALLOWED_INCLUDE_ROOTS",
+        "INSTALLED_APPS",
+        "TEMPLATE_DIRS",
+        "LOCALE_PATHS",
+    )
+
+    def test_tuple_settings(self):
+        settings_module = ModuleType('fake_settings_module')
+        settings_module.SECRET_KEY = 'foo'
+        for setting in self.tuple_settings:
+            setattr(settings_module, setting, ('non_tuple_value'))
+            sys.modules['fake_settings_module'] = settings_module
+            try:
+                with self.assertRaises(ImproperlyConfigured):
+                    Settings('fake_settings_module')
+            finally:
+                del sys.modules['fake_settings_module']
+                delattr(settings_module, setting)
+
+
+class TestSessionVerification(unittest.TestCase):
+
+    def setUp(self):
+        self.settings_module = ModuleType('fake_settings_module')
+        self.settings_module.SECRET_KEY = 'foo'
+
+    def tearDown(self):
+        if 'fake_settings_module' in sys.modules:
+            del sys.modules['fake_settings_module']
+
+    def test_session_verification_deprecation_no_verification(self):
+        self.settings_module.MIDDLEWARE_CLASSES = ['django.contrib.auth.middleware.AuthenticationMiddleware']
+        sys.modules['fake_settings_module'] = self.settings_module
+        with warnings.catch_warnings(record=True) as warn:
+            warnings.filterwarnings('always')
+            Settings('fake_settings_module')
+        self.assertEqual(
+            force_text(warn[0].message),
+            "Session verification will become mandatory in Django 2.0. "
+            "Please add 'django.contrib.auth.middleware.SessionAuthenticationMiddleware' "
+            "to your MIDDLEWARE_CLASSES setting when you are ready to opt-in after "
+            "reading the upgrade considerations in the 1.8 release notes.",
+        )
+
+    def test_session_verification_deprecation_both(self):
+        self.settings_module.MIDDLEWARE_CLASSES = [
+            'django.contrib.auth.middleware.AuthenticationMiddleware',
+            'django.contrib.auth.middleware.SessionAuthenticationMiddleware',
+        ]
+        sys.modules['fake_settings_module'] = self.settings_module
+        with warnings.catch_warnings(record=True) as warn:
+            warnings.filterwarnings('always')
+            Settings('fake_settings_module')
+        self.assertEqual(len(warn), 0)
+
+    def test_session_verification_deprecation_neither(self):
+        self.settings_module.MIDDLEWARE_CLASSES = []
+        sys.modules['fake_settings_module'] = self.settings_module
+        with warnings.catch_warnings(record=True) as warn:
+            warnings.filterwarnings('always')
+            Settings('fake_settings_module')
+        self.assertEqual(len(warn), 0)

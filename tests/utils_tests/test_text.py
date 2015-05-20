@@ -1,17 +1,65 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
-from unittest import skipUnless
+import json
 import warnings
+from unittest import skipUnless
 
-from django.test import SimpleTestCase
+from django.test import SimpleTestCase, ignore_warnings
+from django.test.utils import reset_warning_registry
 from django.utils import six, text
 from django.utils.deprecation import RemovedInDjango19Warning
+from django.utils.encoding import force_text
+from django.utils.functional import lazy
+from django.utils.translation import override
+
+lazystr = lazy(force_text, six.text_type)
 
 IS_WIDE_BUILD = (len('\U0001F4A9') == 1)
 
 
 class TestUtilsText(SimpleTestCase):
+
+    def test_get_text_list(self):
+        self.assertEqual(text.get_text_list(['a', 'b', 'c', 'd']), 'a, b, c or d')
+        self.assertEqual(text.get_text_list(['a', 'b', 'c'], 'and'), 'a, b and c')
+        self.assertEqual(text.get_text_list(['a', 'b'], 'and'), 'a and b')
+        self.assertEqual(text.get_text_list(['a']), 'a')
+        self.assertEqual(text.get_text_list([]), '')
+        with override('ar'):
+            self.assertEqual(text.get_text_list(['a', 'b', 'c']), "a، b أو c")
+
+    def test_smart_split(self):
+        testdata = [
+            ('This is "a person" test.',
+                ['This', 'is', '"a person"', 'test.']),
+            ('This is "a person\'s" test.',
+                ['This', 'is', '"a person\'s"', 'test.']),
+            ('This is "a person\\"s" test.',
+                ['This', 'is', '"a person\\"s"', 'test.']),
+            ('"a \'one',
+                ['"a', "'one"]),
+            ('all friends\' tests',
+                ['all', 'friends\'', 'tests']),
+            ('url search_page words="something else"',
+                ['url', 'search_page', 'words="something else"']),
+            ("url search_page words='something else'",
+                ['url', 'search_page', "words='something else'"]),
+            ('url search_page words "something else"',
+                ['url', 'search_page', 'words', '"something else"']),
+            ('url search_page words-"something else"',
+                ['url', 'search_page', 'words-"something else"']),
+            ('url search_page words=hello',
+                ['url', 'search_page', 'words=hello']),
+            ('url search_page words="something else',
+                ['url', 'search_page', 'words="something', 'else']),
+            ("cut:','|cut:' '",
+                ["cut:','|cut:' '"]),
+            (lazystr("a b c d"),  # Test for #20231
+                ['a', 'b', 'c', 'd']),
+        ]
+        for test, expected in testdata:
+            self.assertEqual(list(text.smart_split(test)), expected)
 
     def test_truncate_chars(self):
         truncator = text.Truncator(
@@ -151,28 +199,36 @@ class TestUtilsText(SimpleTestCase):
         filename = "^&'@{}[],$=!-#()%+~_123.txt"
         self.assertEqual(text.get_valid_filename(filename), "-_123.txt")
 
+    def test_compress_sequence(self):
+        data = [{'key': i} for i in range(10)]
+        seq = list(json.JSONEncoder().iterencode(data))
+        seq = [s.encode('utf-8') for s in seq]
+        actual_length = len(b''.join(seq))
+        out = text.compress_sequence(seq)
+        compressed_length = len(b''.join(out))
+        self.assertTrue(compressed_length < actual_length)
+
+    @ignore_warnings(category=RemovedInDjango19Warning)
     def test_javascript_quote(self):
         input = "<script>alert('Hello \\xff.\n Welcome\there\r');</script>"
         output = r"<script>alert(\'Hello \\xff.\n Welcome\there\r\');<\/script>"
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", RemovedInDjango19Warning)
-            self.assertEqual(text.javascript_quote(input), output)
+        self.assertEqual(text.javascript_quote(input), output)
 
-            # Exercising quote_double_quotes keyword argument
-            input = '"Text"'
-            self.assertEqual(text.javascript_quote(input), '"Text"')
-            self.assertEqual(text.javascript_quote(input, quote_double_quotes=True),
-                             '&quot;Text&quot;')
+        # Exercising quote_double_quotes keyword argument
+        input = '"Text"'
+        self.assertEqual(text.javascript_quote(input), '"Text"')
+        self.assertEqual(text.javascript_quote(input, quote_double_quotes=True),
+                         '&quot;Text&quot;')
 
+    @ignore_warnings(category=RemovedInDjango19Warning)
     @skipUnless(IS_WIDE_BUILD, 'Not running in a wide build of Python')
     def test_javascript_quote_unicode(self):
         input = "<script>alert('Hello \\xff.\n Wel𝕃come\there\r');</script>"
         output = r"<script>alert(\'Hello \\xff.\n Wel𝕃come\there\r\');<\/script>"
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", RemovedInDjango19Warning)
-            self.assertEqual(text.javascript_quote(input), output)
+        self.assertEqual(text.javascript_quote(input), output)
 
     def test_deprecation(self):
+        reset_warning_registry()
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             text.javascript_quote('thingy')

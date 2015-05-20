@@ -1,45 +1,47 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
-import tempfile
 import os
+import tempfile
 
 from django import forms
+from django.conf.urls import url
 from django.contrib import admin
+from django.contrib.admin import BooleanFieldListFilter
 from django.contrib.admin.views.main import ChangeList
+from django.contrib.auth.admin import GroupAdmin, UserAdmin
+# Register core models we need in our tests
+from django.contrib.auth.models import Group, User
 from django.core.exceptions import ValidationError
 from django.core.files.storage import FileSystemStorage
 from django.core.mail import EmailMessage
 from django.core.servers.basehttp import FileWrapper
-from django.conf.urls import patterns, url
 from django.forms.models import BaseModelFormSet
 from django.http import HttpResponse, StreamingHttpResponse
-from django.contrib.admin import BooleanFieldListFilter
 from django.utils.safestring import mark_safe
 from django.utils.six import StringIO
 
 from .models import (
-    Article, Chapter, Child, Parent, Picture, Widget,
-    DooHickey, Grommet, Whatsit, FancyDoodad, Category, Link,
-    PrePopulatedPost, PrePopulatedSubPost, CustomArticle, Section,
-    ModelWithStringPrimaryKey, Color, Thing, Actor, Inquisition, Sketch,
-    Person, Persona, FooAccount, BarAccount, Subscriber, ExternalSubscriber,
-    OldSubscriber, Podcast, Vodcast, EmptyModel, Fabric, Gallery, Language,
-    Recommendation, Recommender, Collector, Post, Gadget, Villain,
-    SuperVillain, Plot, PlotDetails, CyclicOne, CyclicTwo, WorkHour,
-    Reservation, FoodDelivery, RowLevelChangePermissionModel, Paper,
-    CoverLetter, Story, OtherStory, Book, Promo, ChapterXtra1, Pizza, Topping,
-    Album, Question, Answer, ComplexSortedPerson, PluggableSearchPerson,
-    PrePopulatedPostLargeSlug, AdminOrderedField, AdminOrderedModelMethod,
-    AdminOrderedAdminMethod, AdminOrderedCallable, Report, Color2,
-    UnorderedObject, MainPrepopulated, RelatedPrepopulated, UndeletableObject,
-    UnchangeableObject, UserMessenger, Simple, Choice, ShortMessage, Telegram,
-    FilteredManager, EmptyModelHidden, EmptyModelVisible, EmptyModelMixin,
-    State, City, Restaurant, Worker, ParentWithDependentChildren,
-    DependentChild, StumpJoke, FieldOverridePost, FunkyTag,
-    ReferencedByParent, ChildOfReferer, ReferencedByInline,
-    InlineReference, InlineReferer, Recipe, Ingredient, NotReferenced,
-    ExplicitlyProvidedPK, ImplicitlyGeneratedPK,
+    Actor, AdminOrderedAdminMethod, AdminOrderedCallable, AdminOrderedField,
+    AdminOrderedModelMethod, Album, Answer, Article, BarAccount, Book,
+    Category, Chapter, ChapterXtra1, Child, ChildOfReferer, Choice, City,
+    Collector, Color, Color2, ComplexSortedPerson, CoverLetter, CustomArticle,
+    CyclicOne, CyclicTwo, DependentChild, DooHickey, EmptyModel,
+    EmptyModelHidden, EmptyModelMixin, EmptyModelVisible, ExplicitlyProvidedPK,
+    ExternalSubscriber, Fabric, FancyDoodad, FieldOverridePost,
+    FilteredManager, FooAccount, FoodDelivery, FunkyTag, Gadget, Gallery,
+    Grommet, ImplicitlyGeneratedPK, Ingredient, InlineReference, InlineReferer,
+    Inquisition, Language, Link, MainPrepopulated, ModelWithStringPrimaryKey,
+    NotReferenced, OldSubscriber, OtherStory, Paper, Parent,
+    ParentWithDependentChildren, Person, Persona, Picture, Pizza, Plot,
+    PlotDetails, PluggableSearchPerson, Podcast, Post, PrePopulatedPost,
+    PrePopulatedPostLargeSlug, PrePopulatedSubPost, Promo, Question, Recipe,
+    Recommendation, Recommender, ReferencedByInline, ReferencedByParent,
+    RelatedPrepopulated, Report, Reservation, Restaurant,
+    RowLevelChangePermissionModel, Section, ShortMessage, Simple, Sketch,
+    State, Story, StumpJoke, Subscriber, SuperVillain, Telegram, Thing,
+    Topping, UnchangeableObject, UndeletableObject, UnorderedObject,
+    UserMessenger, Villain, Vodcast, Whatsit, Widget, Worker, WorkHour,
 )
 
 
@@ -53,6 +55,7 @@ callable_year.admin_order_field = 'date'
 
 class ArticleInline(admin.TabularInline):
     model = Article
+    fk_name = 'section'
     prepopulated_fields = {
         'title': ('content',)
     }
@@ -93,7 +96,7 @@ class ArticleAdmin(admin.ModelAdmin):
         }),
         ('Some other fields', {
             'classes': ('wide',),
-            'fields': ('date', 'section')
+            'fields': ('date', 'section', 'sub_section')
         })
     )
 
@@ -127,6 +130,12 @@ class ArticleAdmin(admin.ModelAdmin):
             ['to@example.com']
         ).send()
         return super(ArticleAdmin, self).save_model(request, obj, form, change)
+
+
+class ArticleAdmin2(admin.ModelAdmin):
+
+    def has_module_permission(self, request):
+        return False
 
 
 class RowLevelChangePermissionModelAdmin(admin.ModelAdmin):
@@ -301,7 +310,7 @@ class OldSubscriberAdmin(admin.ModelAdmin):
     actions = None
 
 
-temp_storage = FileSystemStorage(tempfile.mkdtemp(dir=os.environ['DJANGO_TEST_TEMP_DIR']))
+temp_storage = FileSystemStorage(tempfile.mkdtemp())
 UPLOAD_TO = os.path.join(temp_storage.location, 'test_upload')
 
 
@@ -324,6 +333,7 @@ class LanguageAdmin(admin.ModelAdmin):
 
 
 class RecommendationAdmin(admin.ModelAdmin):
+    show_full_result_count = False
     search_fields = ('=titletranslation__text', '=recommender__titletranslation__text',)
 
 
@@ -622,11 +632,11 @@ class ReportAdmin(admin.ModelAdmin):
 
     def get_urls(self):
         # Corner case: Don't call parent implementation
-        return patterns('',
+        return [
             url(r'^extra/$',
                 self.extra,
                 name='cable_extra'),
-        )
+        ]
 
 
 class CustomTemplateBooleanFieldListFilter(BooleanFieldListFilter):
@@ -858,6 +868,7 @@ class GetFormsetsArgumentCheckingAdmin(admin.ModelAdmin):
 
 
 site = admin.AdminSite(name="admin")
+site.site_url = '/my-site-url/'
 site.register(Article, ArticleAdmin)
 site.register(CustomArticle, CustomArticleAdmin)
 site.register(Section, save_as=True, inlines=[ArticleInline], readonly_fields=['name_property'])
@@ -959,9 +970,6 @@ site.register(NotReferenced)
 site.register(ExplicitlyProvidedPK, GetFormsetsArgumentCheckingAdmin)
 site.register(ImplicitlyGeneratedPK, GetFormsetsArgumentCheckingAdmin)
 
-# Register core models we need in our tests
-from django.contrib.auth.models import User, Group
-from django.contrib.auth.admin import UserAdmin, GroupAdmin
 site.register(User, UserAdmin)
 site.register(Group, GroupAdmin)
 
@@ -969,3 +977,5 @@ site.register(Group, GroupAdmin)
 site2 = admin.AdminSite(name="namespaced_admin")
 site2.register(User, UserAdmin)
 site2.register(Group, GroupAdmin)
+site7 = admin.AdminSite(name="admin7")
+site7.register(Article, ArticleAdmin2)
