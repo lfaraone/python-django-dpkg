@@ -7,6 +7,8 @@ python-django (1.8.1-1) UNRELEASED; urgency=medium
   * Drop 03_manpage.diff, merged upstream.
   * Clean up rules since we can use the pristine docs directory, now
     that they refer to django-admin and not django-admin.py
+  * Add jinja2 and mock as build dependencies required by the test
+    suite.
 
  -- Raphaël Hertzog <hertzog@debian.org>  Wed, 20 May 2015 09:54:47 +0200
 
