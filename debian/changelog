@@ -5,6 +5,8 @@ python-django (1.8.1-1) UNRELEASED; urgency=medium
     https://docs.djangoproject.com/en/1.8/releases/1.8.1/
   * Refresh all patches.
   * Drop 03_manpage.diff, merged upstream.
+  * Clean up rules since we can use the pristine docs directory, now
+    that they refer to django-admin and not django-admin.py
 
  -- Raphaël Hertzog <hertzog@debian.org>  Wed, 20 May 2015 09:54:47 +0200
 
