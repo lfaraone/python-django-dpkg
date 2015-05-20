@@ -3,6 +3,8 @@ python-django (1.8.1-1) UNRELEASED; urgency=medium
   * New major upstream release:
     https://docs.djangoproject.com/en/1.8/releases/1.8/
     https://docs.djangoproject.com/en/1.8/releases/1.8.1/
+  * Refresh all patches.
+  * Drop 03_manpage.diff, merged upstream.
 
  -- Raphaël Hertzog <hertzog@debian.org>  Wed, 20 May 2015 09:54:47 +0200
 
