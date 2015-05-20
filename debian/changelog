@@ -1,8 +1,5 @@
 python-django (1.8.1-1) UNRELEASED; urgency=medium
 
-  TODO: Handle https://code.djangoproject.com/ticket/24826
-        and https://code.djangoproject.com/ticket/24827
-
   * New major upstream release:
     https://docs.djangoproject.com/en/1.8/releases/1.8/
     https://docs.djangoproject.com/en/1.8/releases/1.8.1/
@@ -12,6 +9,12 @@ python-django (1.8.1-1) UNRELEASED; urgency=medium
     that they refer to django-admin and not django-admin.py
   * Add jinja2 and mock as build dependencies required by the test
     suite.
+  * Add fix-assertRaisesMessage.patch to make the package build with
+    python 2.7.10~rc1 which is affected by
+    https://bugs.python.org/issue24134
+  * Add fix-test-extended-length-storage.patch to make the package build
+    even when AUFS is in use (and when the max length of a filename is
+    shorter than usual).
 
  -- Raphaël Hertzog <hertzog@debian.org>  Wed, 20 May 2015 09:54:47 +0200
 

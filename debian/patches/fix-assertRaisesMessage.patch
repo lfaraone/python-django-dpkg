@@ -1,0 +1,56 @@
+Description: Fix assertRaisesMessage() with python 2.7.10~rc1 and Python 3.5
+ The failures are due to the change described in
+ https://bugs.python.org/issue24134. The changes got reverted
+ in stable releases but not in Python 3.5 so this patch
+ is still needed for Python 3.5 compatibility...
+Origin: upstream, https://github.com/django/django/commit/c2bc1cefdcbbf074408f4a4cace88b315cf9d652 https://github.com/django/django/commit/e89c3a46035e9fe17c373a6c9cd63b9fd631d596
+Author: Tim Graham <timograham@gmail.com>
+Bug: https://code.djangoproject.com/ticket/23763
+Applied-Upstream: 1.9
+
+--- a/django/test/testcases.py
++++ b/django/test/testcases.py
+@@ -565,8 +565,7 @@ class SimpleTestCase(unittest.TestCase):
+             msg_prefix + "Template '%s' was used unexpectedly in rendering"
+             " the response" % template_name)
+ 
+-    def assertRaisesMessage(self, expected_exception, expected_message,
+-                           callable_obj=None, *args, **kwargs):
++    def assertRaisesMessage(self, expected_exception, expected_message, *args, **kwargs):
+         """
+         Asserts that the message in a raised exception matches the passed
+         value.
+@@ -574,12 +573,15 @@ class SimpleTestCase(unittest.TestCase):
+         Args:
+             expected_exception: Exception class expected to be raised.
+             expected_message: expected error message string value.
+-            callable_obj: Function to be called.
+-            args: Extra args.
++            args: Function to be called and extra positional args.
+             kwargs: Extra kwargs.
+         """
++        # callable_obj was a documented kwarg in Django 1.8 and older.
++        callable_obj = kwargs.pop('callable_obj', None)
++        if callable_obj:
++            args = (callable_obj,) + args
+         return six.assertRaisesRegex(self, expected_exception,
+-                re.escape(expected_message), callable_obj, *args, **kwargs)
++                re.escape(expected_message), *args, **kwargs)
+ 
+     def assertFieldOutput(self, fieldclass, valid, invalid, field_args=None,
+             field_kwargs=None, empty_value=''):
+--- a/tests/test_utils/tests.py
++++ b/tests/test_utils/tests.py
+@@ -752,6 +752,12 @@ class AssertRaisesMsgTest(SimpleTestCase
+             raise ValueError("[.*x+]y?")
+         self.assertRaisesMessage(ValueError, "[.*x+]y?", func1)
+ 
++    def test_callable_obj_param(self):
++        # callable_obj was a documented kwarg in Django 1.8 and older.
++        def func1():
++            raise ValueError("[.*x+]y?")
++        self.assertRaisesMessage(ValueError, "[.*x+]y?", callable_obj=func1)
++
+ 
+ class AssertFieldOutputTests(SimpleTestCase):
+ 
