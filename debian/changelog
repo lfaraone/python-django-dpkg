@@ -1,4 +1,4 @@
-python-django (1.8.1-1) UNRELEASED; urgency=medium
+python-django (1.8.1-1) experimental; urgency=medium
 
   * New major upstream release:
     https://docs.djangoproject.com/en/1.8/releases/1.8/
