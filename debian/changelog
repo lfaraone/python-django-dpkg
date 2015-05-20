@@ -1,5 +1,8 @@
 python-django (1.8.1-1) UNRELEASED; urgency=medium
 
+  TODO: Handle https://code.djangoproject.com/ticket/24826
+        and https://code.djangoproject.com/ticket/24827
+
   * New major upstream release:
     https://docs.djangoproject.com/en/1.8/releases/1.8/
     https://docs.djangoproject.com/en/1.8/releases/1.8.1/
