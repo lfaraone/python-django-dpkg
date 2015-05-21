@@ -1,8 +1,10 @@
-python-django (1.8.1-2) UNRELEASED; urgency=medium
+python-django (1.8.2-1) experimental; urgency=medium
 
+  * New upstream security release:
+    https://www.djangoproject.com/weblog/2015/may/20/security-release/
   * Install bash completion file into /usr/share/bash-completion/completions/
 
- -- Raphaël Hertzog <hertzog@debian.org>  Wed, 20 May 2015 18:04:03 +0200
+ -- Raphaël Hertzog <hertzog@debian.org>  Thu, 21 May 2015 15:59:36 +0200
 
 python-django (1.8.1-1) experimental; urgency=medium
 
