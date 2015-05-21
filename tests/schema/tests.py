@@ -765,8 +765,10 @@ class SchemaTests(TransactionTestCase):
                 app_label = 'schema'
                 apps = new_apps
 
-        self.local_models = [LocalBookWithM2M]
-
+        self.local_models = [
+            LocalBookWithM2M,
+            LocalBookWithM2M._meta.get_field('tags').rel.through,
+        ]
         # Create the tables
         with connection.schema_editor() as editor:
             editor.create_model(Author)
@@ -845,6 +847,7 @@ class SchemaTests(TransactionTestCase):
         # Create an M2M field
         new_field = M2MFieldClass("schema.TagM2MTest", related_name="authors")
         new_field.contribute_to_class(LocalAuthorWithM2M, "tags")
+        self.local_models += [new_field.rel.through]
         # Ensure there's no m2m table there
         self.assertRaises(DatabaseError, self.column_classes, new_field.rel.through)
         # Add the field
@@ -934,7 +937,10 @@ class SchemaTests(TransactionTestCase):
                 app_label = 'schema'
                 apps = new_apps
 
-        self.local_models = [LocalBookWithM2M]
+        self.local_models = [
+            LocalBookWithM2M,
+            LocalBookWithM2M._meta.get_field('tags').rel.through,
+        ]
 
         # Create the tables
         with connection.schema_editor() as editor:
@@ -955,6 +961,7 @@ class SchemaTests(TransactionTestCase):
         old_field = LocalBookWithM2M._meta.get_field("tags")
         new_field = M2MFieldClass(UniqueTest)
         new_field.contribute_to_class(LocalBookWithM2M, "uniques")
+        self.local_models += [new_field.rel.through]
         with connection.schema_editor() as editor:
             editor.alter_field(LocalBookWithM2M, old_field, new_field)
         # Ensure old M2M is gone
@@ -1084,6 +1091,24 @@ class SchemaTests(TransactionTestCase):
         self.assertRaises(IntegrityError, UniqueTest.objects.create, year=2012, slug="foo")
         UniqueTest.objects.all().delete()
 
+    def test_unique_together_with_fk(self):
+        """
+        Tests removing and adding unique_together constraints that include
+        a foreign key.
+        """
+        # Create the table
+        with connection.schema_editor() as editor:
+            editor.create_model(Author)
+            editor.create_model(Book)
+        # Ensure the fields are unique to begin with
+        self.assertEqual(Book._meta.unique_together, ())
+        # Add the unique_together constraint
+        with connection.schema_editor() as editor:
+            editor.alter_unique_together(Book, [], [['author', 'title']])
+        # Alter it back
+        with connection.schema_editor() as editor:
+            editor.alter_unique_together(Book, [['author', 'title']], [])
+
     def test_index_together(self):
         """
         Tests removing and adding index_together constraints on a model.
@@ -1126,6 +1151,24 @@ class SchemaTests(TransactionTestCase):
                 if c['columns'] == ["slug", "title"]
             ),
         )
+
+    def test_index_together_with_fk(self):
+        """
+        Tests removing and adding index_together constraints that include
+        a foreign key.
+        """
+        # Create the table
+        with connection.schema_editor() as editor:
+            editor.create_model(Author)
+            editor.create_model(Book)
+        # Ensure the fields are unique to begin with
+        self.assertEqual(Book._meta.index_together, ())
+        # Add the unique_together constraint
+        with connection.schema_editor() as editor:
+            editor.alter_index_together(Book, [], [['author', 'title']])
+        # Alter it back
+        with connection.schema_editor() as editor:
+            editor.alter_index_together(Book, [['author', 'title']], [])
 
     def test_create_index_together(self):
         """
