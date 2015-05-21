@@ -61,7 +61,7 @@ override_dh_install:
 	dh_install
 	
 	# Fix permissions
-	chmod 644 $(PREFIXC)/etc/bash_completion.d/django_bash_completion
+	chmod 644 $(PREFIXC)/usr/share/bash-completion/completions/django_bash_completion
 	chmod 755 $(PREFIXC)/usr/bin/django-admin
 
 override_dh_python3:
