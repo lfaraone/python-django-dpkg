@@ -1,3 +1,11 @@
+python-django (1.4.5-1+deb7u12) wheezy-security; urgency=high
+
+  * New upstream security release:
+    - Possible denial-of-service via session store (CVE-2015-5143)
+    - Possible email header injection via newlines (CVE-2015-5144)
+
+ -- Luke Faraone <lfaraone@debian.org>  Tue, 07 Jul 2015 05:31:32 +0000
+
 python-django (1.4.5-1+deb7u11) wheezy-security; urgency=high
 
   * Non-maintainer upload by the Security Team.
