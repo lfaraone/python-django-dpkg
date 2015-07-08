@@ -47,7 +47,7 @@ from django.forms import (
 from django.test import SimpleTestCase, ignore_warnings
 from django.utils import formats, six, translation
 from django.utils._os import upath
-from django.utils.deprecation import RemovedInDjango20Warning
+from django.utils.deprecation import RemovedInDjango110Warning
 from django.utils.duration import duration_string
 
 try:
@@ -490,7 +490,7 @@ class FieldsTests(SimpleTestCase):
         f = DateField()
         self.assertRaisesMessage(ValidationError, "'Enter a valid date.'", f.clean, 'a\x00b')
 
-    @ignore_warnings(category=RemovedInDjango20Warning)  # for _has_changed
+    @ignore_warnings(category=RemovedInDjango110Warning)  # for _has_changed
     def test_datefield_changed(self):
         format = '%d/%m/%Y'
         f = DateField(input_formats=[format])
@@ -669,7 +669,7 @@ class FieldsTests(SimpleTestCase):
         self.assertRaisesMessage(ValidationError, "'Enter a valid value.'", f.clean, ' 2A2')
         self.assertRaisesMessage(ValidationError, "'Enter a valid value.'", f.clean, '2A2 ')
 
-    @ignore_warnings(category=RemovedInDjango20Warning)  # error_message deprecation
+    @ignore_warnings(category=RemovedInDjango110Warning)  # error_message deprecation
     def test_regexfield_4(self):
         f = RegexField('^[0-9][0-9][0-9][0-9]$', error_message='Enter a four-digit number.')
         self.assertEqual('1234', f.clean('1234'))
@@ -805,6 +805,26 @@ class FieldsTests(SimpleTestCase):
 
         self.assertEqual('PNG', uploaded_file.image.format)
         self.assertEqual('image/png', uploaded_file.content_type)
+
+    @skipIf(Image is None, "Pillow is required to test ImageField")
+    def test_imagefield_annotate_with_bitmap_image_after_clean(self):
+        """
+        This also tests the situation when Pillow doesn't detect the MIME type
+        of the image (#24948).
+        """
+        f = ImageField()
+
+        img_path = os.path.dirname(upath(__file__)) + '/filepath_test_files/1x1.bmp'
+        with open(img_path, 'rb') as img_file:
+            img_data = img_file.read()
+
+        img_file = SimpleUploadedFile('1x1.bmp', img_data)
+        img_file.content_type = 'text/plain'
+
+        uploaded_file = f.clean(img_file)
+
+        self.assertEqual('BMP', uploaded_file.image.format)
+        self.assertIsNone(uploaded_file.content_type)
 
     # URLField ##################################################################
 
@@ -1347,6 +1367,7 @@ class FieldsTests(SimpleTestCase):
         f.choices.sort()
         expected = [
             ('/tests/forms_tests/tests/filepath_test_files/.dot-file', '.dot-file'),
+            ('/tests/forms_tests/tests/filepath_test_files/1x1.bmp', '1x1.bmp'),
             ('/tests/forms_tests/tests/filepath_test_files/1x1.png', '1x1.png'),
             ('/tests/forms_tests/tests/filepath_test_files/directory', 'directory'),
             ('/tests/forms_tests/tests/filepath_test_files/fake-image.jpg', 'fake-image.jpg'),

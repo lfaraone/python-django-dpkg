@@ -4,6 +4,7 @@ from django.contrib.postgres import forms
 from django.contrib.postgres.fields import HStoreField
 from django.contrib.postgres.validators import KeysValidator
 from django.core import exceptions, serializers
+from django.forms import Form
 from django.test import TestCase
 
 from .models import HStoreModel
@@ -121,6 +122,12 @@ class TestQuerying(TestCase):
             self.objs[:2]
         )
 
+    def test_usage_in_subquery(self):
+        self.assertSequenceEqual(
+            HStoreModel.objects.filter(id__in=HStoreModel.objects.filter(field__a='b')),
+            self.objs[:2]
+        )
+
 
 class TestSerialization(TestCase):
     test_data = '[{"fields": {"field": "{\\"a\\": \\"b\\"}"}, "model": "postgres_tests.hstoremodel", "pk": null}]'
@@ -173,6 +180,12 @@ class TestFormField(TestCase):
         model_field = HStoreField()
         form_field = model_field.formfield()
         self.assertIsInstance(form_field, forms.HStoreField)
+
+    def test_empty_field_has_not_changed(self):
+        class HStoreFormTest(Form):
+            f1 = HStoreField()
+        form_w_hstore = HStoreFormTest()
+        self.assertFalse(form_w_hstore.has_changed())
 
 
 class TestValidator(TestCase):
