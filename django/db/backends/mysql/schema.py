@@ -48,3 +48,22 @@ class DatabaseSchemaEditor(BaseDatabaseSchemaEditor):
                 'table': self.quote_name(model._meta.db_table),
                 'column': self.quote_name(field.column),
             }, [effective_default])
+
+    def _set_field_new_type_null_status(self, field, new_type):
+        """
+        Keep the null property of the old field. If it has changed, it will be
+        handled separately.
+        """
+        if field.null:
+            new_type += " NULL"
+        else:
+            new_type += " NOT NULL"
+        return new_type
+
+    def _alter_column_type_sql(self, table, old_field, new_field, new_type):
+        new_type = self._set_field_new_type_null_status(old_field, new_type)
+        return super(DatabaseSchemaEditor, self)._alter_column_type_sql(table, old_field, new_field, new_type)
+
+    def _rename_field_sql(self, table, old_field, new_field, new_type):
+        new_type = self._set_field_new_type_null_status(old_field, new_type)
+        return super(DatabaseSchemaEditor, self)._rename_field_sql(table, old_field, new_field, new_type)
