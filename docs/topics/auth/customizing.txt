@@ -401,6 +401,14 @@ use as your User model.
    have a ForeignKey to each other and seeing how ``makemigrations`` resolves that
    circular dependency if you want to see how it's usually done)
 
+.. admonition:: Reusable apps and ``AUTH_USER_MODEL``
+
+   Reusable apps shouldn't implement a custom user model. A project may use
+   many apps, and two reusable apps that implemented a custom user model
+   couldn't be used together. If you need to store per user information in your
+   app, use a :class:`~django.db.models.ForeignKey` or
+   :class:`~django.db.models.OneToOneField` to ``settings.AUTH_USER_MODEL``
+   as described below.
 
 Referencing the User model
 --------------------------
@@ -438,7 +446,7 @@ different User model.
             from django.conf import settings
             from django.db.models.signals import post_save
 
-            def post_save_receiver(signal, sender, instance, **kwargs):
+            def post_save_receiver(sender, instance, created, **kwargs):
                 pass
 
             post_save.connect(post_save_receiver, sender=settings.AUTH_USER_MODEL)
@@ -871,15 +879,6 @@ model, you remove the ability of Django to reliably identify the base class.
 If your project uses proxy models, you must either modify the proxy to extend
 the User model that is currently in use in your project, or merge your proxy's
 behavior into your User subclass.
-
-Custom users and signals
-------------------------
-
-Another limitation of custom User models is that you can't use
-:func:`django.contrib.auth.get_user_model()` as the sender or target of a signal
-handler. Instead, you must register the handler with the resulting User model.
-See :doc:`/topics/signals` for more information on registering and sending
-signals.
 
 Custom users and testing/fixtures
 ---------------------------------

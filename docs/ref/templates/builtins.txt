@@ -710,9 +710,11 @@ the variable ``template_name``::
     your context.
 
 An included template is rendered within the context of the template that
-includes it. This example produces the output ``"Hello, John"``:
+includes it. This example produces the output ``"Hello, John!"``:
 
-* Context: variable ``person`` is set to ``"john"``.
+* Context: variable ``person`` is set to ``"John"`` and variable ``greeting``
+  is set to ``"Hello"``.
+
 * Template::
 
     {% include "name_snippet.html" %}
@@ -2382,7 +2384,7 @@ rel="nofollow">www.djangoproject.com</a>"``.
 In addition to web links, ``urlize`` also converts email addresses into
 ``mailto:`` links. If ``value`` is
 ``"Send questions to foo@example.com"``, the output will be
-``"Send questions to <a href="mailto:foo@example.com">foo@example</a>"``.
+``"Send questions to <a href="mailto:foo@example.com">foo@example.com</a>"``.
 
 The ``urlize`` filter also takes an optional parameter ``autoescape``. If
 ``autoescape`` is ``True``, the link text and URLs will be escaped using
@@ -2452,24 +2454,24 @@ If ``value`` is ``Joel is a slug``, the output would be::
 yesno
 ^^^^^
 
-Maps values for true, false and (optionally) None, to the strings "yes", "no",
-"maybe", or a custom mapping passed as a comma-separated list, and
+Maps values for ``True``, ``False``, and (optionally) ``None``, to the strings
+"yes", "no", "maybe", or a custom mapping passed as a comma-separated list, and
 returns one of those strings according to the value:
 
 For example::
 
     {{ value|yesno:"yeah,no,maybe" }}
 
-==========  ======================  ==================================
+==========  ======================  ===========================================
 Value       Argument                Outputs
-==========  ======================  ==================================
+==========  ======================  ===========================================
 ``True``                            ``yes``
 ``True``    ``"yeah,no,maybe"``     ``yeah``
 ``False``   ``"yeah,no,maybe"``     ``no``
 ``None``    ``"yeah,no,maybe"``     ``maybe``
-``None``    ``"yeah,no"``           ``"no"`` (converts None to False
-                                    if no mapping for None is given)
-==========  ======================  ==================================
+``None``    ``"yeah,no"``           ``no`` (converts ``None`` to ``False``
+                                    if no mapping for ``None`` is given)
+==========  ======================  ===========================================
 
 Internationalization tags and filters
 -------------------------------------
