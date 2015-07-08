@@ -152,7 +152,6 @@ designers and how it can be extended by programmers:
 * **For designers:**
   :doc:`Language overview <ref/templates/language>` |
   :doc:`Built-in tags and filters <ref/templates/builtins>` |
-  :doc:`Web design helpers <ref/contrib/webdesign>` |
   :doc:`Humanization <ref/contrib/humanize>`
 
 * **For programmers:**
@@ -277,7 +276,12 @@ Common Web application tools
 Django offers multiple tools commonly needed in the development of Web
 applications:
 
-* :doc:`Authentication <topics/auth/index>`
+* **Authentication:**
+  :doc:`Overview <topics/auth/index>` |
+  :doc:`Using the authentication system <topics/auth/default>` |
+  :doc:`Password management <topics/auth/passwords>` |
+  :doc:`Customizing authentication <topics/auth/customizing>` |
+  :doc:`API Reference <ref/contrib/auth>`
 * :doc:`Caching <topics/cache>`
 * :doc:`Logging <topics/logging>`
 * :doc:`Sending emails <topics/email>`

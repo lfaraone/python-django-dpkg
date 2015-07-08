@@ -19,7 +19,7 @@ from django.db.models.lookups import IsNull
 from django.db.models.query import QuerySet
 from django.db.models.query_utils import PathInfo
 from django.utils import six
-from django.utils.deprecation import RemovedInDjango20Warning
+from django.utils.deprecation import RemovedInDjango110Warning
 from django.utils.encoding import force_text, smart_text
 from django.utils.functional import cached_property, curry
 from django.utils.translation import ugettext_lazy as _
@@ -122,10 +122,18 @@ class RelatedField(Field):
         import re
         import keyword
         related_name = self.rel.related_name
-
-        is_valid_id = (related_name and re.match('^[a-zA-Z_][a-zA-Z0-9_]*$', related_name)
-                       and not keyword.iskeyword(related_name))
-        if related_name and not (is_valid_id or related_name.endswith('+')):
+        if not related_name:
+            return []
+        is_valid_id = True
+        if keyword.iskeyword(related_name):
+            is_valid_id = False
+        if six.PY3:
+            if not related_name.isidentifier():
+                is_valid_id = False
+        else:
+            if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*\Z', related_name):
+                is_valid_id = False
+        if not (is_valid_id or related_name.endswith('+')):
             return [
                 checks.Error(
                     "The name '%s' is invalid related_name for field %s.%s" %
@@ -340,7 +348,7 @@ class RelatedField(Field):
     def related(self):
         warnings.warn(
             "Usage of field.related has been deprecated. Use field.rel instead.",
-            RemovedInDjango20Warning, 2)
+            RemovedInDjango110Warning, 2)
         return self.rel
 
     def do_related_class(self, other, cls):
@@ -954,7 +962,10 @@ def create_many_related_manager(superclass, rel):
                     getattr(result, '_prefetch_related_val_%s' % f.attname)
                     for f in fk.local_related_fields
                 ),
-                lambda inst: tuple(getattr(inst, f.attname) for f in fk.foreign_related_fields),
+                lambda inst: tuple(
+                    f.get_db_prep_value(getattr(inst, f.attname), connection)
+                    for f in fk.foreign_related_fields
+                ),
                 False,
                 self.prefetch_cache_name,
             )
@@ -1406,6 +1417,11 @@ class ManyToOneRel(ForeignObjectRel):
             field, to, related_name=related_name, limit_choices_to=limit_choices_to,
             parent_link=parent_link, on_delete=on_delete, related_query_name=related_query_name)
         self.field_name = field_name
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state.pop('related_model', None)
+        return state
 
     def get_related_field(self):
         """

@@ -87,10 +87,8 @@ class Q(tree.Node):
     def resolve_expression(self, query=None, allow_joins=True, reuse=None, summarize=False, for_save=False):
         # We must promote any new joins to left outer joins so that when Q is
         # used as an expression, rows aren't filtered due to joins.
-        joins_before = query.tables[:]
         clause, joins = query._add_q(self, reuse, allow_joins=allow_joins, split_subq=False)
-        joins_to_promote = [j for j in joins if j not in joins_before]
-        query.promote_joins(joins_to_promote)
+        query.promote_joins(joins)
         return clause
 
     @classmethod
@@ -262,4 +260,18 @@ def refs_aggregate(lookup_parts, aggregates):
         level_n_lookup = LOOKUP_SEP.join(lookup_parts[0:n])
         if level_n_lookup in aggregates and aggregates[level_n_lookup].contains_aggregate:
             return aggregates[level_n_lookup], lookup_parts[n:]
+    return False, ()
+
+
+def refs_expression(lookup_parts, annotations):
+    """
+    A helper method to check if the lookup_parts contains references
+    to the given annotations set. Because the LOOKUP_SEP is contained in the
+    default annotation names we must check each prefix of the lookup_parts
+    for a match.
+    """
+    for n in range(len(lookup_parts) + 1):
+        level_n_lookup = LOOKUP_SEP.join(lookup_parts[0:n])
+        if level_n_lookup in annotations and annotations[level_n_lookup]:
+            return annotations[level_n_lookup], lookup_parts[n:]
     return False, ()

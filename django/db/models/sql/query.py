@@ -17,7 +17,9 @@ from django.db import DEFAULT_DB_ALIAS, connections
 from django.db.models.aggregates import Count
 from django.db.models.constants import LOOKUP_SEP
 from django.db.models.expressions import Col, Ref
-from django.db.models.query_utils import Q, PathInfo, refs_aggregate
+from django.db.models.query_utils import (
+    Q, PathInfo, refs_aggregate, refs_expression,
+)
 from django.db.models.sql.constants import (
     INNER, LOUTER, ORDER_DIR, ORDER_PATTERN, QUERY_TERMS, SINGLE,
 )
@@ -29,7 +31,7 @@ from django.db.models.sql.where import (
 )
 from django.utils import six
 from django.utils.deprecation import (
-    RemovedInDjango19Warning, RemovedInDjango20Warning,
+    RemovedInDjango19Warning, RemovedInDjango110Warning,
 )
 from django.utils.encoding import force_text
 from django.utils.tree import Node
@@ -199,7 +201,7 @@ class Query(object):
     def aggregates(self):
         warnings.warn(
             "The aggregates property is deprecated. Use annotations instead.",
-            RemovedInDjango20Warning, stacklevel=2)
+            RemovedInDjango110Warning, stacklevel=2)
         return self.annotations
 
     def __str__(self):
@@ -472,6 +474,9 @@ class Query(object):
     def has_results(self, using):
         q = self.clone()
         if not q.distinct:
+            if q.group_by is True:
+                q.add_fields((f.attname for f in self.model._meta.concrete_fields), False)
+                q.set_group_by()
             q.clear_select_clause()
         q.clear_ordering(True)
         q.set_limits(high=1)
@@ -966,7 +971,7 @@ class Query(object):
     def add_aggregate(self, aggregate, model, alias, is_summary):
         warnings.warn(
             "add_aggregate() is deprecated. Use add_annotation() instead.",
-            RemovedInDjango20Warning, stacklevel=2)
+            RemovedInDjango110Warning, stacklevel=2)
         self.add_annotation(aggregate, alias, is_summary)
 
     def add_annotation(self, annotation, alias, is_summary=False):
@@ -1024,9 +1029,9 @@ class Query(object):
         """
         lookup_splitted = lookup.split(LOOKUP_SEP)
         if self._annotations:
-            aggregate, aggregate_lookups = refs_aggregate(lookup_splitted, self.annotations)
-            if aggregate:
-                return aggregate_lookups, (), aggregate
+            expression, expression_lookups = refs_expression(lookup_splitted, self.annotations)
+            if expression:
+                return expression_lookups, (), expression
         _, field, _, lookup_parts = self.names_to_path(lookup_splitted, self.get_meta())
         field_parts = lookup_splitted[0:len(lookup_splitted) - len(lookup_parts)]
         if len(lookup_parts) == 0:
@@ -1141,7 +1146,7 @@ class Query(object):
         arg, value = filter_expr
         if not arg:
             raise FieldError("Cannot parse keyword query %r" % arg)
-        lookups, parts, reffed_aggregate = self.solve_lookup_type(arg)
+        lookups, parts, reffed_expression = self.solve_lookup_type(arg)
         if not allow_joins and len(parts) > 1:
             raise FieldError("Joined field references are not permitted in this query")
 
@@ -1150,12 +1155,12 @@ class Query(object):
         value, lookups, used_joins = self.prepare_lookup_value(value, lookups, can_reuse, allow_joins)
 
         clause = self.where_class()
-        if reffed_aggregate:
-            condition = self.build_lookup(lookups, reffed_aggregate, value)
+        if reffed_expression:
+            condition = self.build_lookup(lookups, reffed_expression, value)
             if not condition:
                 # Backwards compat for custom lookups
                 assert len(lookups) == 1
-                condition = (reffed_aggregate, lookups[0], value)
+                condition = (reffed_expression, lookups[0], value)
             clause.add(condition, AND)
             return clause, []
 
@@ -1882,7 +1887,7 @@ class Query(object):
     def set_aggregate_mask(self, names):
         warnings.warn(
             "set_aggregate_mask() is deprecated. Use set_annotation_mask() instead.",
-            RemovedInDjango20Warning, stacklevel=2)
+            RemovedInDjango110Warning, stacklevel=2)
         self.set_annotation_mask(names)
 
     def set_annotation_mask(self, names):
@@ -1896,7 +1901,7 @@ class Query(object):
     def append_aggregate_mask(self, names):
         warnings.warn(
             "append_aggregate_mask() is deprecated. Use append_annotation_mask() instead.",
-            RemovedInDjango20Warning, stacklevel=2)
+            RemovedInDjango110Warning, stacklevel=2)
         self.append_annotation_mask(names)
 
     def append_annotation_mask(self, names):
@@ -1939,7 +1944,7 @@ class Query(object):
     def aggregate_select(self):
         warnings.warn(
             "aggregate_select() is deprecated. Use annotation_select() instead.",
-            RemovedInDjango20Warning, stacklevel=2)
+            RemovedInDjango110Warning, stacklevel=2)
         return self.annotation_select
 
     @property

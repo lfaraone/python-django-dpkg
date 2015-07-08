@@ -10,7 +10,7 @@ from django.core.exceptions import ImproperlyConfigured
 from django.utils import six
 from django.utils._os import upath
 from django.utils.deprecation import (
-    RemovedInDjango19Warning, RemovedInDjango20Warning,
+    RemovedInDjango19Warning, RemovedInDjango110Warning,
 )
 from django.utils.functional import cached_property
 from django.utils.module_loading import import_string
@@ -19,7 +19,7 @@ DEFAULT_DB_ALIAS = 'default'
 DJANGO_VERSION_PICKLE_KEY = '_django_version'
 
 
-class Error(Exception if six.PY3 else StandardError):
+class Error(Exception if six.PY3 else StandardError):  # NOQA: StandardError undefined on PY3
     pass
 
 
@@ -339,8 +339,8 @@ class ConnectionRouter(object):
                     "The signature of allow_migrate has changed from "
                     "allow_migrate(self, db, model) to "
                     "allow_migrate(self, db, app_label, model_name=None, **hints). "
-                    "Support for the old signature will be removed in Django 2.0.",
-                    RemovedInDjango20Warning)
+                    "Support for the old signature will be removed in Django 1.10.",
+                    RemovedInDjango110Warning)
                 model = hints.get('model')
                 allow = None if model is None else method(db, model)
             else:

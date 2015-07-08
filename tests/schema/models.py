@@ -80,11 +80,37 @@ class BookWithSlug(models.Model):
         db_table = "schema_book"
 
 
+class BookWithoutAuthor(models.Model):
+    title = models.CharField(max_length=100, db_index=True)
+    pub_date = models.DateTimeField()
+
+    class Meta:
+        apps = new_apps
+        db_table = "schema_book"
+
+
+class IntegerPK(models.Model):
+    i = models.IntegerField(primary_key=True)
+    j = models.IntegerField(unique=True)
+
+    class Meta:
+        apps = new_apps
+        db_table = "INTEGERPK"  # uppercase to ensure proper quoting
+
+
 class Note(models.Model):
     info = models.TextField()
 
     class Meta:
         apps = new_apps
+
+
+class NoteRename(models.Model):
+    detail_info = models.TextField()
+
+    class Meta:
+        apps = new_apps
+        db_table = "schema_note"
 
 
 class Tag(models.Model):

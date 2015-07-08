@@ -495,7 +495,11 @@ optional arguments:
 
     Automatically set the field to now when the object is first created. Useful
     for creation of timestamps. Note that the current date is *always* used;
-    it's not just a default value that you can override.
+    it's not just a default value that you can override. So even if you
+    set a value for this field when creating the object, it will be ignored.
+    If you want to be able to modify this field, set ``default=timezone.now``
+    (from :func:`django.utils.timezone.now`) instead of ``auto_now_add=True``.
+
 
 The default form widget for this field is a
 :class:`~django.forms.TextInput`. The admin adds a JavaScript calendar,
@@ -558,7 +562,9 @@ decimal places::
 
     models.DecimalField(..., max_digits=19, decimal_places=10)
 
-The default form widget for this field is a :class:`~django.forms.TextInput`.
+The default form widget for this field is a :class:`~django.forms.NumberInput`
+when :attr:`~django.forms.Field.localize` is ``False`` or
+:class:`~django.forms.TextInput` otherwise.
 
 .. note::
 
@@ -855,7 +861,9 @@ can change the maximum length using the :attr:`~CharField.max_length` argument.
 
 A floating-point number represented in Python by a ``float`` instance.
 
-The default form widget for this field is a :class:`~django.forms.TextInput`.
+The default form widget for this field is a :class:`~django.forms.NumberInput`
+when :attr:`~django.forms.Field.localize` is ``False`` or
+:class:`~django.forms.TextInput` otherwise.
 
 .. _floatfield_vs_decimalfield:
 
@@ -910,7 +918,8 @@ The default form widget for this field is a
 
 An integer. Values from ``-2147483648`` to ``2147483647`` are safe in all
 databases supported by Django. The default form widget for this field is a
-:class:`~django.forms.TextInput`.
+:class:`~django.forms.NumberInput` when :attr:`~django.forms.Field.localize`
+is ``False`` or :class:`~django.forms.TextInput` otherwise.
 
 ``IPAddressField``
 ------------------

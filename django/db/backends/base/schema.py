@@ -544,12 +544,7 @@ class BaseDatabaseSchemaEditor(object):
                 self.execute(self._delete_constraint_sql(self.sql_delete_check, model, constraint_name))
         # Have they renamed the column?
         if old_field.column != new_field.column:
-            self.execute(self.sql_rename_column % {
-                "table": self.quote_name(model._meta.db_table),
-                "old_column": self.quote_name(old_field.column),
-                "new_column": self.quote_name(new_field.column),
-                "type": new_type,
-            })
+            self.execute(self._rename_field_sql(model._meta.db_table, old_field, new_field, new_type))
         # Next, start accumulating actions to do
         actions = []
         null_actions = []
@@ -664,7 +659,9 @@ class BaseDatabaseSchemaEditor(object):
             for sql, params in post_actions:
                 self.execute(sql, params)
         # Added a unique?
-        if not old_field.unique and new_field.unique:
+        if (not old_field.unique and new_field.unique) or (
+            old_field.primary_key and not new_field.primary_key and new_field.unique
+        ):
             self.execute(self._create_unique_sql(model, [new_field.column]))
         # Added an index?
         if (not old_field.db_index and new_field.db_index and
@@ -865,6 +862,14 @@ class BaseDatabaseSchemaEditor(object):
             fields = [model._meta.get_field(field) for field in field_names]
             output.append(self._create_index_sql(model, fields, suffix="_idx"))
         return output
+
+    def _rename_field_sql(self, table, old_field, new_field, new_type):
+        return self.sql_rename_column % {
+            "table": self.quote_name(table),
+            "old_column": self.quote_name(old_field.column),
+            "new_column": self.quote_name(new_field.column),
+            "type": new_type,
+        }
 
     def _create_fk_sql(self, model, field, suffix):
         from_table = model._meta.db_table

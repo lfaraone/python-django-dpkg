@@ -8,8 +8,8 @@ from django.db import (
 )
 from django.db.models import Model
 from django.db.models.fields import (
-    BigIntegerField, BinaryField, BooleanField, CharField, DateTimeField,
-    IntegerField, PositiveIntegerField, SlugField, TextField,
+    AutoField, BigIntegerField, BinaryField, BooleanField, CharField,
+    DateTimeField, IntegerField, PositiveIntegerField, SlugField, TextField,
 )
 from django.db.models.fields.related import (
     ForeignKey, ManyToManyField, OneToOneField,
@@ -20,8 +20,9 @@ from django.test import TransactionTestCase, skipIfDBFeature
 from .fields import CustomManyToManyField, InheritedManyToManyField
 from .models import (
     Author, AuthorWithDefaultHeight, AuthorWithEvenLongerName, Book, BookWeak,
-    BookWithLongName, BookWithO2O, BookWithSlug, Note, Tag, TagIndexed,
-    TagM2MTest, TagUniqueRename, Thing, UniqueTest, new_apps,
+    BookWithLongName, BookWithO2O, BookWithoutAuthor, BookWithSlug, IntegerPK,
+    Note, NoteRename, Tag, TagIndexed, TagM2MTest, TagUniqueRename, Thing,
+    UniqueTest, new_apps,
 )
 
 
@@ -38,8 +39,8 @@ class SchemaTests(TransactionTestCase):
 
     models = [
         Author, AuthorWithDefaultHeight, AuthorWithEvenLongerName, Book,
-        BookWeak, BookWithLongName, BookWithO2O, BookWithSlug, Note, Tag,
-        TagIndexed, TagM2MTest, TagUniqueRename, Thing, UniqueTest,
+        BookWeak, BookWithLongName, BookWithO2O, BookWithSlug, IntegerPK, Note,
+        Tag, TagIndexed, TagM2MTest, TagUniqueRename, Thing, UniqueTest,
     ]
 
     # Utility functions
@@ -61,6 +62,7 @@ class SchemaTests(TransactionTestCase):
 
     def delete_tables(self):
         "Deletes all model tables for our models for a clean test environment"
+        converter = connection.introspection.table_name_converter
         with connection.cursor() as cursor:
             connection.disable_constraint_checking()
             table_names = connection.introspection.table_names(cursor)
@@ -68,7 +70,7 @@ class SchemaTests(TransactionTestCase):
                 # Remove any M2M tables first
                 for field in model._meta.local_many_to_many:
                     with atomic():
-                        tbl = field.rel.through._meta.db_table
+                        tbl = converter(field.rel.through._meta.db_table)
                         if tbl in table_names:
                             cursor.execute(connection.schema_editor().sql_delete_table % {
                                 "table": connection.ops.quote_name(tbl),
@@ -76,7 +78,7 @@ class SchemaTests(TransactionTestCase):
                             table_names.remove(tbl)
                 # Then remove the main tables
                 with atomic():
-                    tbl = model._meta.db_table
+                    tbl = converter(model._meta.db_table)
                     if tbl in table_names:
                         cursor.execute(connection.schema_editor().sql_delete_table % {
                             "table": connection.ops.quote_name(tbl),
@@ -729,6 +731,61 @@ class SchemaTests(TransactionTestCase):
         # field which drops the id sequence, at least on PostgreSQL.
         Author.objects.create(name='Foo')
 
+    def test_alter_int_pk_to_autofield_pk(self):
+        """
+        Should be able to rename an IntegerField(primary_key=True) to
+        AutoField(primary_key=True).
+        """
+        with connection.schema_editor() as editor:
+            editor.create_model(IntegerPK)
+
+        old_field = IntegerPK._meta.get_field('i')
+        new_field = AutoField(primary_key=True)
+        new_field.model = IntegerPK
+        new_field.set_attributes_from_name('i')
+
+        with connection.schema_editor() as editor:
+            editor.alter_field(IntegerPK, old_field, new_field, strict=True)
+
+    def test_alter_int_pk_to_int_unique(self):
+        """
+        Should be able to rename an IntegerField(primary_key=True) to
+        IntegerField(unique=True).
+        """
+        class IntegerUnique(Model):
+            i = IntegerField(unique=True)
+            j = IntegerField(primary_key=True)
+
+            class Meta:
+                app_label = 'schema'
+                apps = new_apps
+                db_table = 'INTEGERPK'
+
+        with connection.schema_editor() as editor:
+            editor.create_model(IntegerPK)
+
+        # model requires a new PK
+        old_field = IntegerPK._meta.get_field('j')
+        new_field = IntegerField(primary_key=True)
+        new_field.model = IntegerPK
+        new_field.set_attributes_from_name('j')
+
+        with connection.schema_editor() as editor:
+            editor.alter_field(IntegerPK, old_field, new_field, strict=True)
+
+        old_field = IntegerPK._meta.get_field('i')
+        new_field = IntegerField(unique=True)
+        new_field.model = IntegerPK
+        new_field.set_attributes_from_name('i')
+
+        with connection.schema_editor() as editor:
+            editor.alter_field(IntegerPK, old_field, new_field, strict=True)
+
+        # Ensure unique constraint works.
+        IntegerUnique.objects.create(i=1, j=1)
+        with self.assertRaises(IntegrityError):
+            IntegerUnique.objects.create(i=1, j=2)
+
     def test_rename(self):
         """
         Tests simple altering of fields
@@ -750,6 +807,26 @@ class SchemaTests(TransactionTestCase):
         columns = self.column_classes(Author)
         self.assertEqual(columns['display_name'][0], "CharField")
         self.assertNotIn("name", columns)
+
+    @skipIfDBFeature('interprets_empty_strings_as_nulls')
+    def test_rename_keep_null_status(self):
+        """
+        Renaming a field shouldn't affect the not null status.
+        """
+        with connection.schema_editor() as editor:
+            editor.create_model(Note)
+        with self.assertRaises(IntegrityError):
+            Note.objects.create(info=None)
+        old_field = Note._meta.get_field("info")
+        new_field = TextField()
+        new_field.set_attributes_from_name("detail_info")
+        with connection.schema_editor() as editor:
+            editor.alter_field(Note, old_field, new_field, strict=True)
+        columns = self.column_classes(Note)
+        self.assertEqual(columns['detail_info'][0], "TextField")
+        self.assertNotIn("info", columns)
+        with self.assertRaises(IntegrityError):
+            NoteRename.objects.create(detail_info=None)
 
     def _test_m2m_create(self, M2MFieldClass):
         """
@@ -1101,6 +1178,28 @@ class SchemaTests(TransactionTestCase):
             editor.create_model(Author)
             editor.create_model(Book)
         # Ensure the fields are unique to begin with
+        self.assertEqual(Book._meta.unique_together, ())
+        # Add the unique_together constraint
+        with connection.schema_editor() as editor:
+            editor.alter_unique_together(Book, [], [['author', 'title']])
+        # Alter it back
+        with connection.schema_editor() as editor:
+            editor.alter_unique_together(Book, [['author', 'title']], [])
+
+    def test_unique_together_with_fk_with_existing_index(self):
+        """
+        Tests removing and adding unique_together constraints that include
+        a foreign key, where the foreign key is added after the model is
+        created.
+        """
+        # Create the tables
+        with connection.schema_editor() as editor:
+            editor.create_model(Author)
+            editor.create_model(BookWithoutAuthor)
+            new_field = ForeignKey(Author)
+            new_field.set_attributes_from_name('author')
+            editor.add_field(BookWithoutAuthor, new_field)
+        # Ensure the fields aren't unique to begin with
         self.assertEqual(Book._meta.unique_together, ())
         # Add the unique_together constraint
         with connection.schema_editor() as editor:
