@@ -1,3 +1,14 @@
+python-django (1.7.9-1) unstable; urgency=medium
+
+  * New upstream security release:
+    https://www.djangoproject.com/weblog/2015/jul/08/security-releases/
+    It fixes:
+    - CVE-2015-5143: possible denial-of-service by filling session store
+    - CVE-2015-5144: possible header injection since validators accept
+      newlines in input
+
+ -- Raphaël Hertzog <hertzog@debian.org>  Thu, 09 Jul 2015 01:33:31 +0200
+
 python-django (1.7.7-1) unstable; urgency=high
 
   * New upstream security and bugfix release:
