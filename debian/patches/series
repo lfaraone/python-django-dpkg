@@ -1,4 +1,2 @@
-fix-assertRaisesMessage.patch
-fix-test-extended-length-storage.patch
 02_disable-sources-in-sphinxdoc.diff
 06_use_debian_geoip_database_as_default.diff
