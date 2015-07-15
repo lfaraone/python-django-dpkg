@@ -3,6 +3,10 @@ python-django (1.2.3-3+squeeze13) UNRELEASED; urgency=medium
   * Backport multiple security fixes released in 1.4 branch:
     https://www.djangoproject.com/weblog/2015/mar/18/security-releases/
      - Possible XSS attack via user-supplied redirect URLs (CVE-2015-2317)
+    https://www.djangoproject.com/weblog/2015/jul/08/security-releases/
+     - Denial-of-service possibility by filling session store (CVE-2015-5143)
+     - Header injection possibility since validators accept newlines in input
+       (CVE-2015-5144)
 
  -- Raphaël Hertzog <hertzog@debian.org>  Wed, 15 Jul 2015 16:26:30 +0200
 
