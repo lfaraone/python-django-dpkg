@@ -1,4 +1,4 @@
-python-django (1.2.3-3+squeeze13) UNRELEASED; urgency=medium
+python-django (1.2.3-3+squeeze13) squeeze-lts; urgency=medium
 
   * Backport multiple security fixes released in 1.4 branch:
     https://www.djangoproject.com/weblog/2015/mar/18/security-releases/
@@ -8,7 +8,7 @@ python-django (1.2.3-3+squeeze13) UNRELEASED; urgency=medium
      - Header injection possibility since validators accept newlines in input
        (CVE-2015-5144)
 
- -- Raphaël Hertzog <hertzog@debian.org>  Wed, 15 Jul 2015 16:26:30 +0200
+ -- Raphaël Hertzog <hertzog@debian.org>  Thu, 16 Jul 2015 14:47:32 +0200
 
 python-django (1.2.3-3+squeeze12) squeeze-lts; urgency=medium
 
