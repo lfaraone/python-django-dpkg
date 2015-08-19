@@ -11,6 +11,7 @@ Comment: "NAME" is Django.
 License: BSD-3-Clause
 
 Files: debian/*
+License: BSD-3-Clause
 Copyright:
  2006-2008 Brett Parker <iDunno@sommitrealweird.co.uk>,
  2006-2008, 2010-2015 Raphael Hertzog <hertzog@debian.org>,
@@ -62,7 +63,7 @@ Files: django/utils/six.py
 Copyright: 2010-2015 Benjamin Peterson
 License: Expat
 
-Files: django/utils/functional.py, django/utils/_decimal.py
+Files: django/utils/functional.py django/utils/_decimal.py
 Copyright: 2001-2007 Python Software Foundation
 License: PSF
 
@@ -226,8 +227,6 @@ License: PSF-baseconv
  to be bound by the terms and conditions of this License Agreement.
 
 License: BSD-2-Clause
- All rights reserved.
-
  Redistribution and use in source and binary forms, with or without
  modification, are permitted provided that the following conditions are met:
  .
@@ -250,8 +249,6 @@ License: BSD-2-Clause
  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  
 License: BSD-3-Clause
- All rights reserved.
- .
  Redistribution and use in source and binary forms, with or without
  modification, are permitted provided that the following conditions are met:
  .
