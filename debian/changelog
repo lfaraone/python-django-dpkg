@@ -1,3 +1,12 @@
+python-django (1.2.3-3+squeeze14) UNRELEASED; urgency=medium
+
+  * Backport multiple security fixes released in 1.4 branch:
+    https://www.djangoproject.com/weblog/2015/aug/18/security-releases/
+    - Denial-of-service possibility in logout() view by filling session store
+      (CVE-2015-5963 and CVE-2015-5964)
+
+ -- Raphaël Hertzog <hertzog@debian.org>  Tue, 25 Aug 2015 14:42:56 +0200
+
 python-django (1.2.3-3+squeeze13) squeeze-lts; urgency=medium
 
   * Backport multiple security fixes released in 1.4 branch:
