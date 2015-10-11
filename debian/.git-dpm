@@ -6,3 +6,6 @@ d16a450f271fa5fe3ef10b43f47307ed95b793bb
 python-django_1.7.9.orig.tar.gz
 473599c2e2810a30bb86fd9c730ef52f23e5f709
 7605194
+debianTag="debian/%e%v"
+patchedTag="patched/%e%v"
+upstreamTag="upstream/%e%u"
