@@ -6,3 +6,6 @@
 python-django_1.8.4.orig.tar.gz
 6399d89b84a09e70c0cdadb10b558172c3e182e3
 7265101
+debianTag="debian/%e%v"
+patchedTag="patched/%e%v"
+upstreamTag="upstream/%e%u"
