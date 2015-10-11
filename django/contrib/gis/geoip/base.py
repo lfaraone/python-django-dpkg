@@ -68,7 +68,8 @@ class GeoIP(object):
         * path: Base directory to where GeoIP data is located or the full path
             to where the city or country data files (*.dat) are located.
             Assumes that both the city and country data sets are located in
-            this directory; overrides the GEOIP_PATH settings attribute.
+            this directory. Overrides the GEOIP_PATH settings attribute.
+            If neither is set, defaults to '/usr/share/GeoIP'.
 
         * cache: The cache settings when opening up the GeoIP datasets,
             and may be an integer in (0, 1, 2, 4, 8) corresponding to
@@ -77,11 +78,13 @@ class GeoIP(object):
             settings,  respectively.  Defaults to 0, meaning that the data is read
             from the disk.
 
-        * country: The name of the GeoIP country data file.  Defaults to
-            'GeoIP.dat'; overrides the GEOIP_COUNTRY settings attribute.
+        * country: The name of the GeoIP country data file. Overrides
+            the GEOIP_COUNTRY settings attribute. If neither is set,
+            defaults to 'GeoIP.dat'
 
-        * city: The name of the GeoIP city data file.  Defaults to
-            'GeoLiteCity.dat'; overrides the GEOIP_CITY settings attribute.
+        * city: The name of the GeoIP city data file. Overrides the
+            GEOIP_CITY settings attribute. If neither is set, defaults
+            to 'GeoIPCity.dat'.
         """
 
         warnings.warn(
@@ -98,9 +101,7 @@ class GeoIP(object):
 
         # Getting the GeoIP data path.
         if not path:
-            path = GEOIP_SETTINGS.get('GEOIP_PATH')
-            if not path:
-                raise GeoIPException('GeoIP path must be provided via parameter or the GEOIP_PATH setting.')
+            path = GEOIP_SETTINGS.get('GEOIP_PATH', '/usr/share/GeoIP')
         if not isinstance(path, six.string_types):
             raise TypeError('Invalid path type: %s' % type(path).__name__)
 
@@ -113,7 +114,7 @@ class GeoIP(object):
                 self._country = GeoIP_open(force_bytes(country_db), cache)
                 self._country_file = country_db
 
-            city_db = os.path.join(path, city or GEOIP_SETTINGS.get('GEOIP_CITY', 'GeoLiteCity.dat'))
+            city_db = os.path.join(path, city or GEOIP_SETTINGS.get('GEOIP_CITY', 'GeoIPCity.dat'))
             if os.path.isfile(city_db):
                 self._city = GeoIP_open(force_bytes(city_db), cache)
                 self._city_file = city_db
