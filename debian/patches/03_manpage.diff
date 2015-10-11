@@ -1,4 +1,4 @@
-From 2dc49e337eb1953cebbf68c86d9d554388a0f080 Mon Sep 17 00:00:00 2001
+From 5ed7512d144abc9d61c271085669d77eb9c3c175 Mon Sep 17 00:00:00 2001
 From: Brett Parker <iDunno@sommitrealweird.co.uk>
 Date: Sun, 11 Oct 2015 11:34:01 +1100
 Subject: Update manual page to refer to django-admin instead of
