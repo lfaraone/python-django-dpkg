@@ -1,12 +1,22 @@
-Description: Use Debian GeoIP database path as default
+From 27dce852f2b063e62482cd1fadbecfc1a089edcf Mon Sep 17 00:00:00 2001
+From: Tapio Rantala <tapio.rantala@iki.fi>
+Date: Sun, 11 Oct 2015 12:06:15 +1100
+Subject: Use Debian GeoIP database path as default
+
  Default to Debian standard path for GeoIP directory and for GeoIP city
  file. Avoids the need to declare them in each project.
  .
  This is a Debian specific patch.
 Bug-Debian: http://bugs.debian.org/645094
 Forwarded: not-needed
-Author: Tapio Rantala <tapio.rantala@iki.fi>
 
+Patch-Name: 06_use_debian_geoip_database_as_default.diff
+---
+ django/contrib/gis/geoip/base.py | 19 ++++++++++---------
+ 1 file changed, 10 insertions(+), 9 deletions(-)
+
+diff --git a/django/contrib/gis/geoip/base.py b/django/contrib/gis/geoip/base.py
+index 9295030..0b05f43 100644
 --- a/django/contrib/gis/geoip/base.py
 +++ b/django/contrib/gis/geoip/base.py
 @@ -67,7 +67,8 @@ class GeoIP(object):
@@ -25,13 +35,12 @@ Author: Tapio Rantala <tapio.rantala@iki.fi>
  
 -        * country: The name of the GeoIP country data file.  Defaults to
 -            'GeoIP.dat'; overrides the GEOIP_COUNTRY settings attribute.
--
--        * city: The name of the GeoIP city data file.  Defaults to
--            'GeoLiteCity.dat'; overrides the GEOIP_CITY settings attribute.
 +        * country: The name of the GeoIP country data file. Overrides
 +            the GEOIP_COUNTRY settings attribute. If neither is set,
 +            defaults to 'GeoIP.dat'
-+
+ 
+-        * city: The name of the GeoIP city data file.  Defaults to
+-            'GeoLiteCity.dat'; overrides the GEOIP_CITY settings attribute.
 +        * city: The name of the GeoIP city data file. Overrides the
 +            GEOIP_CITY settings attribute. If neither is set, defaults
 +            to 'GeoIPCity.dat'.

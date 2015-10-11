@@ -1,12 +1,23 @@
-Description: Update manual page to refer to django-admin instead of django-admin.py
+From 0ab6de8181500c92819bbe113c3907e15b5a9b37 Mon Sep 17 00:00:00 2001
+From: Brett Parker <iDunno@sommitrealweird.co.uk>
+Date: Sun, 11 Oct 2015 12:06:14 +1100
+Subject: Update manual page to refer to django-admin instead of
+ django-admin.py
+
  Update the manual page to speak of django-admin instead of
  django-admin.py as that's the name used by the Debian package.
  .
  This is a Debian specific patch.
 Forwarded: not-needed
-Author: Brett Parker <iDunno@sommitrealweird.co.uk>
 Origin: vendor
 
+Patch-Name: 03_manpage.diff
+---
+ docs/man/django-admin.1 | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/docs/man/django-admin.1 b/docs/man/django-admin.1
+index c9932ac..bdb6438 100644
 --- a/docs/man/django-admin.1
 +++ b/docs/man/django-admin.1
 @@ -1,8 +1,8 @@

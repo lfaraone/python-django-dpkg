@@ -1,18 +1,30 @@
+From 4f049c3e12ad3ed171b5fde82406c77e39481573 Mon Sep 17 00:00:00 2001
+From: Carl Meyer <carl@oddbird.net>
+Date: Wed, 10 Jun 2015 15:45:20 -0600
+Subject: session-1.7.x.diff
+
 commit ac4a54705fb9cdde832d07667843b45b208f9aad
-Author: Carl Meyer <carl@oddbird.net>
-Date:   Wed Jun 10 15:45:20 2015 -0600
 
     [1.7.x] Fixed #19324 -- Avoided creating a session record when loading the session.
-    
+
     The session record is now only created if/when the session is modified. This
     prevents a potential DoS via creation of many empty session records.
-    
+
     This is a security fix; disclosure to follow shortly.
 
-Index: python-django-1.7.7/django/contrib/sessions/backends/cache.py
-===================================================================
---- python-django-1.7.7.orig/django/contrib/sessions/backends/cache.py
-+++ python-django-1.7.7/django/contrib/sessions/backends/cache.py
+Patch-Name: session-1.7.x.diff
+---
+ django/contrib/sessions/backends/cache.py     |  6 ++++--
+ django/contrib/sessions/backends/cached_db.py |  4 ++--
+ django/contrib/sessions/backends/db.py        |  5 +++--
+ django/contrib/sessions/backends/file.py      |  5 +++--
+ django/contrib/sessions/tests.py              | 20 ++++++++++++++++++++
+ 5 files changed, 32 insertions(+), 8 deletions(-)
+
+diff --git a/django/contrib/sessions/backends/cache.py b/django/contrib/sessions/backends/cache.py
+index b1058b3..faeb106 100644
+--- a/django/contrib/sessions/backends/cache.py
++++ b/django/contrib/sessions/backends/cache.py
 @@ -27,7 +27,7 @@ class SessionStore(SessionBase):
              session_data = None
          if session_data is not None:
@@ -40,10 +52,10 @@ Index: python-django-1.7.7/django/contrib/sessions/backends/cache.py
  
      def delete(self, session_key=None):
          if session_key is None:
-Index: python-django-1.7.7/django/contrib/sessions/backends/cached_db.py
-===================================================================
---- python-django-1.7.7.orig/django/contrib/sessions/backends/cached_db.py
-+++ python-django-1.7.7/django/contrib/sessions/backends/cached_db.py
+diff --git a/django/contrib/sessions/backends/cached_db.py b/django/contrib/sessions/backends/cached_db.py
+index f5c14b0..5cc6f79 100644
+--- a/django/contrib/sessions/backends/cached_db.py
++++ b/django/contrib/sessions/backends/cached_db.py
 @@ -51,12 +51,12 @@ class SessionStore(DBStore):
                      logger = logging.getLogger('django.security.%s' %
                              e.__class__.__name__)
@@ -59,10 +71,10 @@ Index: python-django-1.7.7/django/contrib/sessions/backends/cached_db.py
              return True
          return super(SessionStore, self).exists(session_key)
  
-Index: python-django-1.7.7/django/contrib/sessions/backends/db.py
-===================================================================
---- python-django-1.7.7.orig/django/contrib/sessions/backends/db.py
-+++ python-django-1.7.7/django/contrib/sessions/backends/db.py
+diff --git a/django/contrib/sessions/backends/db.py b/django/contrib/sessions/backends/db.py
+index a087061..3e6cdf9 100644
+--- a/django/contrib/sessions/backends/db.py
++++ b/django/contrib/sessions/backends/db.py
 @@ -26,7 +26,7 @@ class SessionStore(SessionBase):
                  logger = logging.getLogger('django.security.%s' %
                          e.__class__.__name__)
@@ -89,10 +101,10 @@ Index: python-django-1.7.7/django/contrib/sessions/backends/db.py
          obj = Session(
              session_key=self._get_or_create_session_key(),
              session_data=self.encode(self._get_session(no_load=must_create)),
-Index: python-django-1.7.7/django/contrib/sessions/backends/file.py
-===================================================================
---- python-django-1.7.7.orig/django/contrib/sessions/backends/file.py
-+++ python-django-1.7.7/django/contrib/sessions/backends/file.py
+diff --git a/django/contrib/sessions/backends/file.py b/django/contrib/sessions/backends/file.py
+index 6569daf..f886bcd 100644
+--- a/django/contrib/sessions/backends/file.py
++++ b/django/contrib/sessions/backends/file.py
 @@ -96,7 +96,7 @@ class SessionStore(SessionBase):
                      self.delete()
                      self.create()
@@ -115,10 +127,10 @@ Index: python-django-1.7.7/django/contrib/sessions/backends/file.py
          # Get the session data now, before we start messing
          # with the file it is stored within.
          session_data = self._get_session(no_load=must_create)
-Index: python-django-1.7.7/django/contrib/sessions/tests.py
-===================================================================
---- python-django-1.7.7.orig/django/contrib/sessions/tests.py
-+++ python-django-1.7.7/django/contrib/sessions/tests.py
+diff --git a/django/contrib/sessions/tests.py b/django/contrib/sessions/tests.py
+index 8d63aaa..6e042c7 100644
+--- a/django/contrib/sessions/tests.py
++++ b/django/contrib/sessions/tests.py
 @@ -171,6 +171,11 @@ class SessionTestsMixin(object):
          self.assertNotEqual(self.session.session_key, prev_key)
          self.assertEqual(list(self.session.items()), prev_data)
