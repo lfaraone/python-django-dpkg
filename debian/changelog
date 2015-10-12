@@ -1,6 +1,6 @@
 python-django (1.7.10-1) UNRELEASED; urgency=medium
 
-  * Fix Python 3.5 issue. Closes: #800137.
+  * Fix Python 3.5 HTMLParseError issue. Closes: #800137.
   * New upstream version. Fixes CVE-2015-5963, CVE-2015-5964. Closes: #796104.
 
  -- Brian May <bam@debian.org>  Sun, 11 Oct 2015 12:17:01 +1100
