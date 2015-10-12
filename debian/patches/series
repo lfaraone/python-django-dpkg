@@ -2,3 +2,4 @@
 03_manpage.diff
 06_use_debian_geoip_database_as_default.diff
 0004-Added-a-dummy-class-for-HTMLParserError.patch
+0005-Add-numpy-1.9-support.patch
