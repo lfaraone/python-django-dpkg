@@ -1,10 +1,10 @@
-python-django (1.7.10-1) UNRELEASED; urgency=medium
+python-django (1.7.10-1) unstable; urgency=medium
 
   * Fix Python 3.5 HTMLParseError issue. Closes: #800137.
   * New upstream version. Fixes CVE-2015-5963, CVE-2015-5964. Closes: #796104.
   * Add numpy 1.9 support. Closes: #801554.
 
- -- Brian May <bam@debian.org>  Sun, 11 Oct 2015 12:17:01 +1100
+ -- Brian May <bam@debian.org>  Mon, 12 Oct 2015 12:59:43 +1100
 
 python-django (1.7.9-1) unstable; urgency=medium
 
