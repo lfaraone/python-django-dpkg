@@ -3402,6 +3402,7 @@ docs/releases/1.8.1.txt
 docs/releases/1.8.2.txt
 docs/releases/1.8.3.txt
 docs/releases/1.8.4.txt
+docs/releases/1.8.5.txt
 docs/releases/1.8.txt
 docs/releases/index.txt
 docs/releases/security.txt
