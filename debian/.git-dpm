@@ -7,5 +7,5 @@ python-django_1.8.5.orig.tar.gz
 86a0d2ab3c1a78b7d631aedbd97b2716aec493e8
 7270297
 debianTag="debian/%e%v"
-patchedTag="patched/%e%v"
+patchedTag="debian/patches/%e%v"
 upstreamTag="upstream/%e%u"
