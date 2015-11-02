@@ -17,12 +17,12 @@ following commands (and update them again when a branch starts following
 a new upstream release):
 
 git config branch.debian/experimental.dpmUpstreamBranch upstream/1.8.x
-git config branch.debian/sid.dpmUpstreamBranch upstream/1.7.x
+git config branch.debian/master.dpmUpstreamBranch upstream/1.8.x
 git config branch.debian/jessie.dpmUpstreamBranch upstream/1.7.x
 git config branch.debian/wheezy.dpmUpstreamBranch upstream/1.4.x
 git config branch.debian/squeeze.dpmUpstreamBranch upstream/1.2.x
 git config branch.debian/experimental.dpmPatchedBranch debian/patched-experimental
-git config branch.debian/sid.dpmPatchedBranch debian/patched-sid
+git config branch.debian/master.dpmPatchedBranch debian/patched-master
 git config branch.debian/jessie.dpmPatchedBranch debian/patched-jessie
 git config branch.debian/wheezy.dpmPatchedBranch debian/patched-wheezy
 git config branch.debian/squeeze.dpmPatchedBranch debian/patched-squeeze

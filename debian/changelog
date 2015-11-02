@@ -1,3 +1,9 @@
+python-django (1.8.5-2) unstable; urgency=medium
+
+  * Upload to unstable.
+
+ -- Raphaël Hertzog <hertzog@debian.org>  Mon, 02 Nov 2015 15:56:10 +0100
+
 python-django (1.8.5-1) experimental; urgency=medium
 
   * New upstream bugfix release:
