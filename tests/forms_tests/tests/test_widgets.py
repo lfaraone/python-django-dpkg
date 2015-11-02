@@ -3,7 +3,6 @@ from __future__ import unicode_literals
 
 import copy
 import datetime
-import warnings
 
 from django.contrib.admin.tests import AdminSeleniumWebDriverTestCase
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -15,13 +14,15 @@ from django.forms import (
     PasswordInput, RadioSelect, Select, SelectMultiple, SplitDateTimeWidget,
     Textarea, TextInput, TimeInput,
 )
-from django.forms.widgets import RadioFieldRenderer
-from django.utils.deprecation import RemovedInDjango19Warning
-from django.utils.safestring import mark_safe
+from django.forms.widgets import (
+    ChoiceFieldRenderer, ChoiceInput, RadioFieldRenderer,
+)
+from django.test import TestCase, ignore_warnings, override_settings
 from django.utils import six
+from django.utils.deprecation import RemovedInDjango19Warning
+from django.utils.encoding import force_text, python_2_unicode_compatible
+from django.utils.safestring import SafeData, mark_safe
 from django.utils.translation import activate, deactivate, override
-from django.test import TestCase, override_settings
-from django.utils.encoding import python_2_unicode_compatible, force_text
 
 from ..models import Article
 
@@ -615,6 +616,36 @@ class FormsWidgetTestCase(TestCase):
 <li><label><input type="radio" name="num" value="5" /> 5</label></li>
 </ul>""")
 
+        # Choices are escaped correctly
+        w = RadioSelect()
+        self.assertHTMLEqual(w.render('escape', None, choices=(('bad', 'you & me'), ('good', mark_safe('you &gt; me')))), """<ul>
+<li><label><input type="radio" name="escape" value="bad" /> you &amp; me</label></li>
+<li><label><input type="radio" name="escape" value="good" /> you &gt; me</label></li>
+</ul>""")
+
+        # Unicode choices are correctly rendered as HTML
+        w = RadioSelect()
+        self.assertHTMLEqual(six.text_type(w.render('email', 'ŠĐĆŽćžšđ', choices=[('ŠĐĆŽćžšđ', 'ŠĐabcĆŽćžšđ'), ('ćžšđ', 'abcćžšđ')])), '<ul>\n<li><label><input checked="checked" type="radio" name="email" value="\u0160\u0110\u0106\u017d\u0107\u017e\u0161\u0111" /> \u0160\u0110abc\u0106\u017d\u0107\u017e\u0161\u0111</label></li>\n<li><label><input type="radio" name="email" value="\u0107\u017e\u0161\u0111" /> abc\u0107\u017e\u0161\u0111</label></li>\n</ul>')
+
+        # Attributes provided at instantiation are passed to the constituent inputs
+        w = RadioSelect(attrs={'id': 'foo'})
+        self.assertHTMLEqual(w.render('beatle', 'J', choices=(('J', 'John'), ('P', 'Paul'), ('G', 'George'), ('R', 'Ringo'))), """<ul id="foo">
+<li><label for="foo_0"><input checked="checked" type="radio" id="foo_0" value="J" name="beatle" /> John</label></li>
+<li><label for="foo_1"><input type="radio" id="foo_1" value="P" name="beatle" /> Paul</label></li>
+<li><label for="foo_2"><input type="radio" id="foo_2" value="G" name="beatle" /> George</label></li>
+<li><label for="foo_3"><input type="radio" id="foo_3" value="R" name="beatle" /> Ringo</label></li>
+</ul>""")
+
+        # Attributes provided at render-time are passed to the constituent inputs
+        w = RadioSelect()
+        self.assertHTMLEqual(w.render('beatle', 'J', choices=(('J', 'John'), ('P', 'Paul'), ('G', 'George'), ('R', 'Ringo')), attrs={'id': 'bar'}), """<ul id="bar">
+<li><label for="bar_0"><input checked="checked" type="radio" id="bar_0" value="J" name="beatle" /> John</label></li>
+<li><label for="bar_1"><input type="radio" id="bar_1" value="P" name="beatle" /> Paul</label></li>
+<li><label for="bar_2"><input type="radio" id="bar_2" value="G" name="beatle" /> George</label></li>
+<li><label for="bar_3"><input type="radio" id="bar_3" value="R" name="beatle" /> Ringo</label></li>
+</ul>""")
+
+    def test_radiofieldrenderer(self):
         # RadioSelect uses a RadioFieldRenderer to render the individual radio inputs.
         # You can manipulate that object directly to customize the way the RadioSelect
         # is rendered.
@@ -648,6 +679,24 @@ beatle J P Paul False
 beatle J G George False
 beatle J R Ringo False""")
 
+        # A RadioFieldRenderer object also allows index access to individual RadioChoiceInput
+        w = RadioSelect()
+        r = w.get_renderer('beatle', 'J', choices=(('J', 'John'), ('P', 'Paul'), ('G', 'George'), ('R', 'Ringo')))
+        self.assertHTMLEqual(str(r[1]), '<label><input type="radio" name="beatle" value="P" /> Paul</label>')
+        self.assertHTMLEqual(str(r[0]), '<label><input checked="checked" type="radio" name="beatle" value="J" /> John</label>')
+        self.assertTrue(r[0].is_checked())
+        self.assertFalse(r[1].is_checked())
+        self.assertEqual((r[1].name, r[1].value, r[1].choice_value, r[1].choice_label), ('beatle', 'J', 'P', 'Paul'))
+
+        # These individual widgets can accept extra attributes if manually rendered.
+        self.assertHTMLEqual(
+            r[1].render(attrs={'extra': 'value'}),
+            '<label><input type="radio" extra="value" name="beatle" value="P" /> Paul</label>'
+        )
+
+        with self.assertRaises(IndexError):
+            r[10]
+
         # You can create your own custom renderers for RadioSelect to use.
         class MyRenderer(RadioFieldRenderer):
             def render(self):
@@ -667,46 +716,21 @@ beatle J R Ringo False""")
 <label><input checked="checked" type="radio" name="beatle" value="G" /> George</label><br />
 <label><input type="radio" name="beatle" value="R" /> Ringo</label>""")
 
-        # A RadioFieldRenderer object also allows index access to individual RadioChoiceInput
-        w = RadioSelect()
-        r = w.get_renderer('beatle', 'J', choices=(('J', 'John'), ('P', 'Paul'), ('G', 'George'), ('R', 'Ringo')))
-        self.assertHTMLEqual(str(r[1]), '<label><input type="radio" name="beatle" value="P" /> Paul</label>')
-        self.assertHTMLEqual(str(r[0]), '<label><input checked="checked" type="radio" name="beatle" value="J" /> John</label>')
-        self.assertTrue(r[0].is_checked())
-        self.assertFalse(r[1].is_checked())
-        self.assertEqual((r[1].name, r[1].value, r[1].choice_value, r[1].choice_label), ('beatle', 'J', 'P', 'Paul'))
-
-        with self.assertRaises(IndexError):
-            r[10]
-
-        # Choices are escaped correctly
-        w = RadioSelect()
-        self.assertHTMLEqual(w.render('escape', None, choices=(('bad', 'you & me'), ('good', mark_safe('you &gt; me')))), """<ul>
-<li><label><input type="radio" name="escape" value="bad" /> you &amp; me</label></li>
-<li><label><input type="radio" name="escape" value="good" /> you &gt; me</label></li>
-</ul>""")
-
-        # Unicode choices are correctly rendered as HTML
-        w = RadioSelect()
-        self.assertHTMLEqual(six.text_type(w.render('email', 'ŠĐĆŽćžšđ', choices=[('ŠĐĆŽćžšđ', 'ŠĐabcĆŽćžšđ'), ('ćžšđ', 'abcćžšđ')])), '<ul>\n<li><label><input checked="checked" type="radio" name="email" value="\u0160\u0110\u0106\u017d\u0107\u017e\u0161\u0111" /> \u0160\u0110abc\u0106\u017d\u0107\u017e\u0161\u0111</label></li>\n<li><label><input type="radio" name="email" value="\u0107\u017e\u0161\u0111" /> abc\u0107\u017e\u0161\u0111</label></li>\n</ul>')
-
-        # Attributes provided at instantiation are passed to the constituent inputs
-        w = RadioSelect(attrs={'id': 'foo'})
-        self.assertHTMLEqual(w.render('beatle', 'J', choices=(('J', 'John'), ('P', 'Paul'), ('G', 'George'), ('R', 'Ringo'))), """<ul id="foo">
-<li><label for="foo_0"><input checked="checked" type="radio" id="foo_0" value="J" name="beatle" /> John</label></li>
-<li><label for="foo_1"><input type="radio" id="foo_1" value="P" name="beatle" /> Paul</label></li>
-<li><label for="foo_2"><input type="radio" id="foo_2" value="G" name="beatle" /> George</label></li>
-<li><label for="foo_3"><input type="radio" id="foo_3" value="R" name="beatle" /> Ringo</label></li>
-</ul>""")
-
-        # Attributes provided at render-time are passed to the constituent inputs
-        w = RadioSelect()
-        self.assertHTMLEqual(w.render('beatle', 'J', choices=(('J', 'John'), ('P', 'Paul'), ('G', 'George'), ('R', 'Ringo')), attrs={'id': 'bar'}), """<ul id="bar">
-<li><label for="bar_0"><input checked="checked" type="radio" id="bar_0" value="J" name="beatle" /> John</label></li>
-<li><label for="bar_1"><input type="radio" id="bar_1" value="P" name="beatle" /> Paul</label></li>
-<li><label for="bar_2"><input type="radio" id="bar_2" value="G" name="beatle" /> George</label></li>
-<li><label for="bar_3"><input type="radio" id="bar_3" value="R" name="beatle" /> Ringo</label></li>
-</ul>""")
+        # You can customize rendering with outer_html/inner_html renderer variables (#22950)
+        class MyRenderer(RadioFieldRenderer):
+            outer_html = str('<div{id_attr}>{content}</div>')  # str is just to test some Python 2 issue with bytestrings
+            inner_html = '<p>{choice_value}{sub_widgets}</p>'
+        w = RadioSelect(renderer=MyRenderer)
+        output = w.render('beatle', 'J',
+                          choices=(('J', 'John'), ('P', 'Paul'), ('G', 'George'), ('R', 'Ringo')),
+                          attrs={'id': 'bar'})
+        self.assertIsInstance(output, SafeData)
+        self.assertHTMLEqual(output, """<div id="bar">
+<p><label for="bar_0"><input checked="checked" type="radio" id="bar_0" value="J" name="beatle" /> John</label></p>
+<p><label for="bar_1"><input type="radio" id="bar_1" value="P" name="beatle" /> Paul</label></p>
+<p><label for="bar_2"><input type="radio" id="bar_2" value="G" name="beatle" /> George</label></p>
+<p><label for="bar_3"><input type="radio" id="bar_3" value="R" name="beatle" /> Ringo</label></p>
+</div>""")
 
     def test_nested_choices(self):
         # Choices can be nested for radio buttons:
@@ -999,6 +1023,23 @@ beatle J R Ringo False""")
         self.assertHTMLEqual(w.render('date', datetime.datetime(2007, 9, 17, 12, 51, 34)), '<input type="hidden" name="date_0" value="2007-09-17" /><input type="hidden" name="date_1" value="12:51:34" />')
         self.assertHTMLEqual(w.render('date', datetime.datetime(2007, 9, 17, 12, 51)), '<input type="hidden" name="date_0" value="2007-09-17" /><input type="hidden" name="date_1" value="12:51:00" />')
 
+    def test_sub_widget_html_safe(self):
+        widget = TextInput()
+        subwidget = next(widget.subwidgets('username', 'John Doe'))
+        self.assertTrue(hasattr(subwidget, '__html__'))
+        self.assertEqual(force_text(subwidget), subwidget.__html__())
+
+    def test_choice_input_html_safe(self):
+        widget = ChoiceInput('choices', 'CHOICE1', {}, ('CHOICE1', 'first choice'), 0)
+        self.assertTrue(hasattr(ChoiceInput, '__html__'))
+        self.assertEqual(force_text(widget), widget.__html__())
+
+    def test_choice_field_renderer_html_safe(self):
+        renderer = ChoiceFieldRenderer('choices', 'CHOICE1', {}, [('CHOICE1', 'first_choice')])
+        renderer.choice_input_class = lambda *args: args
+        self.assertTrue(hasattr(ChoiceFieldRenderer, '__html__'))
+        self.assertEqual(force_text(renderer), renderer.__html__())
+
 
 class NullBooleanSelectLazyForm(Form):
     """Form to test for lazy evaluation. Refs #17190"""
@@ -1089,33 +1130,30 @@ class WidgetTests(TestCase):
         # to make a copy of its sub-widgets when it is copied.
         self.assertEqual(w1.choices, [1, 2, 3])
 
+    @ignore_warnings(category=RemovedInDjango19Warning)
     def test_13390(self):
         # See ticket #13390
         class SplitDateForm(Form):
             field = DateTimeField(widget=SplitDateTimeWidget, required=False)
 
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", category=RemovedInDjango19Warning)
-            form = SplitDateForm({'field': ''})
-            self.assertTrue(form.is_valid())
-            form = SplitDateForm({'field': ['', '']})
-            self.assertTrue(form.is_valid())
+        form = SplitDateForm({'field': ''})
+        self.assertTrue(form.is_valid())
+        form = SplitDateForm({'field': ['', '']})
+        self.assertTrue(form.is_valid())
 
         class SplitDateRequiredForm(Form):
             field = DateTimeField(widget=SplitDateTimeWidget, required=True)
 
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", category=RemovedInDjango19Warning)
-            form = SplitDateRequiredForm({'field': ''})
-            self.assertFalse(form.is_valid())
-            form = SplitDateRequiredForm({'field': ['', '']})
-            self.assertFalse(form.is_valid())
+        form = SplitDateRequiredForm({'field': ''})
+        self.assertFalse(form.is_valid())
+        form = SplitDateRequiredForm({'field': ['', '']})
+        self.assertFalse(form.is_valid())
 
 
+@override_settings(ROOT_URLCONF='forms_tests.urls')
 class LiveWidgetTests(AdminSeleniumWebDriverTestCase):
 
     available_apps = ['forms_tests'] + AdminSeleniumWebDriverTestCase.available_apps
-    urls = 'forms_tests.urls'
 
     def test_textarea_trailing_newlines(self):
         """
@@ -1171,12 +1209,12 @@ class ClearableFileInputTests(TestCase):
         widget = ClearableFileInput()
         field = StrangeFieldFile()
         output = widget.render('my<div>file', field)
-        self.assertFalse(field.url in output)
-        self.assertTrue('href="something?chapter=1&amp;sect=2&amp;copy=3&amp;lang=en"' in output)
-        self.assertFalse(six.text_type(field) in output)
-        self.assertTrue('something&lt;div onclick=&quot;alert(&#39;oops&#39;)&quot;&gt;.jpg' in output)
-        self.assertTrue('my&lt;div&gt;file' in output)
-        self.assertFalse('my<div>file' in output)
+        self.assertNotIn(field.url, output)
+        self.assertIn('href="something?chapter=1&amp;sect=2&amp;copy=3&amp;lang=en"', output)
+        self.assertNotIn(six.text_type(field), output)
+        self.assertIn('something&lt;div onclick=&quot;alert(&#39;oops&#39;)&quot;&gt;.jpg', output)
+        self.assertIn('my&lt;div&gt;file', output)
+        self.assertNotIn('my<div>file', output)
 
     def test_clear_input_renders_only_if_not_required(self):
         """
@@ -1226,3 +1264,16 @@ class ClearableFileInputTests(TestCase):
             data={'myfile-clear': True},
             files={'myfile': f},
             name='myfile'), f)
+
+    def test_render_custom_template(self):
+        widget = ClearableFileInput()
+        widget.template_with_initial = (
+            '%(initial_text)s: <img src="%(initial_url)s" alt="%(initial)s" /> '
+            '%(clear_template)s<br />%(input_text)s: %(input)s'
+        )
+        self.assertHTMLEqual(
+            widget.render('myfile', FakeFieldFile()),
+            'Currently: <img src="something" alt="something" /> '
+            '<input type="checkbox" name="myfile-clear" id="myfile-clear_id" /> '
+            '<label for="myfile-clear_id">Clear</label><br />Change: <input type="file" name="myfile" />'
+        )

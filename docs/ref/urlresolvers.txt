@@ -10,23 +10,23 @@ reverse()
 If you need to use something similar to the :ttag:`url` template tag in
 your code, Django provides the following function:
 
-.. function:: reverse(viewname, [urlconf=None, args=None, kwargs=None, current_app=None])
+.. function:: reverse(viewname, urlconf=None, args=None, kwargs=None, current_app=None)
 
 ``viewname`` can be a string containing the Python path to the view object, a
 :ref:`URL pattern name <naming-url-patterns>`, or the callable view object.
 For example, given the following ``url``::
 
-    url(r'^archive/$', 'news.views.archive', name='news_archive')
+    from news import views
+
+    url(r'^archive/$', views.archive, name='news_archive')
 
 you can use any of the following to reverse the URL::
-
-    # using the Python path
-    reverse('news.views.archive')
 
     # using the named URL
     reverse('news_archive')
 
     # passing a callable object
+    # (This is discouraged because you can't reverse namespaced views this way.)
     from news import views
     reverse(views.archive)
 
@@ -63,6 +63,10 @@ namespaces into URLs on specific application instances, according to the
 The ``urlconf`` argument is the URLconf module containing the url patterns to
 use for reversing. By default, the root URLconf for the current thread is used.
 
+.. deprecated:: 1.8
+
+    The ability to reverse using the Python path, e.g.
+    ``reverse('news.views.archive')``, has been deprecated.
 
 .. admonition:: Make sure your views are all correct.
 
@@ -82,7 +86,7 @@ use for reversing. By default, the root URLconf for the current thread is used.
     The string returned by ``reverse()`` is already
     :ref:`urlquoted <uri-and-iri-handling>`. For example::
 
-        >>> reverse('cities', args=[u'Orléans'])
+        >>> reverse('cities', args=['Orléans'])
         '.../Orl%C3%A9ans/'
 
     Applying further encoding (such as :meth:`~django.utils.http.urlquote` or
@@ -94,7 +98,7 @@ reverse_lazy()
 
 A lazily evaluated version of `reverse()`_.
 
-.. function:: reverse_lazy(viewname, [urlconf=None, args=None, kwargs=None, current_app=None])
+.. function:: reverse_lazy(viewname, urlconf=None, args=None, kwargs=None, current_app=None)
 
 It is useful for when you need to use a URL reversal before your project's
 URLConf is loaded. Some common cases where this function is necessary are:

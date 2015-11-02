@@ -31,7 +31,7 @@ Header injection possibility since validators accept newlines in input
 ======================================================================
 
 Some of Django's built-in validators
-(``django.core.validators.EmailValidator``, most seriously) didn't
+(:class:`~django.core.validators.EmailValidator`, most seriously) didn't
 prohibit newline characters (due to the usage of ``$`` instead of ``\Z`` in the
 regular expressions). If you use values with newlines in HTTP response or email
 headers, you can suffer from header injection attacks. Django itself isn't

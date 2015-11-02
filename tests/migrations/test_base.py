@@ -1,6 +1,7 @@
 import os
 
 from django.db import connection
+from django.db.migrations.recorder import MigrationRecorder
 from django.test import TransactionTestCase
 from django.utils._os import upath
 
@@ -13,17 +14,22 @@ class MigrationTestBase(TransactionTestCase):
     available_apps = ["migrations"]
     test_dir = os.path.abspath(os.path.dirname(upath(__file__)))
 
+    def tearDown(self):
+        # Reset applied-migrations state.
+        recorder = MigrationRecorder(connection)
+        recorder.migration_qs.filter(app='migrations').delete()
+
     def get_table_description(self, table):
         with connection.cursor() as cursor:
             return connection.introspection.get_table_description(cursor, table)
 
     def assertTableExists(self, table):
         with connection.cursor() as cursor:
-            self.assertIn(table, connection.introspection.get_table_list(cursor))
+            self.assertIn(table, connection.introspection.table_names(cursor))
 
     def assertTableNotExists(self, table):
         with connection.cursor() as cursor:
-            self.assertNotIn(table, connection.introspection.get_table_list(cursor))
+            self.assertNotIn(table, connection.introspection.table_names(cursor))
 
     def assertColumnExists(self, table, column):
         self.assertIn(column, [c.name for c in self.get_table_description(table)])

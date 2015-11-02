@@ -286,8 +286,6 @@ iendswith
 ies
 iexact
 ifchanged
-ifequal
-ifnotequal
 iframe
 inbox
 Incompliance
@@ -322,7 +320,7 @@ itunes
 iTunes
 ize
 Jannis
-javascript
+JavaScript
 Jinja
 jQuery
 JServ
@@ -492,6 +490,7 @@ proxied
 proxying
 pseudocode
 psycopg
+Punycode
 Puthraya
 py
 pyformat
@@ -511,6 +510,8 @@ Quickstart
 quoteless
 Radziej
 rc
+readded
+reallowed
 rebase
 rebased
 rebasing
@@ -629,6 +630,9 @@ subselect
 substr
 subtemplate
 subtemplates
+subtransactions
+subtree
+subtype
 subviews
 subwidgets
 symlink
@@ -692,6 +696,7 @@ unescaped
 ungrouped
 unhandled
 unharmful
+unhashable
 unicode
 uninstall
 uninstalling

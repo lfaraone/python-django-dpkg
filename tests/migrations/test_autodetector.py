@@ -1,13 +1,15 @@
 # -*- coding: utf-8 -*-
 from django.conf import settings
-from django.test import TestCase, override_settings
+from django.contrib.auth.models import AbstractBaseUser
+from django.db import connection, models
 from django.db.migrations.autodetector import MigrationAutodetector
-from django.db.migrations.questioner import MigrationQuestioner
-from django.db.migrations.state import ProjectState, ModelState
 from django.db.migrations.graph import MigrationGraph
 from django.db.migrations.loader import MigrationLoader
-from django.db import models, connection
-from django.contrib.auth.models import AbstractBaseUser
+from django.db.migrations.questioner import MigrationQuestioner
+from django.db.migrations.state import ModelState, ProjectState
+from django.test import TestCase, mock, override_settings
+
+from .models import FoodManager, FoodQuerySet
 
 
 class DeconstructableObject(object):
@@ -52,6 +54,14 @@ class AutodetectorTests(TestCase):
     author_name_deconstructable_2 = ModelState("testapp", "Author", [
         ("id", models.AutoField(primary_key=True)),
         ("name", models.CharField(max_length=200, default=DeconstructableObject())),
+    ])
+    author_name_deconstructable_3 = ModelState("testapp", "Author", [
+        ("id", models.AutoField(primary_key=True)),
+        ("name", models.CharField(max_length=200, default=models.IntegerField())),
+    ])
+    author_name_deconstructable_4 = ModelState("testapp", "Author", [
+        ("id", models.AutoField(primary_key=True)),
+        ("name", models.CharField(max_length=200, default=models.IntegerField())),
     ])
     author_custom_pk = ModelState("testapp", "Author", [("pk_field", models.IntegerField(primary_key=True))])
     author_with_biography_non_blank = ModelState("testapp", "Author", [
@@ -117,9 +127,17 @@ class AutodetectorTests(TestCase):
         ("id", models.AutoField(primary_key=True)),
         ("publishers", models.ManyToManyField("testapp.Publisher")),
     ])
+    author_with_m2m_blank = ModelState("testapp", "Author", [
+        ("id", models.AutoField(primary_key=True)),
+        ("publishers", models.ManyToManyField("testapp.Publisher", blank=True)),
+    ])
     author_with_m2m_through = ModelState("testapp", "Author", [
         ("id", models.AutoField(primary_key=True)),
         ("publishers", models.ManyToManyField("testapp.Publisher", through="testapp.Contract")),
+    ])
+    author_with_former_m2m = ModelState("testapp", "Author", [
+        ("id", models.AutoField(primary_key=True)),
+        ("publishers", models.CharField(max_length=100)),
     ])
     author_with_options = ModelState("testapp", "Author", [
         ("id", models.AutoField(primary_key=True)),
@@ -165,6 +183,13 @@ class AutodetectorTests(TestCase):
     ])
     other_pony = ModelState("otherapp", "Pony", [
         ("id", models.AutoField(primary_key=True)),
+    ])
+    other_pony_food = ModelState("otherapp", "Pony", [
+        ("id", models.AutoField(primary_key=True)),
+    ], managers=[
+        ('food_qs', FoodQuerySet.as_manager()),
+        ('food_mgr', FoodManager('a', 'b')),
+        ('food_mgr_kwargs', FoodManager('x', 'y', 3, 4)),
     ])
     other_stable = ModelState("otherapp", "Stable", [("id", models.AutoField(primary_key=True))])
     third_thing = ModelState("thirdapp", "Thing", [("id", models.AutoField(primary_key=True))])
@@ -389,7 +414,7 @@ class AutodetectorTests(TestCase):
         "Shortcut to make ProjectStates from lists of predefined models"
         project_state = ProjectState()
         for model_state in model_states:
-            project_state.add_model_state(model_state.clone())
+            project_state.add_model(model_state.clone())
         return project_state
 
     def test_arrange_for_graph(self):
@@ -428,23 +453,50 @@ class AutodetectorTests(TestCase):
         graph = MigrationGraph()
         changes = autodetector.arrange_for_graph(changes, graph)
         changes["testapp"][0].dependencies.append(("otherapp", "0001_initial"))
-        changes = autodetector._trim_to_apps(changes, set(["testapp"]))
+        changes = autodetector._trim_to_apps(changes, {"testapp"})
         # Make sure there's the right set of migrations
         self.assertEqual(changes["testapp"][0].name, "0001_initial")
         self.assertEqual(changes["otherapp"][0].name, "0001_initial")
         self.assertNotIn("thirdapp", changes)
 
+    def test_custom_migration_name(self):
+        """Tests custom naming of migrations for graph matching."""
+        # Make a fake graph
+        graph = MigrationGraph()
+        graph.add_node(("testapp", "0001_initial"), None)
+        graph.add_node(("testapp", "0002_foobar"), None)
+        graph.add_node(("otherapp", "0001_initial"), None)
+        graph.add_dependency("testapp.0002_foobar", ("testapp", "0002_foobar"), ("testapp", "0001_initial"))
+
+        # Use project state to make a new migration change set
+        before = self.make_project_state([])
+        after = self.make_project_state([self.author_empty, self.other_pony, self.other_stable])
+        autodetector = MigrationAutodetector(before, after)
+        changes = autodetector._detect_changes()
+
+        # Run through arrange_for_graph
+        migration_name = 'custom_name'
+        changes = autodetector.arrange_for_graph(changes, graph, migration_name)
+
+        # Make sure there's a new name, deps match, etc.
+        self.assertEqual(changes["testapp"][0].name, "0003_%s" % migration_name)
+        self.assertEqual(changes["testapp"][0].dependencies, [("testapp", "0002_foobar")])
+        self.assertEqual(changes["otherapp"][0].name, "0002_%s" % migration_name)
+        self.assertEqual(changes["otherapp"][0].dependencies, [("otherapp", "0001_initial")])
+
     def test_new_model(self):
         """Tests autodetection of new models."""
         # Make state
         before = self.make_project_state([])
-        after = self.make_project_state([self.author_empty])
+        after = self.make_project_state([self.other_pony_food])
         autodetector = MigrationAutodetector(before, after)
         changes = autodetector._detect_changes()
         # Right number/type of migrations?
-        self.assertNumberMigrations(changes, 'testapp', 1)
-        self.assertOperationTypes(changes, 'testapp', 0, ["CreateModel"])
-        self.assertOperationAttributes(changes, "testapp", 0, 0, name="Author")
+        self.assertNumberMigrations(changes, 'otherapp', 1)
+        self.assertOperationTypes(changes, 'otherapp', 0, ["CreateModel"])
+        self.assertOperationAttributes(changes, "otherapp", 0, 0, name="Pony")
+        self.assertEqual([name for name, mgr in changes['otherapp'][0].operations[0].managers],
+                         ['food_qs', 'food_mgr', 'food_mgr_kwargs'])
 
     def test_old_model(self):
         """Tests deletion of old models."""
@@ -823,7 +875,7 @@ class AutodetectorTests(TestCase):
         """
         # Explicitly testing for not specified, since this is the case after
         # a CreateModel operation w/o any definition on the original model
-        model_state_not_secified = ModelState("a", "model", [("id", models.AutoField(primary_key=True))])
+        model_state_not_specified = ModelState("a", "model", [("id", models.AutoField(primary_key=True))])
         # Explicitly testing for None, since this was the issue in #23452 after
         # a AlterFooTogether operation with e.g. () as value
         model_state_none = ModelState("a", "model", [
@@ -851,13 +903,13 @@ class AutodetectorTests(TestCase):
                 self.fail('Created operation(s) %s from %s' % (ops, msg))
 
         tests = (
-            (model_state_not_secified, model_state_not_secified, '"not specified" to "not specified"'),
-            (model_state_not_secified, model_state_none, '"not specified" to "None"'),
-            (model_state_not_secified, model_state_empty, '"not specified" to "empty"'),
-            (model_state_none, model_state_not_secified, '"None" to "not specified"'),
+            (model_state_not_specified, model_state_not_specified, '"not specified" to "not specified"'),
+            (model_state_not_specified, model_state_none, '"not specified" to "None"'),
+            (model_state_not_specified, model_state_empty, '"not specified" to "empty"'),
+            (model_state_none, model_state_not_specified, '"None" to "not specified"'),
             (model_state_none, model_state_none, '"None" to "None"'),
             (model_state_none, model_state_empty, '"None" to "empty"'),
-            (model_state_empty, model_state_not_secified, '"empty" to "not specified"'),
+            (model_state_empty, model_state_not_specified, '"empty" to "not specified"'),
             (model_state_empty, model_state_none, '"empty" to "None"'),
             (model_state_empty, model_state_empty, '"empty" to "empty"'),
         )
@@ -1134,6 +1186,14 @@ class AutodetectorTests(TestCase):
         # Right number of migrations?
         self.assertEqual(len(changes), 0)
 
+    def test_deconstruct_field_kwarg(self):
+        """Field instances are handled correctly by nested deconstruction."""
+        before = self.make_project_state([self.author_name_deconstructable_3])
+        after = self.make_project_state([self.author_name_deconstructable_4])
+        autodetector = MigrationAutodetector(before, after)
+        changes = autodetector._detect_changes()
+        self.assertEqual(changes, {})
+
     def test_deconstruct_type(self):
         """
         #22951 -- Uninstanted classes with deconstruct are correctly returned
@@ -1205,6 +1265,16 @@ class AutodetectorTests(TestCase):
         # Right number/type of migrations?
         self.assertNumberMigrations(changes, 'testapp', 1)
         self.assertOperationTypes(changes, 'testapp', 0, ["AddField"])
+        self.assertOperationAttributes(changes, 'testapp', 0, 0, name="publishers")
+
+    def test_alter_many_to_many(self):
+        before = self.make_project_state([self.author_with_m2m, self.publisher])
+        after = self.make_project_state([self.author_with_m2m_blank, self.publisher])
+        autodetector = MigrationAutodetector(before, after)
+        changes = autodetector._detect_changes()
+        # Right number/type of migrations?
+        self.assertNumberMigrations(changes, 'testapp', 1)
+        self.assertOperationTypes(changes, 'testapp', 0, ["AlterField"])
         self.assertOperationAttributes(changes, 'testapp', 0, 0, name="publishers")
 
     def test_create_with_through_model(self):
@@ -1285,13 +1355,46 @@ class AutodetectorTests(TestCase):
         # Right number/type of migrations?
         self.assertNumberMigrations(changes, "testapp", 1)
         self.assertOperationTypes(changes, "testapp", 0, [
-            "RemoveField", "RemoveField", "DeleteModel", "RemoveField", "DeleteModel"
+            "RemoveField", "RemoveField", "RemoveField", "DeleteModel", "DeleteModel"
         ])
         self.assertOperationAttributes(changes, "testapp", 0, 0, name="publishers", model_name='author')
         self.assertOperationAttributes(changes, "testapp", 0, 1, name="author", model_name='contract')
-        self.assertOperationAttributes(changes, "testapp", 0, 2, name="Author")
-        self.assertOperationAttributes(changes, "testapp", 0, 3, name="publisher", model_name='contract')
+        self.assertOperationAttributes(changes, "testapp", 0, 2, name="publisher", model_name='contract')
+        self.assertOperationAttributes(changes, "testapp", 0, 3, name="Author")
         self.assertOperationAttributes(changes, "testapp", 0, 4, name="Contract")
+
+    def test_concrete_field_changed_to_many_to_many(self):
+        """
+        #23938 - Tests that changing a concrete field into a ManyToManyField
+        first removes the concrete field and then adds the m2m field.
+        """
+        before = self.make_project_state([self.author_with_former_m2m])
+        after = self.make_project_state([self.author_with_m2m, self.publisher])
+        autodetector = MigrationAutodetector(before, after)
+        changes = autodetector._detect_changes()
+        # Right number/type of migrations?
+        self.assertNumberMigrations(changes, "testapp", 1)
+        self.assertOperationTypes(changes, "testapp", 0, ["CreateModel", "RemoveField", "AddField"])
+        self.assertOperationAttributes(changes, 'testapp', 0, 0, name='Publisher')
+        self.assertOperationAttributes(changes, 'testapp', 0, 1, name="publishers", model_name='author')
+        self.assertOperationAttributes(changes, 'testapp', 0, 2, name="publishers", model_name='author')
+
+    def test_many_to_many_changed_to_concrete_field(self):
+        """
+        #23938 - Tests that changing a ManyToManyField into a concrete field
+        first removes the m2m field and then adds the concrete field.
+        """
+        before = self.make_project_state([self.author_with_m2m, self.publisher])
+        after = self.make_project_state([self.author_with_former_m2m])
+        autodetector = MigrationAutodetector(before, after)
+        changes = autodetector._detect_changes()
+        # Right number/type of migrations?
+        self.assertNumberMigrations(changes, "testapp", 1)
+        self.assertOperationTypes(changes, "testapp", 0, ["RemoveField", "AddField", "DeleteModel"])
+        self.assertOperationAttributes(changes, 'testapp', 0, 0, name="publishers", model_name='author')
+        self.assertOperationAttributes(changes, 'testapp', 0, 1, name="publishers", model_name='author')
+        self.assertOperationAttributes(changes, 'testapp', 0, 2, name='Publisher')
+        self.assertOperationFieldAttributes(changes, 'testapp', 0, 1, max_length=100)
 
     def test_non_circular_foreignkey_dependency_removal(self):
         """
@@ -1406,6 +1509,24 @@ class AutodetectorTests(TestCase):
         self.assertOperationTypes(changes, 'testapp', 0, ["CreateModel", "AlterOrderWithRespectTo"])
         self.assertOperationAttributes(changes, 'testapp', 0, 1, name="author", order_with_respect_to="book")
         self.assertNotIn("_order", [name for name, field in changes['testapp'][0].operations[0].fields])
+
+    def test_alter_model_managers(self):
+        """
+        Tests that changing the model managers adds a new operation.
+        """
+        # Make state
+        before = self.make_project_state([self.other_pony])
+        after = self.make_project_state([self.other_pony_food])
+        autodetector = MigrationAutodetector(before, after)
+        changes = autodetector._detect_changes()
+        # Right number/type of migrations?
+        self.assertNumberMigrations(changes, 'otherapp', 1)
+        self.assertOperationTypes(changes, 'otherapp', 0, ["AlterModelManagers"])
+        self.assertOperationAttributes(changes, 'otherapp', 0, 0, name="pony")
+        self.assertEqual([name for name, mgr in changes['otherapp'][0].operations[0].managers],
+                         ['food_qs', 'food_mgr', 'food_mgr_kwargs'])
+        self.assertEqual(changes['otherapp'][0].operations[0].managers[1][1].args, ('a', 'b', 1, 2))
+        self.assertEqual(changes['otherapp'][0].operations[0].managers[2][1].args, ('x', 'y', 3, 4))
 
     def test_swappable_first_inheritance(self):
         """Tests that swappable models get their CreateModel first."""
@@ -1701,26 +1822,19 @@ class AutodetectorTests(TestCase):
         self.assertOperationTypes(changes, 'testapp', 0, ["AddField", "AddField"])
         self.assertOperationAttributes(changes, 'testapp', 0, 0)
 
-    def test_add_non_blank_textfield_and_charfield(self):
+    @mock.patch('django.db.migrations.questioner.MigrationQuestioner.ask_not_null_addition')
+    def test_add_non_blank_textfield_and_charfield(self, mocked_ask_method):
         """
         #23405 - Adding a NOT NULL and non-blank `CharField` or `TextField`
         without default should prompt for a default.
         """
-        class CustomQuestioner(MigrationQuestioner):
-            def __init__(self):
-                super(CustomQuestioner, self).__init__()
-                self.ask_method_call_count = 0
-
-            def ask_not_null_addition(self, field_name, model_name):
-                self.ask_method_call_count += 1
-
         before = self.make_project_state([self.author_empty])
         after = self.make_project_state([self.author_with_biography_non_blank])
-        questioner_instance = CustomQuestioner()
-        autodetector = MigrationAutodetector(before, after, questioner_instance)
+        autodetector = MigrationAutodetector(before, after, MigrationQuestioner())
         changes = autodetector._detect_changes()
-        # need to check for questioner call count
-        self.assertEqual(questioner_instance.ask_method_call_count, 2)
+        # need to check for questioner call
+        self.assertTrue(mocked_ask_method.called)
+        self.assertEqual(mocked_ask_method.call_count, 2)
         self.assertNumberMigrations(changes, 'testapp', 1)
         self.assertOperationTypes(changes, 'testapp', 0, ["AddField", "AddField"])
         self.assertOperationAttributes(changes, 'testapp', 0, 0)

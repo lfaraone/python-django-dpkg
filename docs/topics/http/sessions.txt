@@ -20,7 +20,7 @@ To enable session functionality, do the following:
 
 * Edit the :setting:`MIDDLEWARE_CLASSES` setting and make sure
   it contains ``'django.contrib.sessions.middleware.SessionMiddleware'``.
-  The default ``settings.py`` created by ``django-admin.py startproject``
+  The default ``settings.py`` created by ``django-admin startproject``
   has ``SessionMiddleware`` activated.
 
 If you don't want to use sessions, you might as well remove the
@@ -171,7 +171,7 @@ and the :setting:`SECRET_KEY` setting.
     Finally, the size of a cookie can have an impact on the `speed of your site`_.
 
 .. _`common limit of 4096 bytes`: http://tools.ietf.org/html/rfc2965#section-5.3
-.. _`replay attacks`: http://en.wikipedia.org/wiki/Replay_attack
+.. _`replay attacks`: https://en.wikipedia.org/wiki/Replay_attack
 .. _`speed of your site`: http://yuiblog.com/blog/2007/03/01/performance-research-part-3/
 
 Using sessions in views
@@ -231,12 +231,11 @@ You can edit it multiple times.
       can't be accessed again from the user's browser (for example, the
       :func:`django.contrib.auth.logout()` function calls it).
 
-      .. versionchanged:: 1.7.10
+      .. versionchanged:: 1.8
 
-          Deletion of the session cookie was added. Previously, the behavior
-          was to regenerate the session key value that was sent back to the
-          user in the cookie, but this could be a denial-of-service
-          vulnerability.
+          Deletion of the session cookie is a behavior new in Django 1.8.
+          Previously, the behavior was to regenerate the session key value that
+          was sent back to the user in the cookie.
 
     .. method:: set_test_cookie()
 
@@ -324,8 +323,6 @@ You can edit it multiple times.
 
 Session serialization
 ---------------------
-
-.. versionchanged:: 1.6
 
 Before version 1.6, Django defaulted to using :mod:`pickle` to serialize
 session data before storing it in the backend. If you're using the :ref:`signed

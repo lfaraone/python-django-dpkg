@@ -2,15 +2,18 @@ import inspect
 import warnings
 
 
-class RemovedInDjango19Warning(PendingDeprecationWarning):
+class RemovedInDjango110Warning(PendingDeprecationWarning):
+    pass
+
+# for backwards compatibility in Django 1.8.3
+RemovedInDjango20Warning = PendingDeprecationWarning
+
+
+class RemovedInDjango19Warning(DeprecationWarning):
     pass
 
 
-class RemovedInDjango18Warning(DeprecationWarning):
-    pass
-
-
-RemovedInNextVersionWarning = RemovedInDjango18Warning
+RemovedInNextVersionWarning = RemovedInDjango19Warning
 
 
 class warn_about_renamed_method(object):

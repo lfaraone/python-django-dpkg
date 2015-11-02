@@ -1,8 +1,8 @@
 from __future__ import unicode_literals
 
 import mimetypes
-from os import path
 import unittest
+from os import path
 
 from django.conf.urls.static import static
 from django.http import FileResponse, HttpResponseNotModified
@@ -14,11 +14,10 @@ from .. import urls
 from ..urls import media_dir
 
 
-@override_settings(DEBUG=True)
+@override_settings(DEBUG=True, ROOT_URLCONF='view_tests.urls')
 class StaticTests(SimpleTestCase):
     """Tests django views in django/views/static.py"""
 
-    urls = 'view_tests.urls'
     prefix = 'site_media'
 
     def test_serve(self):
@@ -39,9 +38,9 @@ class StaticTests(SimpleTestCase):
         first_chunk = next(response.streaming_content)
         self.assertEqual(len(first_chunk), FileResponse.block_size)
         second_chunk = next(response.streaming_content)
+        response.close()
         # strip() to prevent OS line endings from causing differences
         self.assertEqual(len(second_chunk.strip()), 1449)
-        response.close()
 
     def test_unknown_mime_type(self):
         response = self.client.get('/%s/file.unknown' % self.prefix)

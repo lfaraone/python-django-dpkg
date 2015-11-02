@@ -1,12 +1,11 @@
 import copy
 import operator
-from functools import wraps
 import sys
 import warnings
+from functools import wraps
 
 from django.utils import six
 from django.utils.deprecation import RemovedInDjango19Warning
-from django.utils.six.moves import copyreg
 
 
 # You can't trivially replace this with `functools.partial` because this binds
@@ -45,14 +44,19 @@ class cached_property(object):
     """
     Decorator that converts a method with a single self argument into a
     property cached on the instance.
+
+    Optional ``name`` argument allows you to make cached properties of other
+    methods. (e.g.  url = cached_property(get_absolute_url, name='url') )
     """
-    def __init__(self, func):
+    def __init__(self, func, name=None):
         self.func = func
+        self.__doc__ = getattr(func, '__doc__')
+        self.name = name or func.__name__
 
     def __get__(self, instance, type=None):
         if instance is None:
             return self
-        res = instance.__dict__[self.func.__name__] = self.func(instance)
+        res = instance.__dict__[self.name] = self.func(instance)
         return res
 
 
@@ -80,13 +84,14 @@ def lazy(func, *resultclasses):
         called on the result of that function. The function is not evaluated
         until one of the methods on the result is called.
         """
-        __dispatch = None
+        __prepared = False
 
         def __init__(self, args, kw):
             self.__args = args
             self.__kw = kw
-            if self.__dispatch is None:
+            if not self.__prepared:
                 self.__prepare_class__()
+            self.__prepared = True
 
         def __reduce__(self):
             return (
@@ -96,26 +101,25 @@ def lazy(func, *resultclasses):
 
         @classmethod
         def __prepare_class__(cls):
-            cls.__dispatch = {}
             for resultclass in resultclasses:
-                cls.__dispatch[resultclass] = {}
-                for type_ in reversed(resultclass.mro()):
-                    for (k, v) in type_.__dict__.items():
-                        # All __promise__ return the same wrapper method, but
-                        # they also do setup, inserting the method into the
-                        # dispatch dict.
-                        meth = cls.__promise__(resultclass, k, v)
-                        if hasattr(cls, k):
+                for type_ in resultclass.mro():
+                    for method_name in type_.__dict__.keys():
+                        # All __promise__ return the same wrapper method, they
+                        # look up the correct implementation when called.
+                        if hasattr(cls, method_name):
                             continue
-                        setattr(cls, k, meth)
+                        meth = cls.__promise__(method_name)
+                        setattr(cls, method_name, meth)
             cls._delegate_bytes = bytes in resultclasses
             cls._delegate_text = six.text_type in resultclasses
-            assert not (cls._delegate_bytes and cls._delegate_text), "Cannot call lazy() with both bytes and text return types."
+            assert not (cls._delegate_bytes and cls._delegate_text), (
+                "Cannot call lazy() with both bytes and text return types.")
             if cls._delegate_text:
                 if six.PY3:
                     cls.__str__ = cls.__text_cast
                 else:
                     cls.__unicode__ = cls.__text_cast
+                    cls.__str__ = cls.__bytes_cast_encoded
             elif cls._delegate_bytes:
                 if six.PY3:
                     cls.__bytes__ = cls.__bytes_cast
@@ -123,21 +127,13 @@ def lazy(func, *resultclasses):
                     cls.__str__ = cls.__bytes_cast
 
         @classmethod
-        def __promise__(cls, klass, funcname, method):
-            # Builds a wrapper around some magic method and registers that
-            # magic method for the given type and method name.
+        def __promise__(cls, method_name):
+            # Builds a wrapper around some magic method
             def __wrapper__(self, *args, **kw):
                 # Automatically triggers the evaluation of a lazy value and
                 # applies the given magic method of the result type.
                 res = func(*self.__args, **self.__kw)
-                for t in type(res).mro():
-                    if t in self.__dispatch:
-                        return self.__dispatch[t][funcname](res, *args, **kw)
-                raise TypeError("Lazy object returned unexpected type.")
-
-            if klass not in cls.__dispatch:
-                cls.__dispatch[klass] = {}
-            cls.__dispatch[klass][funcname] = method
+                return getattr(res, method_name)(*args, **kw)
             return __wrapper__
 
         def __text_cast(self):
@@ -145,6 +141,9 @@ def lazy(func, *resultclasses):
 
         def __bytes_cast(self):
             return bytes(func(*self.__args, **self.__kw))
+
+        def __bytes_cast_encoded(self):
+            return func(*self.__args, **self.__kw).encode('utf-8')
 
         def __cast(self):
             if self._delegate_bytes:
@@ -205,6 +204,8 @@ def allow_lazy(func, *resultclasses):
     immediately, otherwise a __proxy__ is returned that will evaluate the
     function when needed.
     """
+    lazy_func = lazy(func, *resultclasses)
+
     @wraps(func)
     def wrapper(*args, **kwargs):
         for arg in list(args) + list(six.itervalues(kwargs)):
@@ -212,7 +213,7 @@ def allow_lazy(func, *resultclasses):
                 break
         else:
             return func(*args, **kwargs)
-        return lazy(func, *resultclasses)(*args, **kwargs)
+        return lazy_func(*args, **kwargs)
     return wrapper
 
 empty = object()
@@ -266,32 +267,30 @@ class LazyObject(object):
         raise NotImplementedError('subclasses of LazyObject must provide a _setup() method')
 
     # Because we have messed with __class__ below, we confuse pickle as to what
-    # class we are pickling. It also appears to stop __reduce__ from being
-    # called. So, we define __getstate__ in a way that cooperates with the way
-    # that pickle interprets this class.  This fails when the wrapped class is
-    # a builtin, but it is better than nothing.
-    def __getstate__(self):
+    # class we are pickling. We're going to have to initialize the wrapped
+    # object to successfully pickle it, so we might as well just pickle the
+    # wrapped object since they're supposed to act the same way.
+    #
+    # Unfortunately, if we try to simply act like the wrapped object, the ruse
+    # will break down when pickle gets our id(). Thus we end up with pickle
+    # thinking, in effect, that we are a distinct object from the wrapped
+    # object, but with the same __dict__. This can cause problems (see #25389).
+    #
+    # So instead, we define our own __reduce__ method and custom unpickler. We
+    # pickle the wrapped object as the unpickler's argument, so that pickle
+    # will pickle it normally, and then the unpickler simply returns its
+    # argument.
+    def __reduce__(self):
         if self._wrapped is empty:
             self._setup()
-        return self._wrapped.__dict__
+        return (unpickle_lazyobject, (self._wrapped,))
 
-    # Python 3.3 will call __reduce__ when pickling; this method is needed
-    # to serialize and deserialize correctly.
-    @classmethod
-    def __newobj__(cls, *args):
-        return cls.__new__(cls, *args)
-
-    def __reduce_ex__(self, proto):
-        if proto >= 2:
-            # On Py3, since the default protocol is 3, pickle uses the
-            # ``__newobj__`` method (& more efficient opcodes) for writing.
-            return (self.__newobj__, (self.__class__,), self.__getstate__())
-        else:
-            # On Py2, the default protocol is 0 (for back-compat) & the above
-            # code fails miserably (see regression test). Instead, we return
-            # exactly what's returned if there's no ``__reduce__`` method at
-            # all.
-            return (copyreg._reconstructor, (self.__class__, object, None), self.__getstate__())
+    # We have to explicitly override __getstate__ so that older versions of
+    # pickle don't try to pickle the __dict__ (which in the case of a
+    # SimpleLazyObject may contain a lambda). The value will end up being
+    # ignored by our __reduce__ and custom unpickler.
+    def __getstate__(self):
+        return {}
 
     def __deepcopy__(self, memo):
         if self._wrapped is empty:
@@ -308,7 +307,7 @@ class LazyObject(object):
         __bool__ = new_method_proxy(bool)
     else:
         __str__ = new_method_proxy(str)
-        __unicode__ = new_method_proxy(unicode)
+        __unicode__ = new_method_proxy(unicode)  # NOQA: unicode undefined on PY3
         __nonzero__ = new_method_proxy(bool)
 
     # Introspection support
@@ -328,6 +327,15 @@ class LazyObject(object):
 
     __len__ = new_method_proxy(len)
     __contains__ = new_method_proxy(operator.contains)
+
+
+def unpickle_lazyobject(wrapped):
+    """
+    Used to unpickle lazy objects. Just return its argument, which will be the
+    wrapped object.
+    """
+    return wrapped
+unpickle_lazyobject.__safe_for_unpickling__ = True
 
 
 # Workaround for http://bugs.python.org/issue12370

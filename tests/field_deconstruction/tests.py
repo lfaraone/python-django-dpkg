@@ -1,7 +1,5 @@
 from __future__ import unicode_literals
 
-import warnings
-
 from django.db import models
 from django.test import TestCase, override_settings
 from django.utils import six
@@ -71,6 +69,13 @@ class FieldDeconstructionTests(TestCase):
         self.assertEqual(args, [])
         self.assertEqual(kwargs, {"max_length": 65, "null": True, "blank": True})
 
+    def test_char_field_choices(self):
+        field = models.CharField(max_length=1, choices=(("A", "One"), ("B", "Two")))
+        name, path, args, kwargs = field.deconstruct()
+        self.assertEqual(path, "django.db.models.CharField")
+        self.assertEqual(args, [])
+        self.assertEqual(kwargs, {"choices": [("A", "One"), ("B", "Two")], "max_length": 1})
+
     def test_csi_field(self):
         field = models.CommaSeparatedIntegerField(max_length=100)
         name, path, args, kwargs = field.deconstruct()
@@ -130,7 +135,7 @@ class FieldDeconstructionTests(TestCase):
         name, path, args, kwargs = field.deconstruct()
         self.assertEqual(path, "django.db.models.EmailField")
         self.assertEqual(args, [])
-        self.assertEqual(kwargs, {"max_length": 75})
+        self.assertEqual(kwargs, {"max_length": 254})
         field = models.EmailField(max_length=255)
         name, path, args, kwargs = field.deconstruct()
         self.assertEqual(path, "django.db.models.EmailField")
@@ -238,9 +243,7 @@ class FieldDeconstructionTests(TestCase):
         self.assertEqual(kwargs, {})
 
     def test_ip_address_field(self):
-        with warnings.catch_warnings(record=True):
-            warnings.simplefilter("always")
-            field = models.IPAddressField()
+        field = models.IPAddressField()
         name, path, args, kwargs = field.deconstruct()
         self.assertEqual(path, "django.db.models.IPAddressField")
         self.assertEqual(args, [])

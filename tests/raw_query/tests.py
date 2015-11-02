@@ -5,7 +5,7 @@ from datetime import date
 from django.db.models.query_utils import InvalidQuery
 from django.test import TestCase, skipUnlessDBFeature
 
-from .models import Author, Book, Coffee, Reviewer, FriendlyAuthor
+from .models import Author, Book, BookFkAsPk, Coffee, FriendlyAuthor, Reviewer
 
 
 class RawQueryTests(TestCase):
@@ -73,9 +73,9 @@ class RawQueryTests(TestCase):
         iterated over.
         """
         q = Author.objects.raw('SELECT * FROM raw_query_author')
-        self.assertTrue(q.query.cursor is None)
+        self.assertIsNone(q.query.cursor)
         list(q)
-        self.assertTrue(q.query.cursor is not None)
+        self.assertIsNotNone(q.query.cursor)
 
     def test_FK_raw_query(self):
         """
@@ -148,6 +148,20 @@ class RawQueryTests(TestCase):
         self.assertNoAnnotations(results)
         self.assertEqual(len(results), 1)
         self.assertIsInstance(repr(qset), str)
+
+    def test_query_representation(self):
+        """
+        Test representation of raw query with parameters
+        """
+        query = "SELECT * FROM raw_query_author WHERE last_name = %(last)s"
+        qset = Author.objects.raw(query, {'last': 'foo'})
+        self.assertEqual(repr(qset), "<RawQuerySet: SELECT * FROM raw_query_author WHERE last_name = foo>")
+        self.assertEqual(repr(qset.query), "<RawQuery: SELECT * FROM raw_query_author WHERE last_name = foo>")
+
+        query = "SELECT * FROM raw_query_author WHERE last_name = %s"
+        qset = Author.objects.raw(query, {'foo'})
+        self.assertEqual(repr(qset), "<RawQuerySet: SELECT * FROM raw_query_author WHERE last_name = foo>")
+        self.assertEqual(repr(qset.query), "<RawQuery: SELECT * FROM raw_query_author WHERE last_name = foo>")
 
     def test_many_to_many(self):
         """
@@ -239,3 +253,21 @@ class RawQueryTests(TestCase):
 
     def test_query_count(self):
         self.assertNumQueries(1, list, Author.objects.raw("SELECT * FROM raw_query_author"))
+
+    def test_subquery_in_raw_sql(self):
+        try:
+            list(Book.objects.raw('SELECT id FROM (SELECT * FROM raw_query_book WHERE paperback IS NOT NULL) sq'))
+        except InvalidQuery:
+            self.fail("Using a subquery in a RawQuerySet raised InvalidQuery")
+
+    def test_db_column_name_is_used_in_raw_query(self):
+        """
+        Regression test that ensures the `column` attribute on the field is
+        used to generate the list of fields included in the query, as opposed
+        to the `attname`. This is important when the primary key is a
+        ForeignKey field because `attname` and `column` are not necessarily the
+        same.
+        """
+        b1 = Book.objects.latest('id')
+        b = BookFkAsPk.objects.create(book=b1)
+        self.assertEqual(list(BookFkAsPk.objects.raw('SELECT not_the_default FROM raw_query_bookfkaspk')), [b])

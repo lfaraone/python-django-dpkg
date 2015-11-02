@@ -1,43 +1,39 @@
 # -*- encoding: utf-8 -*-
 from __future__ import unicode_literals
 
-from contextlib import contextmanager
 import datetime
 import decimal
-from importlib import import_module
+import gettext as gettext_module
 import os
 import pickle
+from contextlib import contextmanager
+from importlib import import_module
 from threading import local
 from unittest import skipUnless
 
 from django.conf import settings
-from django.template import Template, Context
+from django.template import Context, Template
 from django.template.base import TemplateSyntaxError
-from django.test import TestCase, RequestFactory, override_settings
-from django.utils import translation
-from django.utils.formats import (get_format, date_format, time_format,
-    localize, localize_input, iter_format_modules, get_format_modules,
-    reset_format_cache, sanitize_separators)
-from django.utils.numberformat import format as nformat
+from django.test import RequestFactory, TestCase, override_settings
+from django.utils import six, translation
 from django.utils._os import upath
-from django.utils.safestring import mark_safe, SafeBytes, SafeString, SafeText
-from django.utils import six
+from django.utils.formats import (
+    date_format, get_format, get_format_modules, iter_format_modules, localize,
+    localize_input, reset_format_cache, sanitize_separators, time_format,
+)
+from django.utils.numberformat import format as nformat
+from django.utils.safestring import SafeBytes, SafeString, SafeText, mark_safe
 from django.utils.six import PY3
-from django.utils.translation import (activate, deactivate,
-    get_language, get_language_from_request, get_language_info,
-    to_locale, trans_real,
-    gettext_lazy,
-    ugettext, ugettext_lazy,
-    ngettext_lazy,
-    ungettext_lazy,
-    pgettext, pgettext_lazy,
-    npgettext, npgettext_lazy,
-    check_for_language,
-    string_concat, LANGUAGE_SESSION_KEY)
+from django.utils.translation import (
+    LANGUAGE_SESSION_KEY, activate, check_for_language, deactivate,
+    get_language, get_language_bidi, get_language_from_request,
+    get_language_info, gettext, gettext_lazy, ngettext_lazy, npgettext,
+    npgettext_lazy, pgettext, pgettext_lazy, string_concat, to_locale,
+    trans_real, ugettext, ugettext_lazy, ungettext, ungettext_lazy,
+)
 
-from .forms import I18nForm, SelectDateForm, SelectDateWidget, CompanyForm
+from .forms import CompanyForm, I18nForm, SelectDateForm, SelectDateWidget
 from .models import Company, TestModel
-
 
 here = os.path.dirname(os.path.abspath(upath(__file__)))
 extended_locale_paths = settings.LOCALE_PATHS + (
@@ -60,6 +56,16 @@ def patch_formats(lang, **settings):
 
 class TranslationTests(TestCase):
 
+    @translation.override('fr')
+    def test_plural(self):
+        """
+        Test plurals with ungettext. French differs from English in that 0 is singular.
+        """
+        self.assertEqual(ungettext("%d year", "%d years", 0) % 0, "0 année")
+        self.assertEqual(ungettext("%d year", "%d years", 2) % 2, "2 années")
+        self.assertEqual(ungettext("%(size)d byte", "%(size)d bytes", 0) % {'size': 0}, "0 octet")
+        self.assertEqual(ungettext("%(size)d byte", "%(size)d bytes", 2) % {'size': 2}, "2 octets")
+
     def test_override(self):
         activate('de')
         try:
@@ -67,8 +73,49 @@ class TranslationTests(TestCase):
                 self.assertEqual(get_language(), 'pl')
             self.assertEqual(get_language(), 'de')
             with translation.override(None):
-                self.assertEqual(get_language(), settings.LANGUAGE_CODE)
+                self.assertEqual(get_language(), None)
+                with translation.override('pl'):
+                    pass
+                self.assertEqual(get_language(), None)
             self.assertEqual(get_language(), 'de')
+        finally:
+            deactivate()
+
+    def test_override_decorator(self):
+
+        @translation.override('pl')
+        def func_pl():
+            self.assertEqual(get_language(), 'pl')
+
+        @translation.override(None)
+        def func_none():
+            self.assertEqual(get_language(), None)
+
+        try:
+            activate('de')
+            func_pl()
+            self.assertEqual(get_language(), 'de')
+            func_none()
+            self.assertEqual(get_language(), 'de')
+        finally:
+            deactivate()
+
+    def test_override_exit(self):
+        """
+        Test that the language restored is the one used when the function was
+        called, not the one used when the decorator was initialized. refs #23381
+        """
+        activate('fr')
+
+        @translation.override('pl')
+        def func_pl():
+            pass
+        deactivate()
+
+        try:
+            activate('en')
+            func_pl()
+            self.assertEqual(get_language(), 'en')
         finally:
             deactivate()
 
@@ -86,13 +133,13 @@ class TranslationTests(TestCase):
 
         # It should be possible to compare *_lazy objects.
         s1 = ugettext_lazy('Add %(name)s')
-        self.assertEqual(True, s == s1)
+        self.assertEqual(s, s1)
         s2 = gettext_lazy('Add %(name)s')
         s3 = gettext_lazy('Add %(name)s')
-        self.assertEqual(True, s2 == s3)
-        self.assertEqual(True, s == s2)
+        self.assertEqual(s2, s3)
+        self.assertEqual(s, s2)
         s4 = ugettext_lazy('Some other string')
-        self.assertEqual(False, s == s4)
+        self.assertNotEqual(s, s4)
 
     @skipUnless(six.PY2, "No more bytestring translations on PY3")
     def test_lazy_and_bytestrings(self):
@@ -162,7 +209,10 @@ class TranslationTests(TestCase):
         result = ungettext_lazy('%(name)s has %(num)d good result', '%(name)s has %(num)d good results', 4)
         self.assertEqual(result % {'name': 'Joe', 'num': 4}, "Joe has 4 good results")
         # Now with a long
-        result = ungettext_lazy('%(name)s has %(num)d good result', '%(name)s has %(num)d good results', long(4))
+        result = ungettext_lazy(
+            '%(name)s has %(num)d good result', '%(name)s has %(num)d good results',
+            long(4)   # NOQA: long undefined on PY3
+        )
         self.assertEqual(result % {'name': 'Joe', 'num': 4}, "Joe has 4 good results")
 
     @override_settings(LOCALE_PATHS=extended_locale_paths)
@@ -306,6 +356,16 @@ class TranslationTests(TestCase):
         """
         self.assertEqual('django', six.text_type(string_concat("dja", "ngo")))
 
+    def test_empty_value(self):
+        """
+        Empty value must stay empty after being translated (#23196).
+        """
+        with translation.override('de'):
+            self.assertEqual("", ugettext(""))
+            self.assertEqual(str(""), gettext(str("")))
+            s = mark_safe("")
+            self.assertEqual(s, ugettext(s))
+
     def test_safe_status(self):
         """
         Translating a string requiring no auto-escaping shouldn't change the "safe" status.
@@ -346,6 +406,11 @@ class TranslationTests(TestCase):
         """
         self.assertEqual(trans_real.to_language('en_US'), 'en-us')
         self.assertEqual(trans_real.to_language('sr_Lat'), 'sr-lat')
+
+    def test_language_bidi(self):
+        self.assertEqual(get_language_bidi(), False)
+        with translation.override(None):
+            self.assertEqual(get_language_bidi(), False)
 
     @override_settings(LOCALE_PATHS=(os.path.join(here, 'other', 'locale'),))
     def test_bad_placeholder_1(self):
@@ -413,7 +478,7 @@ class FormattingTests(TestCase):
         self.d = datetime.date(2009, 12, 31)
         self.dt = datetime.datetime(2009, 12, 31, 20, 50)
         self.t = datetime.time(10, 15, 48)
-        self.l = 10000 if PY3 else long(10000)
+        self.l = 10000 if PY3 else long(10000)  # NOQA: long undefined on PY3
         self.ctxt = Context({
             'n': self.n,
             't': self.t,
@@ -484,7 +549,7 @@ class FormattingTests(TestCase):
                 'time_field': '20:50',
                 'integer_field': '1.234',
             })
-            self.assertEqual(False, form.is_valid())
+            self.assertFalse(form.is_valid())
             self.assertEqual(['Introdu\xefu un n\xfamero.'], form.errors['float_field'])
             self.assertEqual(['Introdu\xefu un n\xfamero.'], form.errors['decimal_field'])
             self.assertEqual(['Introdu\xefu una data v\xe0lida.'], form.errors['date_field'])
@@ -496,7 +561,7 @@ class FormattingTests(TestCase):
                 'date_field_day': '31',
                 'date_field_year': '2009'
             })
-            self.assertEqual(True, form2.is_valid())
+            self.assertTrue(form2.is_valid())
             self.assertEqual(datetime.date(2009, 12, 31), form2.cleaned_data['date_field'])
             self.assertHTMLEqual(
                 '<select name="mydate_month" id="id_mydate_month">\n<option value="0">---</option>\n<option value="1">gener</option>\n<option value="2">febrer</option>\n<option value="3">mar\xe7</option>\n<option value="4">abril</option>\n<option value="5">maig</option>\n<option value="6">juny</option>\n<option value="7">juliol</option>\n<option value="8">agost</option>\n<option value="9">setembre</option>\n<option value="10">octubre</option>\n<option value="11">novembre</option>\n<option value="12" selected="selected">desembre</option>\n</select>\n<select name="mydate_day" id="id_mydate_day">\n<option value="0">---</option>\n<option value="1">1</option>\n<option value="2">2</option>\n<option value="3">3</option>\n<option value="4">4</option>\n<option value="5">5</option>\n<option value="6">6</option>\n<option value="7">7</option>\n<option value="8">8</option>\n<option value="9">9</option>\n<option value="10">10</option>\n<option value="11">11</option>\n<option value="12">12</option>\n<option value="13">13</option>\n<option value="14">14</option>\n<option value="15">15</option>\n<option value="16">16</option>\n<option value="17">17</option>\n<option value="18">18</option>\n<option value="19">19</option>\n<option value="20">20</option>\n<option value="21">21</option>\n<option value="22">22</option>\n<option value="23">23</option>\n<option value="24">24</option>\n<option value="25">25</option>\n<option value="26">26</option>\n<option value="27">27</option>\n<option value="28">28</option>\n<option value="29">29</option>\n<option value="30">30</option>\n<option value="31" selected="selected">31</option>\n</select>\n<select name="mydate_year" id="id_mydate_year">\n<option value="0">---</option>\n<option value="2009" selected="selected">2009</option>\n<option value="2010">2010</option>\n<option value="2011">2011</option>\n<option value="2012">2012</option>\n<option value="2013">2013</option>\n<option value="2014">2014</option>\n<option value="2015">2015</option>\n<option value="2016">2016</option>\n<option value="2017">2017</option>\n<option value="2018">2018</option>\n</select>',
@@ -538,7 +603,7 @@ class FormattingTests(TestCase):
             self.assertEqual('j \d\e F \d\e Y', get_format('DATE_FORMAT'))
             self.assertEqual(1, get_format('FIRST_DAY_OF_WEEK'))
             self.assertEqual(',', get_format('DECIMAL_SEPARATOR'))
-            self.assertEqual('10:15:48', time_format(self.t))
+            self.assertEqual('10:15', time_format(self.t))
             self.assertEqual('31 de desembre de 2009', date_format(self.d))
             self.assertEqual('desembre del 2009', date_format(self.d, 'YEAR_MONTH_FORMAT'))
             self.assertEqual('31/12/2009 20:50', date_format(self.dt, 'SHORT_DATETIME_FORMAT'))
@@ -571,7 +636,7 @@ class FormattingTests(TestCase):
                     'time_field': '20:50',
                     'integer_field': '1.234',
                 })
-                self.assertEqual(True, form3.is_valid())
+                self.assertTrue(form3.is_valid())
                 self.assertEqual(decimal.Decimal('66666.666'), form3.cleaned_data['decimal_field'])
                 self.assertEqual(99999.999, form3.cleaned_data['float_field'])
                 self.assertEqual(datetime.date(2009, 12, 31), form3.cleaned_data['date_field'])
@@ -586,7 +651,7 @@ class FormattingTests(TestCase):
                 self.assertEqual('31 de desembre de 2009 a les 20:50', Template('{{ dt }}').render(self.ctxt))
                 self.assertEqual('66666,67', Template('{{ n|floatformat:2 }}').render(self.ctxt))
                 self.assertEqual('100000,0', Template('{{ f|floatformat }}').render(self.ctxt))
-                self.assertEqual('10:15:48', Template('{{ t|time:"TIME_FORMAT" }}').render(self.ctxt))
+                self.assertEqual('10:15', Template('{{ t|time:"TIME_FORMAT" }}').render(self.ctxt))
                 self.assertEqual('31/12/2009', Template('{{ d|date:"SHORT_DATE_FORMAT" }}').render(self.ctxt))
                 self.assertEqual('31/12/2009 20:50', Template('{{ dt|date:"SHORT_DATETIME_FORMAT" }}').render(self.ctxt))
                 self.assertEqual(date_format(datetime.datetime.now(), "DATE_FORMAT"),
@@ -601,7 +666,7 @@ class FormattingTests(TestCase):
                     'time_field': '20:50',
                     'integer_field': '1234',
                 })
-                self.assertEqual(True, form4.is_valid())
+                self.assertTrue(form4.is_valid())
                 self.assertEqual(decimal.Decimal('66666.666'), form4.cleaned_data['decimal_field'])
                 self.assertEqual(99999.999, form4.cleaned_data['float_field'])
                 self.assertEqual(datetime.date(2009, 12, 31), form4.cleaned_data['date_field'])
@@ -614,7 +679,7 @@ class FormattingTests(TestCase):
                 'date_field_day': '31',
                 'date_field_year': '2009'
             })
-            self.assertEqual(True, form5.is_valid())
+            self.assertTrue(form5.is_valid())
             self.assertEqual(datetime.date(2009, 12, 31), form5.cleaned_data['date_field'])
             self.assertHTMLEqual(
                 '<select name="mydate_day" id="id_mydate_day">\n<option value="0">---</option>\n<option value="1">1</option>\n<option value="2">2</option>\n<option value="3">3</option>\n<option value="4">4</option>\n<option value="5">5</option>\n<option value="6">6</option>\n<option value="7">7</option>\n<option value="8">8</option>\n<option value="9">9</option>\n<option value="10">10</option>\n<option value="11">11</option>\n<option value="12">12</option>\n<option value="13">13</option>\n<option value="14">14</option>\n<option value="15">15</option>\n<option value="16">16</option>\n<option value="17">17</option>\n<option value="18">18</option>\n<option value="19">19</option>\n<option value="20">20</option>\n<option value="21">21</option>\n<option value="22">22</option>\n<option value="23">23</option>\n<option value="24">24</option>\n<option value="25">25</option>\n<option value="26">26</option>\n<option value="27">27</option>\n<option value="28">28</option>\n<option value="29">29</option>\n<option value="30">30</option>\n<option value="31" selected="selected">31</option>\n</select>\n<select name="mydate_month" id="id_mydate_month">\n<option value="0">---</option>\n<option value="1">gener</option>\n<option value="2">febrer</option>\n<option value="3">mar\xe7</option>\n<option value="4">abril</option>\n<option value="5">maig</option>\n<option value="6">juny</option>\n<option value="7">juliol</option>\n<option value="8">agost</option>\n<option value="9">setembre</option>\n<option value="10">octubre</option>\n<option value="11">novembre</option>\n<option value="12" selected="selected">desembre</option>\n</select>\n<select name="mydate_year" id="id_mydate_year">\n<option value="0">---</option>\n<option value="2009" selected="selected">2009</option>\n<option value="2010">2010</option>\n<option value="2011">2011</option>\n<option value="2012">2012</option>\n<option value="2013">2013</option>\n<option value="2014">2014</option>\n<option value="2015">2015</option>\n<option value="2016">2016</option>\n<option value="2017">2017</option>\n<option value="2018">2018</option>\n</select>',
@@ -673,7 +738,7 @@ class FormattingTests(TestCase):
                 'time_field': '20:50',
                 'integer_field': '1234',
             })
-            self.assertEqual(True, form5.is_valid())
+            self.assertTrue(form5.is_valid())
             self.assertEqual(decimal.Decimal('66666.666'), form5.cleaned_data['decimal_field'])
             self.assertEqual(99999.999, form5.cleaned_data['float_field'])
             self.assertEqual(datetime.date(2009, 12, 31), form5.cleaned_data['date_field'])
@@ -686,7 +751,7 @@ class FormattingTests(TestCase):
                 'date_field_day': '31',
                 'date_field_year': '2009'
             })
-            self.assertEqual(True, form6.is_valid())
+            self.assertTrue(form6.is_valid())
             self.assertEqual(datetime.date(2009, 12, 31), form6.cleaned_data['date_field'])
             self.assertHTMLEqual(
                 '<select name="mydate_month" id="id_mydate_month">\n<option value="0">---</option>\n<option value="1">January</option>\n<option value="2">February</option>\n<option value="3">March</option>\n<option value="4">April</option>\n<option value="5">May</option>\n<option value="6">June</option>\n<option value="7">July</option>\n<option value="8">August</option>\n<option value="9">September</option>\n<option value="10">October</option>\n<option value="11">November</option>\n<option value="12" selected="selected">December</option>\n</select>\n<select name="mydate_day" id="id_mydate_day">\n<option value="0">---</option>\n<option value="1">1</option>\n<option value="2">2</option>\n<option value="3">3</option>\n<option value="4">4</option>\n<option value="5">5</option>\n<option value="6">6</option>\n<option value="7">7</option>\n<option value="8">8</option>\n<option value="9">9</option>\n<option value="10">10</option>\n<option value="11">11</option>\n<option value="12">12</option>\n<option value="13">13</option>\n<option value="14">14</option>\n<option value="15">15</option>\n<option value="16">16</option>\n<option value="17">17</option>\n<option value="18">18</option>\n<option value="19">19</option>\n<option value="20">20</option>\n<option value="21">21</option>\n<option value="22">22</option>\n<option value="23">23</option>\n<option value="24">24</option>\n<option value="25">25</option>\n<option value="26">26</option>\n<option value="27">27</option>\n<option value="28">28</option>\n<option value="29">29</option>\n<option value="30">30</option>\n<option value="31" selected="selected">31</option>\n</select>\n<select name="mydate_year" id="id_mydate_year">\n<option value="0">---</option>\n<option value="2009" selected="selected">2009</option>\n<option value="2010">2010</option>\n<option value="2011">2011</option>\n<option value="2012">2012</option>\n<option value="2013">2013</option>\n<option value="2014">2014</option>\n<option value="2015">2015</option>\n<option value="2016">2016</option>\n<option value="2017">2017</option>\n<option value="2018">2018</option>\n</select>',
@@ -715,7 +780,7 @@ class FormattingTests(TestCase):
                 'cents_paid': decimal.Decimal('59.47'),
                 'products_delivered': 12000,
             })
-            self.assertEqual(True, form6.is_valid())
+            self.assertTrue(form6.is_valid())
             self.assertHTMLEqual(
                 form6.as_ul(),
                 '<li><label for="id_name">Name:</label> <input id="id_name" type="text" name="name" value="acme" maxlength="50" /></li>\n<li><label for="id_date_added">Date added:</label> <input type="text" name="date_added" value="31.12.2009 06:00:00" id="id_date_added" /></li>\n<li><label for="id_cents_paid">Cents paid:</label> <input type="text" name="cents_paid" value="59,47" id="id_cents_paid" /></li>\n<li><label for="id_products_delivered">Products delivered:</label> <input type="text" name="products_delivered" value="12000" id="id_products_delivered" /></li>'
@@ -744,15 +809,37 @@ class FormattingTests(TestCase):
             with self.settings(USE_THOUSAND_SEPARATOR=True, USE_L10N=False):
                 self.assertEqual(sanitize_separators('12\xa0345'), '12\xa0345')
 
+        with patch_formats(get_language(), THOUSAND_SEPARATOR='.', DECIMAL_SEPARATOR=','):
+            with self.settings(USE_THOUSAND_SEPARATOR=True):
+                self.assertEqual(sanitize_separators('10.234'), '10234')
+                # Suspicion that user entered dot as decimal separator (#22171)
+                self.assertEqual(sanitize_separators('10.10'), '10.10')
+
     def test_iter_format_modules(self):
         """
         Tests the iter_format_modules function.
         """
+        # Importing some format modules so that we can compare the returned
+        # modules with these expected modules
+        default_mod = import_module('django.conf.locale.de.formats')
+        test_mod = import_module('i18n.other.locale.de.formats')
+        test_mod2 = import_module('i18n.other2.locale.de.formats')
+
         with translation.override('de-at', deactivate=True):
-            de_format_mod = import_module('django.conf.locale.de.formats')
-            self.assertEqual(list(iter_format_modules('de')), [de_format_mod])
-            test_de_format_mod = import_module('i18n.other.locale.de.formats')
-            self.assertEqual(list(iter_format_modules('de', 'i18n.other.locale')), [test_de_format_mod, de_format_mod])
+            # Should return the correct default module when no setting is set
+            self.assertEqual(list(iter_format_modules('de')), [default_mod])
+
+            # When the setting is a string, should return the given module and
+            # the default module
+            self.assertEqual(
+                list(iter_format_modules('de', 'i18n.other.locale')),
+                [test_mod, default_mod])
+
+            # When setting is a list of strings, should return the given
+            # modules and the default module
+            self.assertEqual(
+                list(iter_format_modules('de', ['i18n.other.locale', 'i18n.other2.locale'])),
+                [test_mod, test_mod2, default_mod])
 
     def test_iter_format_modules_stability(self):
         """
@@ -834,6 +921,21 @@ class MiscTests(TestCase):
     def setUp(self):
         super(MiscTests, self).setUp()
         self.rf = RequestFactory()
+
+    @override_settings(LANGUAGE_CODE='de')
+    def test_english_fallback(self):
+        """
+        With a non-English LANGUAGE_CODE and if the active language is English
+        or one of its variants, the untranslated string should be returned
+        (instead of falling back to LANGUAGE_CODE) (See #24413).
+        """
+        self.assertEqual(ugettext("Image"), "Bild")
+        with translation.override('en'):
+            self.assertEqual(ugettext("Image"), "Image")
+        with translation.override('en-us'):
+            self.assertEqual(ugettext("Image"), "Image")
+        with translation.override('en-ca'):
+            self.assertEqual(ugettext("Image"), "Image")
 
     def test_parse_spec_http_header(self):
         """
@@ -977,6 +1079,16 @@ class MiscTests(TestCase):
         r.META = {'HTTP_ACCEPT_LANGUAGE': 'zh-tw,en'}
         self.assertEqual(g(r), 'zh-tw')
 
+    def test_special_fallback_language(self):
+        """
+        Some languages may have special fallbacks that don't follow the simple
+        'fr-ca' -> 'fr' logic (notably Chinese codes).
+        """
+        r = self.rf.get('/')
+        r.COOKIES = {}
+        r.META = {'HTTP_ACCEPT_LANGUAGE': 'zh-my,en'}
+        self.assertEqual(get_language_from_request(r), 'zh-hans')
+
     def test_parse_language_cookie(self):
         """
         Now test that we parse language preferences stored in a cookie correctly.
@@ -1072,7 +1184,7 @@ class ResolutionOrderI18NTests(TestCase):
 
     def assertUgettext(self, msgid, msgstr):
         result = ugettext(msgid)
-        self.assertTrue(msgstr in result, ("The string '%s' isn't in the "
+        self.assertIn(msgstr, result, ("The string '%s' isn't in the "
             "translation of '%s'; the actual result is '%s'." % (msgstr, msgid, result)))
 
 
@@ -1149,6 +1261,16 @@ class TestLanguageInfo(TestCase):
 
     def test_unknown_language_code_and_country_code(self):
         six.assertRaisesRegex(self, KeyError, r"Unknown language code xx-xx and xx\.", get_language_info, 'xx-xx')
+
+    def test_fallback_language_code(self):
+        """
+        get_language_info return the first fallback language info if the lang_info
+        struct does not contain the 'name' key.
+        """
+        li = get_language_info('zh-my')
+        self.assertEqual(li['code'], 'zh-hans')
+        li = get_language_info('zh-cn')
+        self.assertEqual(li['code'], 'zh-cn')
 
 
 class MultipleLocaleActivationTests(TestCase):
@@ -1284,10 +1406,9 @@ class MultipleLocaleActivationTests(TestCase):
         'django.middleware.locale.LocaleMiddleware',
         'django.middleware.common.CommonMiddleware',
     ),
+    ROOT_URLCONF='i18n.urls',
 )
 class LocaleMiddlewareTests(TestCase):
-
-    urls = 'i18n.urls'
 
     def test_streaming_response(self):
         # Regression test for #5241
@@ -1322,10 +1443,9 @@ class LocaleMiddlewareTests(TestCase):
         'django.middleware.locale.LocaleMiddleware',
         'django.middleware.common.CommonMiddleware',
     ),
+    ROOT_URLCONF='i18n.urls'
 )
 class CountrySpecificLanguageTests(TestCase):
-
-    urls = 'i18n.urls'
 
     def setUp(self):
         super(CountrySpecificLanguageTests, self).setUp()
@@ -1337,6 +1457,7 @@ class CountrySpecificLanguageTests(TestCase):
         self.assertTrue(check_for_language('en-US'))
         self.assertFalse(check_for_language('en-ü'))
         self.assertFalse(check_for_language('en\x00'))
+        self.assertFalse(check_for_language(None))
 
     def test_get_language_from_request(self):
         # issue 19919
@@ -1363,3 +1484,26 @@ class CountrySpecificLanguageTests(TestCase):
         r.META = {'HTTP_ACCEPT_LANGUAGE': 'pt-pt,en-US;q=0.8,en;q=0.6,ru;q=0.4'}
         lang = get_language_from_request(r)
         self.assertEqual('pt-br', lang)
+
+
+class TranslationFilesMissing(TestCase):
+
+    def setUp(self):
+        super(TranslationFilesMissing, self).setUp()
+        self.gettext_find_builtin = gettext_module.find
+
+    def tearDown(self):
+        gettext_module.find = self.gettext_find_builtin
+        super(TranslationFilesMissing, self).tearDown()
+
+    def patchGettextFind(self):
+        gettext_module.find = lambda *args, **kw: None
+
+    def test_failure_finding_default_mo_files(self):
+        '''
+        Ensure IOError is raised if the default language is unparseable.
+        Refs: #18192
+        '''
+        self.patchGettextFind()
+        trans_real._translations = {}
+        self.assertRaises(IOError, activate, 'en')

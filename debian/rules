@@ -10,20 +10,12 @@ PREFIXC = debian/python-django-common
 	dh $@ --with sphinxdoc,python2,python3 --buildsystem=pybuild
 
 override_dh_auto_clean:
-	rm -rf docs.debian
-	find -name "*.DS_Store" -delete
-	chmod a-x django/contrib/gis/tests/data/texas.dbf
 	dh_auto_clean
+	make -C docs clean
 
 override_dh_auto_build:
 	dh_auto_build
-	
-	# Build the HTML documentation.
-	# We programmatically replace most instances of django-admin.py with
-	# django-admin and remove the source files from the target _build.
-	cp -r docs docs.debian
-	find docs.debian -type f -print0 | xargs -0r perl -pi -e 's|(?<!/)(django-admin)\.py|$$1|'
-	make -C docs.debian html
+	make -C docs html
 
 override_dh_auto_test:
 ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
@@ -69,7 +61,7 @@ override_dh_install:
 	dh_install
 	
 	# Fix permissions
-	chmod 644 $(PREFIXC)/etc/bash_completion.d/django_bash_completion
+	chmod 644 $(PREFIXC)/usr/share/bash-completion/completions/django_bash_completion
 	chmod 755 $(PREFIXC)/usr/bin/django-admin
 
 override_dh_python3:

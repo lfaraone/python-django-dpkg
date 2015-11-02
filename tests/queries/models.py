@@ -45,6 +45,7 @@ class Tag(models.Model):
 class Note(models.Model):
     note = models.CharField(max_length=100)
     misc = models.CharField(max_length=10)
+    tag = models.ForeignKey(Tag, blank=True, null=True)
 
     class Meta:
         ordering = ['note']
@@ -101,7 +102,7 @@ class Item(models.Model):
     name = models.CharField(max_length=10)
     created = models.DateTimeField()
     modified = models.DateTimeField(blank=True, null=True)
-    tags = models.ManyToManyField(Tag, blank=True, null=True)
+    tags = models.ManyToManyField(Tag, blank=True)
     creator = models.ForeignKey(Author)
     note = models.ForeignKey(Note)
 
@@ -364,9 +365,13 @@ class Plaything(models.Model):
         return self.name
 
 
+@python_2_unicode_compatible
 class Article(models.Model):
     name = models.CharField(max_length=20)
     created = models.DateTimeField()
+
+    def __str__(self):
+        return self.name
 
 
 @python_2_unicode_compatible
@@ -404,6 +409,19 @@ class ObjectA(models.Model):
     def __str__(self):
         return self.name
 
+    def __iter__(self):
+        # Ticket #23721
+        assert False, 'type checking should happen without calling model __iter__'
+
+
+class ProxyObjectA(ObjectA):
+    class Meta:
+        proxy = True
+
+
+class ChildObjectA(ObjectA):
+    pass
+
 
 @python_2_unicode_compatible
 class ObjectB(models.Model):
@@ -415,11 +433,17 @@ class ObjectB(models.Model):
         return self.name
 
 
+class ProxyObjectB(ObjectB):
+    class Meta:
+        proxy = True
+
+
 @python_2_unicode_compatible
 class ObjectC(models.Model):
     name = models.CharField(max_length=50)
     objecta = models.ForeignKey(ObjectA, null=True)
     objectb = models.ForeignKey(ObjectB, null=True)
+    childobjecta = models.ForeignKey(ChildObjectA, null=True, related_name='ca_pk')
 
     def __str__(self):
         return self.name
@@ -694,7 +718,7 @@ class Ticket23605C(models.Model):
 
 # db_table names have capital letters to ensure they are quoted in queries.
 class Individual(models.Model):
-    alive = models.BooleanField(default=False)
+    alive = models.BooleanField()
 
     class Meta:
         db_table = 'Individual'

@@ -1,4 +1,6 @@
-from django.db.backends.schema import BaseDatabaseSchemaEditor
+import psycopg2
+
+from django.db.backends.base.schema import BaseDatabaseSchemaEditor
 
 
 class DatabaseSchemaEditor(BaseDatabaseSchemaEditor):
@@ -10,8 +12,6 @@ class DatabaseSchemaEditor(BaseDatabaseSchemaEditor):
     sql_create_text_index = "CREATE INDEX %(name)s ON %(table)s (%(columns)s text_pattern_ops)%(extra)s"
 
     def quote_value(self, value):
-        # Inner import so backend fails nicely if it's not present
-        import psycopg2
         return psycopg2.extensions.adapt(value)
 
     def _model_indexes_sql(self, model):
@@ -26,6 +26,11 @@ class DatabaseSchemaEditor(BaseDatabaseSchemaEditor):
                 # a second index that specifies their operator class, which is
                 # needed when performing correct LIKE queries outside the
                 # C locale. See #12234.
+                #
+                # The same doesn't apply to array fields such as varchar[size]
+                # and text[size], so skip them.
+                if '[' in db_type:
+                    continue
                 if db_type.startswith('varchar'):
                     output.append(self._create_index_sql(
                         model, [field], suffix='_like', sql=self.sql_create_varchar_index))
@@ -52,31 +57,31 @@ class DatabaseSchemaEditor(BaseDatabaseSchemaEditor):
                 [
                     (
                         self.sql_delete_sequence % {
-                            "sequence": sequence_name,
+                            "sequence": self.quote_name(sequence_name),
                         },
                         [],
                     ),
                     (
                         self.sql_create_sequence % {
-                            "sequence": sequence_name,
+                            "sequence": self.quote_name(sequence_name),
                         },
                         [],
                     ),
                     (
                         self.sql_alter_column % {
-                            "table": table,
+                            "table": self.quote_name(table),
                             "changes": self.sql_alter_column_default % {
-                                "column": column,
-                                "default": "nextval('%s')" % sequence_name,
+                                "column": self.quote_name(column),
+                                "default": "nextval('%s')" % self.quote_name(sequence_name),
                             }
                         },
                         [],
                     ),
                     (
                         self.sql_set_sequence_max % {
-                            "table": table,
-                            "column": column,
-                            "sequence": sequence_name,
+                            "table": self.quote_name(table),
+                            "column": self.quote_name(column),
+                            "sequence": self.quote_name(sequence_name),
                         },
                         [],
                     ),

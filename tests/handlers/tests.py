@@ -3,12 +3,13 @@
 from __future__ import unicode_literals
 
 from django.core.handlers.wsgi import WSGIHandler, WSGIRequest
-from django.core.signals import request_started, request_finished
+from django.core.signals import request_finished, request_started
 from django.db import close_old_connections, connection
-from django.test import RequestFactory, TestCase, TransactionTestCase
-from django.test import override_settings
-from django.utils.encoding import force_str
+from django.test import (
+    RequestFactory, TestCase, TransactionTestCase, override_settings,
+)
 from django.utils import six
+from django.utils.encoding import force_str
 
 
 class HandlerTests(TestCase):
@@ -93,11 +94,24 @@ class HandlerTests(TestCase):
         # latest versions.
         self.assertIsInstance(request.COOKIES, dict)
 
+    @override_settings(ROOT_URLCONF='handlers.urls')
+    def test_invalid_multipart_boundary(self):
+        """
+        Invalid boundary string should produce a "Bad Request" response, not a
+        server error (#23887).
+        """
+        environ = RequestFactory().post('/malformed_post/').environ
+        environ['CONTENT_TYPE'] = 'multipart/form-data; boundary=WRONG\x07'
+        handler = WSGIHandler()
+        response = handler(environ, lambda *a, **k: None)
+        # Expect "bad request" response
+        self.assertEqual(response.status_code, 400)
 
+
+@override_settings(ROOT_URLCONF='handlers.urls')
 class TransactionsPerRequestTests(TransactionTestCase):
 
     available_apps = []
-    urls = 'handlers.urls'
 
     def test_no_transaction(self):
         response = self.client.get('/in_transaction/')
@@ -122,11 +136,12 @@ class TransactionsPerRequestTests(TransactionTestCase):
         self.assertContains(response, 'False')
 
 
+@override_settings(ROOT_URLCONF='handlers.urls')
 class SignalsTests(TestCase):
-    urls = 'handlers.urls'
 
     def setUp(self):
         self.signals = []
+        self.signaled_environ = None
         request_started.connect(self.register_started)
         request_finished.connect(self.register_finished)
 
@@ -136,6 +151,7 @@ class SignalsTests(TestCase):
 
     def register_started(self, **kwargs):
         self.signals.append('started')
+        self.signaled_environ = kwargs.get('environ')
 
     def register_finished(self, **kwargs):
         self.signals.append('finished')
@@ -144,6 +160,7 @@ class SignalsTests(TestCase):
         response = self.client.get('/regular/')
         self.assertEqual(self.signals, ['started', 'finished'])
         self.assertEqual(response.content, b"regular content")
+        self.assertEqual(self.signaled_environ, response.wsgi_request.environ)
 
     def test_request_signals_streaming_response(self):
         response = self.client.get('/streaming/')
@@ -152,9 +169,34 @@ class SignalsTests(TestCase):
         self.assertEqual(self.signals, ['started', 'finished'])
 
 
+@override_settings(ROOT_URLCONF='handlers.urls')
 class HandlerSuspiciousOpsTest(TestCase):
-    urls = 'handlers.urls'
 
     def test_suspiciousop_in_view_returns_400(self):
         response = self.client.get('/suspicious/')
         self.assertEqual(response.status_code, 400)
+
+
+@override_settings(ROOT_URLCONF='handlers.urls')
+class HandlerNotFoundTest(TestCase):
+
+    def test_invalid_urls(self):
+        response = self.client.get('~%A9helloworld')
+        self.assertEqual(response.status_code, 404)
+        self.assertContains(response, '~%A9helloworld', status_code=404)
+
+        response = self.client.get('d%aao%aaw%aan%aal%aao%aaa%aad%aa/')
+        self.assertEqual(response.status_code, 404)
+        self.assertContains(response, 'd%AAo%AAw%AAn%AAl%AAo%AAa%AAd%AA', status_code=404)
+
+        response = self.client.get('/%E2%99%E2%99%A5/')
+        self.assertEqual(response.status_code, 404)
+        self.assertContains(response, '%E2%99\u2665', status_code=404)
+
+        response = self.client.get('/%E2%98%8E%E2%A9%E2%99%A5/')
+        self.assertEqual(response.status_code, 404)
+        self.assertContains(response, '\u260e%E2%A9\u2665', status_code=404)
+
+    def test_environ_path_info_type(self):
+        environ = RequestFactory().get('/%E2%A8%87%87%A5%E2%A8%A0').environ
+        self.assertIsInstance(environ['PATH_INFO'], six.text_type)

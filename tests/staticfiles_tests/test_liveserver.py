@@ -6,13 +6,11 @@ django.test.LiveServerTestCase.
 
 import os
 
-from django.core.exceptions import ImproperlyConfigured
-from django.test import override_settings
-from django.utils.six.moves.urllib.request import urlopen
-from django.utils._os import upath
-
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
-
+from django.core.exceptions import ImproperlyConfigured
+from django.test import modify_settings, override_settings
+from django.utils._os import upath
+from django.utils.six.moves.urllib.request import urlopen
 
 TEST_ROOT = os.path.dirname(upath(__file__))
 TEST_SETTINGS = {
@@ -86,16 +84,15 @@ class StaticLiveServerChecks(LiveServerBase):
 
 class StaticLiveServerView(LiveServerBase):
 
-    # The test is going to access a static file stored in this application.
-    available_apps = ['staticfiles_tests.apps.test']
-
     def urlopen(self, url):
         return urlopen(self.live_server_url + url)
 
+    # The test is going to access a static file stored in this application.
+    @modify_settings(INSTALLED_APPS={'append': 'staticfiles_tests.apps.test'})
     def test_collectstatic_emulation(self):
         """
         Test that StaticLiveServerTestCase use of staticfiles' serve() allows it
         to discover app's static assets without having to collectstatic first.
         """
         f = self.urlopen('/static/test/file.txt')
-        self.assertEqual(f.read().rstrip(b'\r\n'), b'In app media directory.')
+        self.assertEqual(f.read().rstrip(b'\r\n'), b'In static directory.')

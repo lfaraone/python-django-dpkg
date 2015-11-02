@@ -1,2 +1,2 @@
 debian/django-admin usr/bin/
-extras/django_bash_completion etc/bash_completion.d/
+extras/django_bash_completion usr/share/bash-completion/completions/

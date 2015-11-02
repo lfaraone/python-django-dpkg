@@ -1,3 +1,62 @@
+python-django (1.8.5-1) experimental; urgency=medium
+
+  * New upstream bugfix release:
+    https://www.djangoproject.com/weblog/2015/oct/03/bugfix-release-issued/
+
+ -- Raphaël Hertzog <hertzog@debian.org>  Tue, 13 Oct 2015 11:37:24 +0200
+
+python-django (1.8.4-1) experimental; urgency=medium
+
+  * New upstream security release:
+    https://www.djangoproject.com/weblog/2015/aug/18/security-releases/
+    It fixes:
+    - CVE-2015-5964: possible denial-of-service in logout() view
+  * Update debian/copyright to copyright-format 1.0.
+
+ -- Luke Faraone <lfaraone@debian.org>  Wed, 19 Aug 2015 03:55:47 +0000
+
+python-django (1.8.3-1) experimental; urgency=medium
+
+  * New upstream security release:
+    https://www.djangoproject.com/weblog/2015/jul/08/security-releases/
+    It fixes:
+    - CVE-2015-5143: possible denial-of-service by filling session store
+    - CVE-2015-5144: possible header injection since validators accept
+      newlines in input
+    - CVE-2015-5145: possible denial-of-service in URL validation
+  * Drop fix-assertRaisesMessage.patch and
+    fix-test-extended-length-storage.patch which have been merged upstream.
+
+ -- Raphaël Hertzog <hertzog@debian.org>  Thu, 09 Jul 2015 01:53:02 +0200
+
+python-django (1.8.2-1) experimental; urgency=medium
+
+  * New upstream security release:
+    https://www.djangoproject.com/weblog/2015/may/20/security-release/
+  * Install bash completion file into /usr/share/bash-completion/completions/
+
+ -- Raphaël Hertzog <hertzog@debian.org>  Thu, 21 May 2015 15:59:36 +0200
+
+python-django (1.8.1-1) experimental; urgency=medium
+
+  * New major upstream release:
+    https://docs.djangoproject.com/en/1.8/releases/1.8/
+    https://docs.djangoproject.com/en/1.8/releases/1.8.1/
+  * Refresh all patches.
+  * Drop 03_manpage.diff, merged upstream.
+  * Clean up rules since we can use the pristine docs directory, now
+    that they refer to django-admin and not django-admin.py
+  * Add jinja2 and mock as build dependencies required by the test
+    suite.
+  * Add fix-assertRaisesMessage.patch to make the package build with
+    python 2.7.10~rc1 which is affected by
+    https://bugs.python.org/issue24134
+  * Add fix-test-extended-length-storage.patch to make the package build
+    even when AUFS is in use (and when the max length of a filename is
+    shorter than usual).
+
+ -- Raphaël Hertzog <hertzog@debian.org>  Wed, 20 May 2015 09:54:47 +0200
+
 python-django (1.7.10-1) unstable; urgency=medium
 
   * Fix Python 3.5 HTMLParseError issue. Closes: #800137.
