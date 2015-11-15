@@ -3030,6 +3030,7 @@ django/utils/html.py
 django/utils/html_parser.py
 django/utils/http.py
 django/utils/importlib.py
+django/utils/inspect.py
 django/utils/ipv6.py
 django/utils/itercompat.py
 django/utils/jslex.py
@@ -3403,6 +3404,7 @@ docs/releases/1.8.2.txt
 docs/releases/1.8.3.txt
 docs/releases/1.8.4.txt
 docs/releases/1.8.5.txt
+docs/releases/1.8.6.txt
 docs/releases/1.8.txt
 docs/releases/index.txt
 docs/releases/security.txt
