@@ -1,4 +1,4 @@
-From 3928fb453cb5bcc019500a486895ce0d215173da Mon Sep 17 00:00:00 2001
+From 836389c5bf9ac0ac4b795f9ab1b7c72276a465bb Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Rapha=C3=ABl=20Hertzog?= <hertzog@debian.org>
 Date: Sun, 11 Oct 2015 11:43:19 +1100
 Subject: Disable creation of _sources directory by Sphinx
