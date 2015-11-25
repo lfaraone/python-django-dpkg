@@ -1,4 +1,4 @@
-python-django (1.8.7-2) UNRELEASED; urgency=high
+python-django (1.8.7-2) unstable; urgency=high
 
   * Rely on C.UTF-8 to run the tests instead of building our locale ourselves.
   * Add debian/patches/fix-25761-add-traceback-attribute.patch:
@@ -9,7 +9,7 @@ python-django (1.8.7-2) UNRELEASED; urgency=high
   * Cleanup debian/copyright for dropped/renamed files.
   * Run tests for all supported Python versions.
 
- -- Raphaël Hertzog <hertzog@debian.org>  Wed, 25 Nov 2015 12:32:25 +0100
+ -- Raphaël Hertzog <hertzog@debian.org>  Wed, 25 Nov 2015 16:16:10 +0100
 
 python-django (1.8.7-1) unstable; urgency=high
 
