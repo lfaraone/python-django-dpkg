@@ -19,11 +19,8 @@ override_dh_auto_build:
 
 override_dh_auto_test:
 ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
-	mkdir -p tmp-locales
-	localedef -i /usr/share/i18n/locales/en_US -c -f UTF-8 -A /usr/share/locale/locale.alias tmp-locales/en_US.UTF-8
-	cd tests && LOCPATH=$(CURDIR)/tmp-locales LC_ALL=en_US.UTF-8 PYTHONPATH=.. python ./runtests.py --verbosity=2
-	cd tests && LOCPATH=$(CURDIR)/tmp-locales LC_ALL=en_US.UTF-8 PYTHONPATH=.. python3 ./runtests.py --verbosity=2
-	rm -rf tmp-locales
+	cd tests && LC_ALL=C.UTF-8 PYTHONPATH=.. python ./runtests.py --verbosity=2
+	cd tests && LC_ALL=C.UTF-8 PYTHONPATH=.. python3 ./runtests.py --verbosity=2
 endif
 
 override_dh_clean:
