@@ -2094,6 +2094,7 @@ django/contrib/postgres/fields/__init__.py
 django/contrib/postgres/fields/array.py
 django/contrib/postgres/fields/hstore.py
 django/contrib/postgres/fields/ranges.py
+django/contrib/postgres/fields/utils.py
 django/contrib/postgres/forms/__init__.py
 django/contrib/postgres/forms/array.py
 django/contrib/postgres/forms/hstore.py
@@ -3390,6 +3391,7 @@ docs/releases/1.6.9.txt
 docs/releases/1.6.txt
 docs/releases/1.7.1.txt
 docs/releases/1.7.10.txt
+docs/releases/1.7.11.txt
 docs/releases/1.7.2.txt
 docs/releases/1.7.3.txt
 docs/releases/1.7.4.txt
@@ -3405,6 +3407,7 @@ docs/releases/1.8.3.txt
 docs/releases/1.8.4.txt
 docs/releases/1.8.5.txt
 docs/releases/1.8.6.txt
+docs/releases/1.8.7.txt
 docs/releases/1.8.txt
 docs/releases/index.txt
 docs/releases/security.txt
