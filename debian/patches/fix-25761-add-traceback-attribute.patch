@@ -1,0 +1,82 @@
+From b3992b07f827d3c952aca397708b5d8074230686 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Rapha=C3=ABl=20Hertzog?= <hertzog@debian.org>
+Date: Wed, 25 Nov 2015 12:54:52 +0100
+Subject: Fix #25761 -- re-raised exceptions need __cause__.__traceback__
+
+When Django re-raises an exception, it sets the __cause__ attribute even
+in Python 2, thus mimicking Python's 3 behaviour for "raise Foo from Bar".
+However Python 3 also ensures that all exceptions have a __traceback__
+attribute and thus the "traceback2" Python 2 module (backport of Python
+3's "traceback" module) relies on the fact that whenever you have a
+__cause__ attribute, the recorded exception also has a __traceback__
+attribute.
+
+This is breaking at least testtools which is using traceback2 (see
+https://github.com/testing-cabal/testtools/issues/162).
+
+This commit fixes this inconsistency by ensuring that Django sets
+the __traceback__ attribute on any exception stored in a __cause__
+attribute of a re-raised exception.
+
+Patch-Name: fix-25761-add-traceback-attribute.patch
+---
+ django/db/migrations/loader.py | 2 ++
+ django/db/utils.py             | 2 ++
+ django/utils/timezone.py       | 2 ++
+ docs/ref/exceptions.txt        | 4 +++-
+ 4 files changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/django/db/migrations/loader.py b/django/db/migrations/loader.py
+index bbd60a6..8939537 100644
+--- a/django/db/migrations/loader.py
++++ b/django/db/migrations/loader.py
+@@ -287,6 +287,8 @@ class MigrationLoader(object):
+                         ),
+                         missing)
+                     exc_value.__cause__ = exc
++                    if not hasattr(exc, '__traceback__'):
++                        exc.__traceback__ = sys.exc_info()[2]
+                     six.reraise(NodeNotFoundError, exc_value, sys.exc_info()[2])
+             raise exc
+ 
+diff --git a/django/db/utils.py b/django/db/utils.py
+index ccfcfd4..24020dc 100644
+--- a/django/db/utils.py
++++ b/django/db/utils.py
+@@ -91,6 +91,8 @@ class DatabaseErrorWrapper(object):
+             if issubclass(exc_type, db_exc_type):
+                 dj_exc_value = dj_exc_type(*exc_value.args)
+                 dj_exc_value.__cause__ = exc_value
++                if not hasattr(exc_value, '__traceback__'):
++                    exc_value.__traceback__ = traceback
+                 # Only set the 'errors_occurred' flag for errors that may make
+                 # the connection unusable.
+                 if dj_exc_type not in (DataError, IntegrityError):
+diff --git a/django/utils/timezone.py b/django/utils/timezone.py
+index dbda90c..f64576d 100644
+--- a/django/utils/timezone.py
++++ b/django/utils/timezone.py
+@@ -146,6 +146,8 @@ class LocalTimezone(ReferenceLocalTimezone):
+             exc_value = exc_type(
+                 "Unsupported value: %r. You should install pytz." % dt)
+             exc_value.__cause__ = exc
++            if not hasattr(exc, '__traceback__'):
++                exc.__traceback__ = sys.exc_info()[2]
+             six.reraise(exc_type, exc_value, sys.exc_info()[2])
+ 
+ utc = pytz.utc if pytz else UTC()
+diff --git a/docs/ref/exceptions.txt b/docs/ref/exceptions.txt
+index 46a0c81..a16d352 100644
+--- a/docs/ref/exceptions.txt
++++ b/docs/ref/exceptions.txt
+@@ -201,7 +201,9 @@ As per :pep:`3134`, a ``__cause__`` attribute is set with the original
+ (underlying) database exception, allowing access to any additional
+ information provided. (Note that this attribute is available under
+ both Python 2 and Python 3, although :pep:`3134` normally only applies
+-to Python 3.)
++to Python 3. With Python 2, Django will also record the traceback in the
++``__traceback__`` attribute of the exception made available via
++``__cause__``.)
+ 
+ .. exception:: models.ProtectedError
+ 
