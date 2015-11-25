@@ -1,2 +1,6 @@
 # False positive filed in #799861
 source-is-missing django/contrib/admin/static/admin/js/SelectFilter2.js
+source-is-missing django/contrib/admin/static/admin/js/calendar.js
+source-is-missing django/contrib/gis/templates/gis/admin/openlayers.js
+source-is-missing django/contrib/gis/templates/gis/google/google-map.js
+source-is-missing django/contrib/admin/static/admin/js/admin/DateTimeShortcuts.js
