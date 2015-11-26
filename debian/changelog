@@ -1,6 +1,7 @@
 python-django (1.9~rc2-1) UNRELEASED; urgency=medium
 
   * New upstream release candidate.
+  * Add myself to Uploaders.
 
  -- Chris Lamb <lamby@debian.org>  Thu, 26 Nov 2015 09:48:09 +0200
 

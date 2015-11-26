@@ -4,7 +4,8 @@ Priority: optional
 Maintainer: Debian Python Modules Team <python-modules-team@lists.alioth.debian.org>
 Uploaders: Luke Faraone <lfaraone@debian.org>,
  Raphaël Hertzog <hertzog@debian.org>,
- Brian May <bam@debian.org>
+ Brian May <bam@debian.org>,
+ Chris Lamb <lamby@debian.org>
 Standards-Version: 3.9.6
 Build-Depends: debhelper (>= 9), dh-python, python-all (>= 2.6.6-3~), python3-all, python-sphinx (>= 1.0.8), locales (>= 0),
 # Needed to enable supplementary tests in test suite
