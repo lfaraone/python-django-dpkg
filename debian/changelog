@@ -1,10 +1,10 @@
-python-django (1.9~rc2-2) UNRELEASED; urgency=medium
+python-django (1.9~rc2-2) experimental; urgency=medium
 
   * Move {app,project}_template to python-django-common to prevent
     byte-compilation (via pycompile) on installation, causing failure. They are
     not valid Python files until variables have been interpolated.
 
- -- Chris Lamb <lamby@debian.org>  Thu, 26 Nov 2015 14:42:28 +0200
+ -- Chris Lamb <lamby@debian.org>  Thu, 26 Nov 2015 14:53:11 +0200
 
 python-django (1.9~rc2-1) experimental; urgency=medium
 
