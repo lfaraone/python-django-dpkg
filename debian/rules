@@ -65,7 +65,8 @@ override_dh_install:
 
 override_dh_python3:
 	dh_python3
-	find debian/python3-django/usr/lib/python3/dist-packages/ -type f -not -name '*.py' | \
+	find debian/python3-django/usr/lib/python3/dist-packages/ \
+		\( -type f -not -name '*.py' \) -o \( -type d -path '*/django/conf/*_template' \) | \
 	(while read file; do \
 		relname=$${file##debian/python3-django/usr/lib/python3/dist-packages/}; \
 		reldirname=$$(dirname $$relname); \
@@ -73,10 +74,10 @@ override_dh_python3:
 		mv $$file debian/python-django-common/usr/share/python-django-common/$$reldirname/; \
 		ln -sf /usr/share/python-django-common/$$relname $$file; \
 		if test -e debian/python-django/usr/share/pyshared/$$relname; then \
-		    rm debian/python-django/usr/share/pyshared/$$relname; \
+		    rm -rf debian/python-django/usr/share/pyshared/$$relname; \
 		    ln -sf /usr/share/python-django-common/$$relname debian/python-django/usr/share/pyshared/$$relname; \
 		else \
-		    rm debian/python-django/usr/lib/python2.7/dist-packages/$$relname; \
+		    rm -rf debian/python-django/usr/lib/python2.7/dist-packages/$$relname; \
 		    ln -sf /usr/share/python-django-common/$$relname debian/python-django/usr/lib/python2.7/dist-packages/$$relname; \
 		fi \
 	done)
