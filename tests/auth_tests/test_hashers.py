@@ -45,10 +45,10 @@ class TestUtilsHashPass(SimpleTestCase):
         self.assertTrue(check_password('', blank_encoded))
         self.assertFalse(check_password(' ', blank_encoded))
 
-    def test_pkbdf2(self):
+    def test_pbkdf2(self):
         encoded = make_password('lètmein', 'seasalt', 'pbkdf2_sha256')
         self.assertEqual(encoded,
-            'pbkdf2_sha256$20000$seasalt$oBSd886ysm3AqYun62DOdin8YcfbU1z9cksZSuLP9r0=')
+            'pbkdf2_sha256$24000$seasalt$V9DfCAVoweeLwxC/L2mb+7swhzF0XYdyQMqmusZqiTc=')
         self.assertTrue(is_password_usable(encoded))
         self.assertTrue(check_password('lètmein', encoded))
         self.assertFalse(check_password('lètmeinz', encoded))
@@ -177,6 +177,38 @@ class TestUtilsHashPass(SimpleTestCase):
         self.assertTrue(check_password('', blank_encoded))
         self.assertFalse(check_password(' ', blank_encoded))
 
+    @skipUnless(bcrypt, "bcrypt not installed")
+    def test_bcrypt_upgrade(self):
+        hasher = get_hasher('bcrypt')
+        self.assertEqual('bcrypt', hasher.algorithm)
+        self.assertNotEqual(hasher.rounds, 4)
+
+        old_rounds = hasher.rounds
+        try:
+            # Generate a password with 4 rounds.
+            hasher.rounds = 4
+            encoded = make_password('letmein', hasher='bcrypt')
+            rounds = hasher.safe_summary(encoded)['work factor']
+            self.assertEqual(rounds, '04')
+
+            state = {'upgraded': False}
+
+            def setter(password):
+                state['upgraded'] = True
+
+            # Check that no upgrade is triggered.
+            self.assertTrue(check_password('letmein', encoded, setter, 'bcrypt'))
+            self.assertFalse(state['upgraded'])
+
+            # Revert to the old rounds count and ...
+            hasher.rounds = old_rounds
+
+            # ... check if the password would get updated to the new count.
+            self.assertTrue(check_password('letmein', encoded, setter, 'bcrypt'))
+            self.assertTrue(state['upgraded'])
+        finally:
+            hasher.rounds = old_rounds
+
     def test_unusable(self):
         encoded = make_password(None)
         self.assertEqual(len(encoded), len(UNUSABLE_PASSWORD_PREFIX) + UNUSABLE_PASSWORD_SUFFIX_LENGTH)
@@ -208,18 +240,18 @@ class TestUtilsHashPass(SimpleTestCase):
         self.assertFalse(is_password_usable('lètmein_badencoded'))
         self.assertFalse(is_password_usable(''))
 
-    def test_low_level_pkbdf2(self):
+    def test_low_level_pbkdf2(self):
         hasher = PBKDF2PasswordHasher()
         encoded = hasher.encode('lètmein', 'seasalt2')
         self.assertEqual(encoded,
-            'pbkdf2_sha256$20000$seasalt2$Flpve/uAcyo6+IFI6YAhjeABGPVbRQjzHDxRhqxewgw=')
+            'pbkdf2_sha256$24000$seasalt2$TUDkfilKHVC7BkaKSZgIKhm0aTtXlmcw/5C1FeS/DPk=')
         self.assertTrue(hasher.verify('lètmein', encoded))
 
     def test_low_level_pbkdf2_sha1(self):
         hasher = PBKDF2SHA1PasswordHasher()
         encoded = hasher.encode('lètmein', 'seasalt2')
         self.assertEqual(encoded,
-            'pbkdf2_sha1$20000$seasalt2$pJt86NmjAweBY1StBvxCu7l1o9o=')
+            'pbkdf2_sha1$24000$seasalt2$L37ETdd9trqrsJDwapU3P+2Edhg=')
         self.assertTrue(hasher.verify('lètmein', encoded))
 
     def test_upgrade(self):
@@ -321,7 +353,7 @@ class TestUtilsHashPass(SimpleTestCase):
     def test_load_library_importerror(self):
         PlainHasher = type(str('PlainHasher'), (BasePasswordHasher,),
                            {'algorithm': 'plain', 'library': 'plain'})
-        # Python 3.3 adds quotes around module name
+        # Python 3 adds quotes around module name
         with six.assertRaisesRegex(self, ValueError,
                 "Couldn't load 'PlainHasher' algorithm library: No module named '?plain'?"):
             PlainHasher()._load_library()

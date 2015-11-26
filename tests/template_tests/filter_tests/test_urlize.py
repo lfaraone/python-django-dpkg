@@ -106,6 +106,26 @@ class FunctionTests(SimpleTestCase):
             '<a href="http://djangoproject.org/" rel="nofollow">djangoproject.org/</a>',
         )
 
+    def test_url_split_chars(self):
+        # Quotes (single and double) and angle brackets shouldn't be considered
+        # part of URLs.
+        self.assertEqual(
+            urlize('www.server.com"abc'),
+            '<a href="http://www.server.com" rel="nofollow">www.server.com</a>&quot;abc',
+        )
+        self.assertEqual(
+            urlize('www.server.com\'abc'),
+            '<a href="http://www.server.com" rel="nofollow">www.server.com</a>&#39;abc',
+        )
+        self.assertEqual(
+            urlize('www.server.com<abc'),
+            '<a href="http://www.server.com" rel="nofollow">www.server.com</a>&lt;abc',
+        )
+        self.assertEqual(
+            urlize('www.server.com>abc'),
+            '<a href="http://www.server.com" rel="nofollow">www.server.com</a>&gt;abc',
+        )
+
     def test_email(self):
         self.assertEqual(
             urlize('info@djangoproject.org'),
@@ -320,7 +340,7 @@ class FunctionTests(SimpleTestCase):
     def test_autoescape(self):
         self.assertEqual(
             urlize('foo<a href=" google.com ">bar</a>buz'),
-            'foo&lt;a href=&quot; <a href="http://google.com" rel="nofollow">google.com</a> &quot;&gt;bar&lt;/a&gt;buz',
+            'foo&lt;a href=&quot; <a href="http://google.com" rel="nofollow">google.com</a> &quot;&gt;bar&lt;/a&gt;buz'
         )
 
     def test_autoescape_off(self):

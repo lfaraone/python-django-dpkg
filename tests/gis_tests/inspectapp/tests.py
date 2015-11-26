@@ -8,28 +8,31 @@ from django.contrib.gis.gdal import HAS_GDAL
 from django.core.management import call_command
 from django.db import connection, connections
 from django.test import TestCase, skipUnlessDBFeature
+from django.test.utils import modify_settings
 from django.utils.six import StringIO
 
 from ..test_data import TEST_DATA
 
 if HAS_GDAL:
-    from django.contrib.gis.gdal import Driver, GDALException
+    from django.contrib.gis.gdal import Driver, GDALException, GDAL_VERSION
     from django.contrib.gis.utils.ogrinspect import ogrinspect
 
     from .models import AllOGRFields
 
 
 @skipUnless(HAS_GDAL, "InspectDbTests needs GDAL support")
-@skipUnlessDBFeature("gis_enabled")
 class InspectDbTests(TestCase):
+    @skipUnlessDBFeature("gis_enabled")
     def test_geom_columns(self):
         """
         Test the geo-enabled inspectdb command.
         """
         out = StringIO()
-        call_command('inspectdb',
-                 table_name_filter=lambda tn: tn.startswith('inspectapp_'),
-                 stdout=out)
+        call_command(
+            'inspectdb',
+            table_name_filter=lambda tn: tn == 'inspectapp_allogrfields',
+            stdout=out
+        )
         output = out.getvalue()
         if connection.features.supports_geometry_field_introspection:
             self.assertIn('geom = models.PolygonField()', output)
@@ -37,11 +40,30 @@ class InspectDbTests(TestCase):
         else:
             self.assertIn('geom = models.GeometryField(', output)
             self.assertIn('point = models.GeometryField(', output)
-        self.assertIn('objects = models.GeoManager()', output)
+
+    @skipUnlessDBFeature("supports_3d_storage")
+    def test_3d_columns(self):
+        out = StringIO()
+        call_command(
+            'inspectdb',
+            table_name_filter=lambda tn: tn == 'inspectapp_fields3d',
+            stdout=out
+        )
+        output = out.getvalue()
+        if connection.features.supports_geometry_field_introspection:
+            self.assertIn('point = models.PointField(dim=3)', output)
+            self.assertIn('line = models.LineStringField(dim=3)', output)
+            self.assertIn('poly = models.PolygonField(dim=3)', output)
+        else:
+            self.assertIn('point = models.GeometryField(', output)
+            self.assertIn('line = models.GeometryField(', output)
+            self.assertIn('poly = models.GeometryField(', output)
 
 
 @skipUnless(HAS_GDAL, "OGRInspectTest needs GDAL support")
-@skipUnlessDBFeature("gis_enabled")
+@modify_settings(
+    INSTALLED_APPS={'append': 'django.contrib.gis'},
+)
 class OGRInspectTest(TestCase):
     maxDiff = 1024
 
@@ -55,13 +77,21 @@ class OGRInspectTest(TestCase):
             '',
             'class MyModel(models.Model):',
             '    float = models.FloatField()',
-            '    int = models.FloatField()',
+            '    int = models.{}()'.format('BigIntegerField' if GDAL_VERSION >= (2, 0) else 'FloatField'),
             '    str = models.CharField(max_length=80)',
             '    geom = models.PolygonField(srid=-1)',
-            '    objects = models.GeoManager()',
         ]
 
         self.assertEqual(model_def, '\n'.join(expected))
+
+    def test_poly_multi(self):
+        shp_file = os.path.join(TEST_DATA, 'test_poly', 'test_poly.shp')
+        model_def = ogrinspect(shp_file, 'MyModel', multi_geom=True)
+        self.assertIn('geom = models.MultiPolygonField(srid=-1)', model_def)
+        # Same test with a 25D-type geometry field
+        shp_file = os.path.join(TEST_DATA, 'gas_lines', 'gas_leitung.shp')
+        model_def = ogrinspect(shp_file, 'MyModel', multi_geom=True)
+        self.assertIn('geom = models.MultiLineStringField(srid=-1)', model_def)
 
     def test_date_field(self):
         shp_file = os.path.join(TEST_DATA, 'cities', 'cities.shp')
@@ -73,11 +103,10 @@ class OGRInspectTest(TestCase):
             '',
             'class City(models.Model):',
             '    name = models.CharField(max_length=80)',
-            '    population = models.FloatField()',
+            '    population = models.{}()'.format('BigIntegerField' if GDAL_VERSION >= (2, 0) else 'FloatField'),
             '    density = models.FloatField()',
             '    created = models.DateField()',
             '    geom = models.PointField(srid=-1)',
-            '    objects = models.GeoManager()',
         ]
 
         self.assertEqual(model_def, '\n'.join(expected))
@@ -114,9 +143,8 @@ class OGRInspectTest(TestCase):
         self.assertIn('    f_char = models.CharField(max_length=10)', model_def)
         self.assertIn('    f_date = models.DateField()', model_def)
 
-        self.assertIsNotNone(re.search(
-            r'    geom = models.PolygonField\(([^\)])*\)\n'  # Some backends may have srid=-1
-            r'    objects = models.GeoManager\(\)', model_def))
+        # Some backends may have srid=-1
+        self.assertIsNotNone(re.search(r'    geom = models.PolygonField\(([^\)])*\)', model_def))
 
     def test_management_command(self):
         shp_file = os.path.join(TEST_DATA, 'cities', 'cities.shp')

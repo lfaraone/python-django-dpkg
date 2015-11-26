@@ -4,8 +4,6 @@ Applications
 
 .. module:: django.apps
 
-.. versionadded:: 1.7
-
 Django contains a registry of installed applications that stores configuration
 and provides introspection. It also maintains a list of available :doc:`models
 </topics/db/models>`.
@@ -42,6 +40,8 @@ an ``Application`` object. However, there's a few places where Django needs to
 interact with installed applications, mainly for configuration and also for
 introspection. That's why the application registry maintains metadata in an
 :class:`~django.apps.AppConfig` instance for each installed application.
+
+.. _configuring-applications-ref:
 
 Configuring applications
 ========================
@@ -91,7 +91,9 @@ subclass by default as follows::
 That will cause ``RockNRollConfig`` to be used when :setting:`INSTALLED_APPS`
 just contains ``'rock_n_roll'``. This allows you to make use of
 :class:`~django.apps.AppConfig` features without requiring your users to
-update their :setting:`INSTALLED_APPS` setting.
+update their :setting:`INSTALLED_APPS` setting. Besides this use case, it's
+best to avoid using ``default_app_config`` and instead specify the app config
+class in :setting:`INSTALLED_APPS` as described next.
 
 Of course, you can also tell your users to put
 ``'rock_n_roll.apps.RockNRollConfig'`` in their :setting:`INSTALLED_APPS`

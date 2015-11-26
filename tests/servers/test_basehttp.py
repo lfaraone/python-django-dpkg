@@ -1,9 +1,10 @@
+from io import BytesIO
+
 from django.core.handlers.wsgi import WSGIRequest
 from django.core.servers.basehttp import WSGIRequestHandler
-from django.test import TestCase
+from django.test import SimpleTestCase
 from django.test.client import RequestFactory
 from django.test.utils import captured_stderr
-from django.utils.six import BytesIO
 
 
 class Stub(object):
@@ -11,7 +12,7 @@ class Stub(object):
         self.__dict__.update(kwargs)
 
 
-class WSGIRequestHandlerTestCase(TestCase):
+class WSGIRequestHandlerTestCase(SimpleTestCase):
 
     def test_log_message(self):
         request = WSGIRequest(RequestFactory().get('/').environ)

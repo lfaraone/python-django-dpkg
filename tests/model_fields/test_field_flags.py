@@ -72,7 +72,7 @@ FLAG_PROPERTIES_FOR_RELATIONS = (
 )
 
 
-class FieldFlagsTests(test.TestCase):
+class FieldFlagsTests(test.SimpleTestCase):
     @classmethod
     def setUpClass(cls):
         super(FieldFlagsTests, cls).setUpClass()
@@ -155,7 +155,7 @@ class FieldFlagsTests(test.TestCase):
 
         # Ensure all m2m reverses are m2m
         for field in m2m_type_fields:
-            reverse_field = field.rel
+            reverse_field = field.remote_field
             self.assertTrue(reverse_field.is_relation)
             self.assertTrue(reverse_field.many_to_many)
             self.assertTrue(reverse_field.related_model)
@@ -171,7 +171,7 @@ class FieldFlagsTests(test.TestCase):
         # Ensure all o2m reverses are m2o
         for field in o2m_type_fields:
             if field.concrete:
-                reverse_field = field.rel
+                reverse_field = field.remote_field
                 self.assertTrue(reverse_field.is_relation and reverse_field.many_to_one)
 
     def test_cardinality_m2o(self):
@@ -213,6 +213,12 @@ class FieldFlagsTests(test.TestCase):
         for field in AllFieldsModel._meta.get_fields():
             is_concrete_forward_field = field.concrete and field.related_model
             if is_concrete_forward_field:
-                reverse_field = field.rel
+                reverse_field = field.remote_field
                 self.assertEqual(field.model, reverse_field.related_model)
                 self.assertEqual(field.related_model, reverse_field.model)
+
+    def test_null(self):
+        # null isn't well defined for a ManyToManyField, but changing it to
+        # True causes backwards compatibility problems (#25320).
+        self.assertFalse(AllFieldsModel._meta.get_field('m2m').null)
+        self.assertTrue(AllFieldsModel._meta.get_field('reverse2').null)

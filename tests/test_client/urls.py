@@ -14,8 +14,8 @@ urlpatterns = [
     url(r'^secure_view/$', views.view_with_secure),
     url(r'^permanent_redirect_view/$', RedirectView.as_view(url='/get_view/', permanent=True)),
     url(r'^temporary_redirect_view/$', RedirectView.as_view(url='/get_view/', permanent=False)),
-    url(r'^http_redirect_view/$', RedirectView.as_view(url='/secure_view/', permanent=True)),
-    url(r'^https_redirect_view/$', RedirectView.as_view(url='https://testserver/secure_view/', permanent=True)),
+    url(r'^http_redirect_view/$', RedirectView.as_view(url='/secure_view/')),
+    url(r'^https_redirect_view/$', RedirectView.as_view(url='https://testserver/secure_view/')),
     url(r'^double_redirect_view/$', views.double_redirect_view),
     url(r'^bad_view/$', views.bad_view),
     url(r'^form_view/$', views.form_view),
@@ -31,6 +31,7 @@ urlpatterns = [
     url(r'^broken_view/$', views.broken_view),
     url(r'^mail_sending_view/$', views.mail_sending_view),
     url(r'^mass_mail_sending_view/$', views.mass_mail_sending_view),
+    url(r'^nesting_exception_view/$', views.nesting_exception_view),
     url(r'^django_project_redirect/$', views.django_project_redirect),
 
     url(r'^accounts/login/$', auth_views.login, {'template_name': 'login.html'}),

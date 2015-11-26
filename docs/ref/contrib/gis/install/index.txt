@@ -58,9 +58,9 @@ supported versions, and any notes for each of the supported database backends:
 ==================  ==============================  ==================  =========================================
 Database            Library Requirements            Supported Versions  Notes
 ==================  ==============================  ==================  =========================================
-PostgreSQL          GEOS, PROJ.4, PostGIS           9.0+                Requires PostGIS.
+PostgreSQL          GEOS, PROJ.4, PostGIS           9.1+                Requires PostGIS.
 MySQL               GEOS                            5.5+                Not OGC-compliant; :ref:`limited functionality <mysql-spatial-limitations>`.
-Oracle              GEOS                            11.1+               XE not supported.
+Oracle              GEOS                            11.2+               XE not supported.
 SQLite              GEOS, GDAL, PROJ.4, SpatiaLite  3.6.+               Requires SpatiaLite 2.4+, pysqlite2 2.5+
 ==================  ==============================  ==================  =========================================
 
@@ -205,15 +205,12 @@ Foundation, however, this is not required.
 Python
 ^^^^^^
 
-Although OS X comes with Python installed, users can use framework
-installers (`2.7`__, `3.2`__ and `3.3`__ are available) provided by
-the Python Software Foundation.  An advantage to using the installer is
-that OS X's Python will remain "pristine" for internal operating system
-use.
+Although OS X comes with Python installed, users can use `framework
+installers`__ provided by the Python Software Foundation.  An advantage to
+using the installer is that OS X's Python will remain "pristine" for internal
+operating system use.
 
-__ https://python.org/ftp/python/2.7.5/
-__ https://python.org/ftp/python/3.2.5/
-__ https://python.org/ftp/python/3.3.2/
+__ https://www.python.org/ftp/python/
 
 .. note::
 
@@ -272,7 +269,7 @@ William Kyngesburye provides a number of `geospatial library binary packages`__
 that make it simple to get GeoDjango installed on OS X without compiling
 them from source.  However, the `Apple Developer Tools`_ are still necessary
 for compiling the Python database adapters :ref:`psycopg2_kyngchaos` (for PostGIS)
-and :ref:`pysqlite2` (for SpatiaLite).
+and `pysqlite2 <https://pypi.python.org/pypi/pysqlite>`_ (for SpatiaLite).
 
 .. note::
 
@@ -384,7 +381,7 @@ GeoDjango on Windows.
 Python
 ^^^^^^
 
-First, download the latest `Python 2.7 installer`__ from the Python Web site.
+First, download the latest `Python 2.7 installer`__ from the Python website.
 Next, run the installer and keep the defaults -- for example, keep
 'Install for all users' checked and the installation path set as
 ``C:\Python27``.
@@ -401,7 +398,7 @@ PostgreSQL
 ^^^^^^^^^^
 
 First, download the latest `PostgreSQL 9.x installer`__ from the
-`EnterpriseDB`__ Web site.  After downloading, simply run the installer,
+`EnterpriseDB`__ website.  After downloading, simply run the installer,
 follow the on-screen directions, and keep the default options unless
 you know the consequences of changing them.
 

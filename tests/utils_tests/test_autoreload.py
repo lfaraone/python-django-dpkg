@@ -5,7 +5,7 @@ from importlib import import_module
 
 from django import conf
 from django.contrib import admin
-from django.test import TestCase, override_settings
+from django.test import SimpleTestCase, override_settings
 from django.test.utils import extend_sys_path
 from django.utils import autoreload
 from django.utils._os import npath
@@ -13,7 +13,7 @@ from django.utils._os import npath
 LOCALE_PATH = os.path.join(os.path.dirname(__file__), 'locale')
 
 
-class TestFilenameGenerator(TestCase):
+class TestFilenameGenerator(SimpleTestCase):
 
     def clear_autoreload_caches(self):
         autoreload._cached_modules = set()
@@ -48,7 +48,7 @@ class TestFilenameGenerator(TestCase):
         django_mo = os.path.join(django_dir, 'nl', 'LC_MESSAGES', 'django.mo')
         self.assertFileFound(django_mo)
 
-    @override_settings(LOCALE_PATHS=(LOCALE_PATH,))
+    @override_settings(LOCALE_PATHS=[LOCALE_PATH])
     def test_locale_paths_setting(self):
         """
         Test that gen_filenames also yields from LOCALE_PATHS locales.

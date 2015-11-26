@@ -11,7 +11,13 @@ from django.utils import translation
 @modify_settings(INSTALLED_APPS={'append': ['django.contrib.flatpages', ]})
 @override_settings(SITE_ID=1)
 class FlatpageAdminFormTests(TestCase):
-    fixtures = ['example_site']
+
+    @classmethod
+    def setUpTestData(cls):
+        # don't use the manager because we want to ensure the site exists
+        # with pk=1, regardless of whether or not it already exists.
+        cls.site1 = Site(pk=1, domain='example.com', name='example.com')
+        cls.site1.save()
 
     def setUp(self):
         # Site fields cache needs to be cleared after flatpages is added to
@@ -42,7 +48,7 @@ class FlatpageAdminFormTests(TestCase):
             self.assertEqual(form.errors['url'], ["URL is missing a leading slash."])
 
     @override_settings(APPEND_SLASH=True,
-            MIDDLEWARE_CLASSES=('django.middleware.common.CommonMiddleware',))
+            MIDDLEWARE_CLASSES=['django.middleware.common.CommonMiddleware'])
     def test_flatpage_requires_trailing_slash_with_append_slash(self):
         form = FlatpageForm(data=dict(url='/no_trailing_slash', **self.form_data))
         with translation.override('en'):
@@ -50,7 +56,7 @@ class FlatpageAdminFormTests(TestCase):
             self.assertEqual(form.errors['url'], ["URL is missing a trailing slash."])
 
     @override_settings(APPEND_SLASH=False,
-            MIDDLEWARE_CLASSES=('django.middleware.common.CommonMiddleware',))
+            MIDDLEWARE_CLASSES=['django.middleware.common.CommonMiddleware'])
     def test_flatpage_doesnt_requires_trailing_slash_without_append_slash(self):
         form = FlatpageForm(data=dict(url='/no_trailing_slash', **self.form_data))
         self.assertTrue(form.is_valid())
@@ -74,7 +80,6 @@ class FlatpageAdminFormTests(TestCase):
         """
         Existing flatpages can be edited in the admin form without triggering
         the url-uniqueness validation.
-
         """
         existing = FlatPage.objects.create(
             url="/myflatpage1/", title="Some page", content="The content")

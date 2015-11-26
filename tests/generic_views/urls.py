@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 
 from django.conf.urls import url
 from django.contrib.auth import views as auth_views
+from django.contrib.auth.decorators import login_required
 from django.views.decorators.cache import cache_page
 from django.views.generic import TemplateView
 
@@ -12,6 +13,8 @@ urlpatterns = [
     # TemplateView
     url(r'^template/no_template/$',
         TemplateView.as_view()),
+    url(r'^template/login_required/$',
+        login_required(TemplateView.as_view())),
     url(r'^template/simple/(?P<foo>\w+)/$',
         TemplateView.as_view(template_name='generic_views/about.html')),
     url(r'^template/custom/(?P<foo>\w+)/$',
@@ -275,8 +278,11 @@ urlpatterns = [
     url(r'^dates/books/(?P<year>[0-9]{4})/(?P<month>[a-z]{3})/(?P<day>[0-9]{1,2})/byslug/(?P<slug>[\w-]+)/$',
         views.BookDetail.as_view()),
 
-    url(r'^dates/books/get_object_custom_queryset/(?P<year>[0-9]{4})/(?P<month>[a-z]{3})/(?P<day>[0-9]{1,2})/(?P<pk>[0-9]+)/$',
-        views.BookDetailGetObjectCustomQueryset.as_view()),
+    url(
+        r'^dates/books/get_object_custom_queryset/(?P<year>[0-9]{4})/(?P<month>[a-z]{3})/(?P<day>[0-9]{1,2})/'
+        r'(?P<pk>[0-9]+)/$',
+        views.BookDetailGetObjectCustomQueryset.as_view(),
+    ),
 
     url(r'^dates/booksignings/(?P<year>[0-9]{4})/(?P<month>[a-z]{3})/(?P<day>[0-9]{1,2})/(?P<pk>[0-9]+)/$',
         views.BookSigningDetail.as_view()),

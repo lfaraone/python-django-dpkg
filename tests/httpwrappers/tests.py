@@ -18,7 +18,7 @@ from django.http import (
     HttpResponseRedirect, JsonResponse, QueryDict, SimpleCookie,
     StreamingHttpResponse, parse_cookie,
 )
-from django.test import TestCase
+from django.test import SimpleTestCase
 from django.utils import six
 from django.utils._os import upath
 from django.utils.encoding import force_text, smart_str
@@ -141,13 +141,13 @@ class QueryDictTests(unittest.TestCase):
             self.assertTrue(q.has_key('foo'))
         self.assertIn('foo', q)
 
-        self.assertListEqual(sorted(list(six.iteritems(q))),
+        self.assertListEqual(sorted(six.iteritems(q)),
                              [('foo', 'another'), ('name', 'john')])
-        self.assertListEqual(sorted(list(six.iterlists(q))),
+        self.assertListEqual(sorted(six.iterlists(q)),
                              [('foo', ['bar', 'baz', 'another']), ('name', ['john'])])
-        self.assertListEqual(sorted(list(six.iterkeys(q))),
+        self.assertListEqual(sorted(six.iterkeys(q)),
                              ['foo', 'name'])
-        self.assertListEqual(sorted(list(six.itervalues(q))),
+        self.assertListEqual(sorted(six.itervalues(q)),
                              ['another', 'john'])
 
         q.update({'foo': 'hello'})
@@ -426,7 +426,7 @@ class HttpResponseTests(unittest.TestCase):
                               HttpResponsePermanentRedirect, url)
 
 
-class HttpResponseSubclassesTests(TestCase):
+class HttpResponseSubclassesTests(SimpleTestCase):
     def test_redirect(self):
         response = HttpResponseRedirect('/redirected/')
         self.assertEqual(response.status_code, 302)
@@ -442,6 +442,11 @@ class HttpResponseSubclassesTests(TestCase):
         """Make sure HttpResponseRedirect works with lazy strings."""
         r = HttpResponseRedirect(lazystr('/redirected/'))
         self.assertEqual(r.url, '/redirected/')
+
+    def test_redirect_repr(self):
+        response = HttpResponseRedirect('/redirected/')
+        expected = '<HttpResponseRedirect status_code=302, "text/html; charset=utf-8", url="/redirected/">'
+        self.assertEqual(repr(response), expected)
 
     def test_not_modified(self):
         response = HttpResponseNotModified()
@@ -460,8 +465,13 @@ class HttpResponseSubclassesTests(TestCase):
             content_type='text/html')
         self.assertContains(response, 'Only the GET method is allowed', status_code=405)
 
+    def test_not_allowed_repr(self):
+        response = HttpResponseNotAllowed(['GET', 'OPTIONS'], content_type='text/plain')
+        expected = '<HttpResponseNotAllowed [GET, OPTIONS] status_code=405, "text/plain">'
+        self.assertEqual(repr(response), expected)
 
-class JsonResponseTests(TestCase):
+
+class JsonResponseTests(SimpleTestCase):
     def test_json_response_non_ascii(self):
         data = {'key': 'łóżko'}
         response = JsonResponse(data)
@@ -494,8 +504,12 @@ class JsonResponseTests(TestCase):
         response = JsonResponse({}, encoder=CustomDjangoJSONEncoder)
         self.assertEqual(json.loads(response.content.decode()), {'foo': 'bar'})
 
+    def test_json_response_passing_arguments_to_json_dumps(self):
+        response = JsonResponse({'foo': 'bar'}, json_dumps_params={'indent': 2})
+        self.assertEqual(response.content.decode(), '{\n  "foo": "bar"\n}')
 
-class StreamingHttpResponseTests(TestCase):
+
+class StreamingHttpResponseTests(SimpleTestCase):
     def test_streaming_response(self):
         r = StreamingHttpResponse(iter(['hello', 'world']))
 
@@ -560,7 +574,7 @@ class StreamingHttpResponseTests(TestCase):
         self.assertEqual(r.getvalue(), b'helloworld')
 
 
-class FileCloseTests(TestCase):
+class FileCloseTests(SimpleTestCase):
 
     def setUp(self):
         # Disable the request_finished signal during this test

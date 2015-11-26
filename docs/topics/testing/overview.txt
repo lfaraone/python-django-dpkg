@@ -162,10 +162,8 @@ entirely!). If you want to use a different database name, specify
 :setting:`NAME <TEST_NAME>` in the :setting:`TEST <DATABASE-TEST>`
 dictionary for any given database in :setting:`DATABASES`.
 
-.. versionchanged:: 1.7
-
-    On PostgreSQL, :setting:`USER` will also need read access to the built-in
-    ``postgres`` database.
+On PostgreSQL, :setting:`USER` will also need read access to the built-in
+``postgres`` database.
 
 Aside from using a separate database, the test runner will otherwise
 use all of the same database settings you have in your settings file:
@@ -185,12 +183,6 @@ If using a SQLite in-memory database with Python 3.4+ and SQLite 3.7.13+,
 `shared cache <https://www.sqlite.org/sharedcache.html>`_ will be enabled, so
 you can write tests with ability to share the database between threads.
 
-.. versionchanged:: 1.7
-
-   The different options in the :setting:`TEST <DATABASE-TEST>` database
-   setting used to be separate options in the database settings dictionary,
-   prefixed with ``TEST_``.
-
 .. versionadded:: 1.8
 
     The ability to use SQLite with a shared cache as described above was added.
@@ -204,10 +196,8 @@ you can write tests with ability to share the database between threads.
     your tests. *It is a bad idea to have such import-time database queries in
     your code* anyway - rewrite your code so that it doesn't do this.
 
-    .. versionadded:: 1.7
-
-        This also applies to customized implementations of
-        :meth:`~django.apps.AppConfig.ready()`.
+    This also applies to customized implementations of
+    :meth:`~django.apps.AppConfig.ready()`.
 
 .. seealso::
 
@@ -270,8 +260,12 @@ The initial serialization is usually very quick, but if you wish to exclude
 some apps from this process (and speed up test runs slightly), you may add
 those apps to :setting:`TEST_NON_SERIALIZED_APPS`.
 
-Apps without migrations are not affected; ``initial_data`` fixtures are
-reloaded as usual.
+.. versionchanged:: 1.9
+
+To prevent serialized data from being loaded twice, setting
+``serialized_rollback=True`` disables the
+:data:`~django.db.models.signals.post_migrate` signal when flushing the test
+database.
 
 Other test conditions
 ---------------------
@@ -298,8 +292,6 @@ prepares itself. You can control the level of detail of these messages with the
     Creating test database...
     Creating table myapp_animal
     Creating table myapp_mineral
-    Loading 'initial_data' fixtures...
-    No fixtures found.
 
 This tells you that the test runner is creating a test database, as described
 in the previous section.
@@ -337,6 +329,8 @@ failed and erroneous tests. If all the tests pass, the return code is 0. This
 feature is useful if you're using the test-runner script in a shell script and
 need to test for success or failure at that level.
 
+.. _speeding-up-tests-auth-hashers:
+
 Speeding up the tests
 ---------------------
 
@@ -345,9 +339,9 @@ design. If during your tests you are authenticating many users, you may want
 to use a custom settings file and set the :setting:`PASSWORD_HASHERS` setting
 to a faster hashing algorithm::
 
-    PASSWORD_HASHERS = (
+    PASSWORD_HASHERS = [
         'django.contrib.auth.hashers.MD5PasswordHasher',
-    )
+    ]
 
 Don't forget to also include in :setting:`PASSWORD_HASHERS` any hashing
 algorithm used in fixtures, if any.

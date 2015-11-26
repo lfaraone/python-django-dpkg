@@ -335,7 +335,10 @@ class CustomPrefetchTests(TestCase):
         # Ambiguous: Lookup houses_lst doesn't yet exist when performing houses_lst__rooms.
         with self.assertRaises(AttributeError):
             self.traverse_qs(
-                Person.objects.prefetch_related('houses_lst__rooms', Prefetch('houses', queryset=House.objects.all(), to_attr='houses_lst')),
+                Person.objects.prefetch_related(
+                    'houses_lst__rooms',
+                    Prefetch('houses', queryset=House.objects.all(), to_attr='houses_lst')
+                ),
                 [['houses', 'rooms']]
             )
 
@@ -346,7 +349,10 @@ class CustomPrefetchTests(TestCase):
         )
 
         self.traverse_qs(
-            Person.objects.prefetch_related('houses__rooms', Prefetch('houses', queryset=House.objects.all(), to_attr='houses_lst')),
+            Person.objects.prefetch_related(
+                'houses__rooms',
+                Prefetch('houses', queryset=House.objects.all(), to_attr='houses_lst')
+            ),
             [['houses', 'rooms']]
         )
 
@@ -559,8 +565,15 @@ class CustomPrefetchTests(TestCase):
 
         # Test queryset filtering.
         with self.assertNumQueries(2):
-            lst2 = list(Person.objects.prefetch_related(
-                Prefetch('houses', queryset=House.objects.filter(pk__in=[self.house1.pk, self.house3.pk]), to_attr='houses_lst')))
+            lst2 = list(
+                Person.objects.prefetch_related(
+                    Prefetch(
+                        'houses',
+                        queryset=House.objects.filter(pk__in=[self.house1.pk, self.house3.pk]),
+                        to_attr='houses_lst',
+                    )
+                )
+            )
         self.assertEqual(len(lst2[0].houses_lst), 1)
         self.assertEqual(lst2[0].houses_lst[0], self.house1)
         self.assertEqual(len(lst2[1].houses_lst), 1)
@@ -604,7 +617,7 @@ class CustomPrefetchTests(TestCase):
         self.assertEqual(lst2[0].houses_lst[0].rooms_lst[0].main_room_of, self.house1)
         self.assertEqual(len(lst2[1].houses_lst), 0)
 
-        # Test ReverseSingleRelatedObjectDescriptor.
+        # Test ForwardManyToOneDescriptor.
         houses = House.objects.select_related('owner')
         with self.assertNumQueries(6):
             rooms = Room.objects.all().prefetch_related('house')
@@ -618,10 +631,14 @@ class CustomPrefetchTests(TestCase):
             rooms = Room.objects.all().prefetch_related(Prefetch('house', queryset=houses.all(), to_attr='house_attr'))
             lst2 = self.traverse_qs(rooms, [['house_attr', 'owner']])
         self.assertEqual(lst1, lst2)
-        room = Room.objects.all().prefetch_related(Prefetch('house', queryset=houses.filter(address='DoesNotExist'))).first()
+        room = Room.objects.all().prefetch_related(
+            Prefetch('house', queryset=houses.filter(address='DoesNotExist'))
+        ).first()
         with self.assertRaises(ObjectDoesNotExist):
             getattr(room, 'house')
-        room = Room.objects.all().prefetch_related(Prefetch('house', queryset=houses.filter(address='DoesNotExist'), to_attr='house_attr')).first()
+        room = Room.objects.all().prefetch_related(
+            Prefetch('house', queryset=houses.filter(address='DoesNotExist'), to_attr='house_attr')
+        ).first()
         self.assertIsNone(room.house_attr)
         rooms = Room.objects.all().prefetch_related(Prefetch('house', queryset=House.objects.only('name')))
         with self.assertNumQueries(2):
@@ -629,7 +646,7 @@ class CustomPrefetchTests(TestCase):
         with self.assertNumQueries(3):
             getattr(rooms.first().house, 'address')
 
-        # Test SingleRelatedObjectDescriptor.
+        # Test ReverseOneToOneDescriptor.
         houses = House.objects.select_related('owner')
         with self.assertNumQueries(6):
             rooms = Room.objects.all().prefetch_related('main_room_of')
@@ -639,14 +656,33 @@ class CustomPrefetchTests(TestCase):
             lst2 = self.traverse_qs(rooms, [['main_room_of', 'owner']])
         self.assertEqual(lst1, lst2)
         with self.assertNumQueries(2):
-            rooms = list(Room.objects.all().prefetch_related(Prefetch('main_room_of', queryset=houses.all(), to_attr='main_room_of_attr')))
+            rooms = list(
+                Room.objects.all().prefetch_related(
+                    Prefetch('main_room_of', queryset=houses.all(), to_attr='main_room_of_attr')
+                )
+            )
             lst2 = self.traverse_qs(rooms, [['main_room_of_attr', 'owner']])
         self.assertEqual(lst1, lst2)
-        room = Room.objects.filter(main_room_of__isnull=False).prefetch_related(Prefetch('main_room_of', queryset=houses.filter(address='DoesNotExist'))).first()
+        room = Room.objects.filter(main_room_of__isnull=False).prefetch_related(
+            Prefetch('main_room_of', queryset=houses.filter(address='DoesNotExist'))
+        ).first()
         with self.assertRaises(ObjectDoesNotExist):
             getattr(room, 'main_room_of')
-        room = Room.objects.filter(main_room_of__isnull=False).prefetch_related(Prefetch('main_room_of', queryset=houses.filter(address='DoesNotExist'), to_attr='main_room_of_attr')).first()
+        room = Room.objects.filter(main_room_of__isnull=False).prefetch_related(
+            Prefetch('main_room_of', queryset=houses.filter(address='DoesNotExist'), to_attr='main_room_of_attr')
+        ).first()
         self.assertIsNone(room.main_room_of_attr)
+
+    def test_nested_prefetch_related_are_not_overwritten(self):
+        # Regression test for #24873
+        houses_2 = House.objects.prefetch_related(Prefetch('rooms'))
+        persons = Person.objects.prefetch_related(Prefetch('houses', queryset=houses_2))
+        houses = House.objects.prefetch_related(Prefetch('occupants', queryset=persons))
+        list(houses)  # queryset must be evaluated once to reproduce the bug.
+        self.assertEqual(
+            houses.all()[0].occupants.all()[0].houses.all()[1].rooms.all()[0],
+            self.room2_1
+        )
 
 
 class DefaultManagerTests(TestCase):

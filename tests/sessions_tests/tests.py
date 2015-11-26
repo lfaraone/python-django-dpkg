@@ -18,6 +18,9 @@ from django.contrib.sessions.backends.signed_cookies import \
 from django.contrib.sessions.exceptions import InvalidSessionKey
 from django.contrib.sessions.middleware import SessionMiddleware
 from django.contrib.sessions.models import Session
+from django.contrib.sessions.serializers import (
+    JSONSerializer, PickleSerializer,
+)
 from django.core import management
 from django.core.cache import caches
 from django.core.cache.backends.base import InvalidCacheBackendError
@@ -30,6 +33,8 @@ from django.test.utils import patch_logger
 from django.utils import six, timezone
 from django.utils.encoding import force_text
 from django.utils.six.moves import http_cookies
+
+from .custom_db_backend import SessionStore as CustomDatabaseSession
 
 
 class SessionTestsMixin(object):
@@ -200,6 +205,21 @@ class SessionTestsMixin(object):
             # session key; make sure that entry is manually deleted
             session.delete('1')
 
+    def test_session_key_empty_string_invalid(self):
+        """Falsey values (Such as an empty string) are rejected."""
+        self.session._session_key = ''
+        self.assertIsNone(self.session.session_key)
+
+    def test_session_key_too_short_invalid(self):
+        """Strings shorter than 8 characters are rejected."""
+        self.session._session_key = '1234567'
+        self.assertIsNone(self.session.session_key)
+
+    def test_session_key_valid_string_saved(self):
+        """Strings of length 8 and up are accepted and stored."""
+        self.session._session_key = '12345678'
+        self.assertEqual(self.session.session_key, '12345678')
+
     def test_session_key_is_read_only(self):
         def set_session_key(session):
             session.session_key = session._get_new_session_key()
@@ -337,6 +357,11 @@ class SessionTestsMixin(object):
 class DatabaseSessionTests(SessionTestsMixin, TestCase):
 
     backend = DatabaseSession
+    session_engine = 'django.contrib.sessions.backends.db'
+
+    @property
+    def model(self):
+        return self.backend.get_model_class()
 
     def test_session_str(self):
         "Session repr should be the session key."
@@ -344,7 +369,7 @@ class DatabaseSessionTests(SessionTestsMixin, TestCase):
         self.session.save()
 
         session_key = self.session.session_key
-        s = Session.objects.get(session_key=session_key)
+        s = self.model.objects.get(session_key=session_key)
 
         self.assertEqual(force_text(s), session_key)
 
@@ -356,7 +381,7 @@ class DatabaseSessionTests(SessionTestsMixin, TestCase):
         self.session['x'] = 1
         self.session.save()
 
-        s = Session.objects.get(session_key=self.session.session_key)
+        s = self.model.objects.get(session_key=self.session.session_key)
 
         self.assertEqual(s.get_decoded(), {'x': 1})
 
@@ -368,19 +393,18 @@ class DatabaseSessionTests(SessionTestsMixin, TestCase):
         self.session['y'] = 1
         self.session.save()
 
-        s = Session.objects.get(session_key=self.session.session_key)
+        s = self.model.objects.get(session_key=self.session.session_key)
         # Change it
-        Session.objects.save(s.session_key, {'y': 2}, s.expire_date)
+        self.model.objects.save(s.session_key, {'y': 2}, s.expire_date)
         # Clear cache, so that it will be retrieved from DB
         del self.session._session_cache
         self.assertEqual(self.session['y'], 2)
 
-    @override_settings(SESSION_ENGINE="django.contrib.sessions.backends.db")
     def test_clearsessions_command(self):
         """
         Test clearsessions command for clearing expired sessions.
         """
-        self.assertEqual(0, Session.objects.count())
+        self.assertEqual(0, self.model.objects.count())
 
         # One object in the future
         self.session['foo'] = 'bar'
@@ -394,15 +418,39 @@ class DatabaseSessionTests(SessionTestsMixin, TestCase):
         other_session.save()
 
         # Two sessions are in the database before clearsessions...
-        self.assertEqual(2, Session.objects.count())
-        management.call_command('clearsessions')
+        self.assertEqual(2, self.model.objects.count())
+        with override_settings(SESSION_ENGINE=self.session_engine):
+            management.call_command('clearsessions')
         # ... and one is deleted.
-        self.assertEqual(1, Session.objects.count())
+        self.assertEqual(1, self.model.objects.count())
 
 
 @override_settings(USE_TZ=True)
 class DatabaseSessionWithTimeZoneTests(DatabaseSessionTests):
     pass
+
+
+class CustomDatabaseSessionTests(DatabaseSessionTests):
+    backend = CustomDatabaseSession
+    session_engine = 'sessions_tests.custom_db_backend'
+
+    def test_extra_session_field(self):
+        # Set the account ID to be picked up by a custom session storage
+        # and saved to a custom session model database column.
+        self.session['_auth_user_id'] = 42
+        self.session.save()
+
+        # Make sure that the customized create_model_instance() was called.
+        s = self.model.objects.get(session_key=self.session.session_key)
+        self.assertEqual(s.account_id, 42)
+
+        # Make the session "anonymous".
+        self.session.pop('_auth_user_id')
+        self.session.save()
+
+        # Make sure that save() on an existing session did the right job.
+        s = self.model.objects.get(session_key=self.session.session_key)
+        self.assertEqual(s.account_id, None)
 
 
 class CacheDBSessionTests(SessionTestsMixin, TestCase):
@@ -677,6 +725,45 @@ class SessionMiddlewareTests(TestCase):
         # The session is accessed so "Vary: Cookie" should be set.
         self.assertEqual(response['Vary'], 'Cookie')
 
+    def test_empty_session_saved(self):
+        """
+        If a session is emptied of data but still has a key, it should still
+        be updated.
+        """
+        request = RequestFactory().get('/')
+        response = HttpResponse('Session test')
+        middleware = SessionMiddleware()
+
+        # Set a session key and some data.
+        middleware.process_request(request)
+        request.session['foo'] = 'bar'
+        # Handle the response through the middleware.
+        response = middleware.process_response(request, response)
+        self.assertEqual(tuple(request.session.items()), (('foo', 'bar'),))
+        # A cookie should be set, along with Vary: Cookie.
+        self.assertIn(
+            'Set-Cookie: sessionid=%s' % request.session.session_key,
+            str(response.cookies)
+        )
+        self.assertEqual(response['Vary'], 'Cookie')
+
+        # Empty the session data.
+        del request.session['foo']
+        # Handle the response through the middleware.
+        response = HttpResponse('Session test')
+        response = middleware.process_response(request, response)
+        self.assertEqual(dict(request.session.values()), {})
+        session = Session.objects.get(session_key=request.session.session_key)
+        self.assertEqual(session.get_decoded(), {})
+        # While the session is empty, it hasn't been flushed so a cookie should
+        # still be set, along with Vary: Cookie.
+        self.assertGreater(len(request.session.session_key), 8)
+        self.assertIn(
+            'Set-Cookie: sessionid=%s' % request.session.session_key,
+            str(response.cookies)
+        )
+        self.assertEqual(response['Vary'], 'Cookie')
+
 
 # Don't need DB flushing for these tests, so can use unittest.TestCase as base class
 class CookieSessionTests(SessionTestsMixin, unittest.TestCase):
@@ -703,3 +790,12 @@ class CookieSessionTests(SessionTestsMixin, unittest.TestCase):
     def test_actual_expiry(self):
         # The cookie backend doesn't handle non-default expiry dates, see #19201
         super(CookieSessionTests, self).test_actual_expiry()
+
+    def test_unpickling_exception(self):
+        # signed_cookies backend should handle unpickle exceptions gracefully
+        # by creating a new session
+        self.assertEqual(self.session.serializer, JSONSerializer)
+        self.session.save()
+
+        self.session.serializer = PickleSerializer
+        self.session.load()

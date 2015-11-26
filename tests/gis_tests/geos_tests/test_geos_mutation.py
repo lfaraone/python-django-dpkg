@@ -5,18 +5,13 @@
 import unittest
 from unittest import skipUnless
 
-from django.contrib.gis.geos import HAS_GEOS
-
-if HAS_GEOS:
-    from django.contrib.gis.geos import (
-        fromstr, LinearRing, LineString, MultiPoint, Point, Polygon,
-    )
-    from django.contrib.gis.geos.error import GEOSIndexError
+from django.contrib.gis.geos import (
+    HAS_GEOS, LinearRing, LineString, MultiPoint, Point, Polygon, fromstr,
+)
 
 
-if HAS_GEOS:
-    def api_get_distance(x):
-        return x.distance(Point(-200, -200))
+def api_get_distance(x):
+    return x.distance(Point(-200, -200))
 
 
 def api_get_buffer(x):
@@ -83,12 +78,12 @@ class GEOSMutationTest(unittest.TestCase):
     """
 
     def test00_GEOSIndexException(self):
-        'Testing Geometry GEOSIndexError'
+        'Testing Geometry IndexError'
         p = Point(1, 2)
         for i in range(-2, 2):
             p._checkindex(i)
-        self.assertRaises(GEOSIndexError, p._checkindex, 2)
-        self.assertRaises(GEOSIndexError, p._checkindex, -3)
+        self.assertRaises(IndexError, p._checkindex, 2)
+        self.assertRaises(IndexError, p._checkindex, -3)
 
     def test01_PointMutations(self):
         'Testing Point mutations'

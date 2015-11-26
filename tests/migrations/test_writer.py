@@ -2,6 +2,7 @@
 from __future__ import unicode_literals
 
 import datetime
+import functools
 import math
 import os
 import re
@@ -11,13 +12,14 @@ import unittest
 import custom_migration_operations.more_operations
 import custom_migration_operations.operations
 
+from django import get_version
 from django.conf import settings
 from django.core.validators import EmailValidator, RegexValidator
 from django.db import migrations, models
 from django.db.migrations.writer import (
     MigrationWriter, OperationWriter, SettingsReference,
 )
-from django.test import SimpleTestCase, TestCase, ignore_warnings
+from django.test import SimpleTestCase, ignore_warnings, mock
 from django.utils import datetime_safe, six
 from django.utils._os import upath
 from django.utils.deconstruct import deconstructible
@@ -152,7 +154,7 @@ class OperationWriterTests(SimpleTestCase):
         )
 
 
-class WriterTests(TestCase):
+class WriterTests(SimpleTestCase):
     """
     Tests the migration writer (makes migration files from Migration instances)
     """
@@ -273,7 +275,15 @@ class WriterTests(TestCase):
 
     def test_serialize_fields(self):
         self.assertSerializedFieldEqual(models.CharField(max_length=255))
+        self.assertSerializedResultEqual(
+            models.CharField(max_length=255),
+            ("models.CharField(max_length=255)", {"from django.db import models"})
+        )
         self.assertSerializedFieldEqual(models.TextField(null=True, blank=True))
+        self.assertSerializedResultEqual(
+            models.TextField(null=True, blank=True),
+            ("models.TextField(blank=True, null=True)", {'from django.db import models'})
+        )
 
     def test_serialize_settings(self):
         self.assertSerializedEqual(SettingsReference(settings.AUTH_USER_MODEL, "AUTH_USER_MODEL"))
@@ -351,6 +361,11 @@ class WriterTests(TestCase):
         self.assertSerializedEqual(one_item_tuple)
         self.assertSerializedEqual(many_items_tuple)
 
+    def test_serialize_builtins(self):
+        string, imports = MigrationWriter.serialize(range)
+        self.assertEqual(string, 'range')
+        self.assertEqual(imports, set())
+
     @unittest.skipUnless(six.PY2, "Only applies on Python 2")
     def test_serialize_direct_function_reference(self):
         """
@@ -393,9 +408,20 @@ class WriterTests(TestCase):
         self.assertSerializedEqual(FoodManager('a', 'b'))
         self.assertSerializedEqual(FoodManager('x', 'y', c=3, d=4))
 
+    def test_serialize_frozensets(self):
+        self.assertSerializedEqual(frozenset())
+        self.assertSerializedEqual(frozenset("let it go"))
+
     def test_serialize_timedelta(self):
         self.assertSerializedEqual(datetime.timedelta())
         self.assertSerializedEqual(datetime.timedelta(minutes=42))
+
+    def test_serialize_functools_partial(self):
+        value = functools.partial(datetime.timedelta, 1, seconds=2)
+        result = self.serialize_round_trip(value)
+        self.assertEqual(result.func, value.func)
+        self.assertEqual(result.args, value.args)
+        self.assertEqual(result.keywords, value.keywords)
 
     def test_simple_migration(self):
         """
@@ -415,7 +441,9 @@ class WriterTests(TestCase):
             "operations": [
                 migrations.CreateModel("MyModel", tuple(fields.items()), options, (models.Model,)),
                 migrations.CreateModel("MyModel2", tuple(fields.items()), bases=(models.Model,)),
-                migrations.CreateModel(name="MyModel3", fields=tuple(fields.items()), options=options, bases=(models.Model,)),
+                migrations.CreateModel(
+                    name="MyModel3", fields=tuple(fields.items()), options=options, bases=(models.Model,)
+                ),
                 migrations.DeleteModel("MyModel"),
                 migrations.AddField("OtherModel", "datetimefield", fields["datetimefield"]),
             ],
@@ -479,6 +507,63 @@ class WriterTests(TestCase):
             result['custom_migration_operations'].operations.TestOperation,
             result['custom_migration_operations'].more_operations.TestOperation
         )
+
+    def test_sorted_imports(self):
+        """
+        #24155 - Tests ordering of imports.
+        """
+        migration = type(str("Migration"), (migrations.Migration,), {
+            "operations": [
+                migrations.AddField("mymodel", "myfield", models.DateTimeField(
+                    default=datetime.datetime(2012, 1, 1, 1, 1, tzinfo=utc),
+                )),
+            ]
+        })
+        writer = MigrationWriter(migration)
+        output = writer.as_string().decode('utf-8')
+        self.assertIn(
+            "import datetime\n"
+            "from django.db import migrations, models\n"
+            "from django.utils.timezone import utc\n",
+            output
+        )
+
+    def test_migration_file_header_comments(self):
+        """
+        Test comments at top of file.
+        """
+        migration = type(str("Migration"), (migrations.Migration,), {
+            "operations": []
+        })
+        dt = datetime.datetime(2015, 7, 31, 4, 40, 0, 0, tzinfo=utc)
+        with mock.patch('django.db.migrations.writer.now', lambda: dt):
+            writer = MigrationWriter(migration)
+            output = writer.as_string().decode('utf-8')
+
+        self.assertTrue(
+            output.startswith(
+                "# -*- coding: utf-8 -*-\n"
+                "# Generated by Django %(version)s on 2015-07-31 04:40\n" % {
+                    'version': get_version(),
+                }
+            )
+        )
+
+    def test_models_import_omitted(self):
+        """
+        django.db.models shouldn't be imported if unused.
+        """
+        migration = type(str("Migration"), (migrations.Migration,), {
+            "operations": [
+                migrations.AlterModelOptions(
+                    name='model',
+                    options={'verbose_name': 'model', 'verbose_name_plural': 'models'},
+                    ),
+            ]
+        })
+        writer = MigrationWriter(migration)
+        output = writer.as_string().decode('utf-8')
+        self.assertIn("from django.db import migrations\n", output)
 
     def test_deconstruct_class_arguments(self):
         # Yes, it doesn't make sense to use a class as a default for a

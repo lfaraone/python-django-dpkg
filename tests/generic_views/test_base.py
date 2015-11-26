@@ -2,16 +2,12 @@ from __future__ import unicode_literals
 
 import time
 import unittest
-import warnings
 
 from django.core.exceptions import ImproperlyConfigured
+from django.core.urlresolvers import resolve
 from django.http import HttpResponse
-from django.test import (
-    RequestFactory, TestCase, ignore_warnings, override_settings,
-)
+from django.test import RequestFactory, SimpleTestCase, override_settings
 from django.test.utils import require_jinja2
-from django.utils import six
-from django.utils.deprecation import RemovedInDjango19Warning
 from django.views.generic import RedirectView, TemplateView, View
 
 from . import views
@@ -245,7 +241,7 @@ class ViewTest(unittest.TestCase):
 
 
 @override_settings(ROOT_URLCONF='generic_views.urls')
-class TemplateViewTest(TestCase):
+class TemplateViewTest(SimpleTestCase):
 
     rf = RequestFactory()
 
@@ -345,10 +341,18 @@ class TemplateViewTest(TestCase):
         response = self.client.get('/template/content_type/')
         self.assertEqual(response['Content-Type'], 'text/plain')
 
+    def test_resolve_view(self):
+        match = resolve('/template/content_type/')
+        self.assertIs(match.func.view_class, TemplateView)
+        self.assertEqual(match.func.view_initkwargs['content_type'], 'text/plain')
 
-@ignore_warnings(category=RemovedInDjango19Warning)
+    def test_resolve_login_required_view(self):
+        match = resolve('/template/login_required/')
+        self.assertIs(match.func.view_class, TemplateView)
+
+
 @override_settings(ROOT_URLCONF='generic_views.urls')
-class RedirectViewTest(TestCase):
+class RedirectViewTest(SimpleTestCase):
 
     rf = RequestFactory()
 
@@ -357,14 +361,20 @@ class RedirectViewTest(TestCase):
         response = RedirectView.as_view()(self.rf.get('/foo/'))
         self.assertEqual(response.status_code, 410)
 
-    def test_permanent_redirect(self):
-        "Default is a permanent redirect"
+    def test_default_redirect(self):
+        "Default is a temporary redirect"
         response = RedirectView.as_view(url='/bar/')(self.rf.get('/foo/'))
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, '/bar/')
+
+    def test_permanent_redirect(self):
+        "Permanent redirects are an option"
+        response = RedirectView.as_view(url='/bar/', permanent=True)(self.rf.get('/foo/'))
         self.assertEqual(response.status_code, 301)
         self.assertEqual(response.url, '/bar/')
 
     def test_temporary_redirect(self):
-        "Permanent redirects are an option"
+        "Temporary redirects are an option"
         response = RedirectView.as_view(url='/bar/', permanent=False)(self.rf.get('/foo/'))
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, '/bar/')
@@ -372,35 +382,35 @@ class RedirectViewTest(TestCase):
     def test_include_args(self):
         "GET arguments can be included in the redirected URL"
         response = RedirectView.as_view(url='/bar/')(self.rf.get('/foo/'))
-        self.assertEqual(response.status_code, 301)
+        self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, '/bar/')
 
         response = RedirectView.as_view(url='/bar/', query_string=True)(self.rf.get('/foo/?pork=spam'))
-        self.assertEqual(response.status_code, 301)
+        self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, '/bar/?pork=spam')
 
     def test_include_urlencoded_args(self):
         "GET arguments can be URL-encoded when included in the redirected URL"
         response = RedirectView.as_view(url='/bar/', query_string=True)(
             self.rf.get('/foo/?unicode=%E2%9C%93'))
-        self.assertEqual(response.status_code, 301)
+        self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, '/bar/?unicode=%E2%9C%93')
 
     def test_parameter_substitution(self):
         "Redirection URLs can be parameterized"
         response = RedirectView.as_view(url='/bar/%(object_id)d/')(self.rf.get('/foo/42/'), object_id=42)
-        self.assertEqual(response.status_code, 301)
+        self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, '/bar/42/')
 
     def test_named_url_pattern(self):
         "Named pattern parameter should reverse to the matching pattern"
         response = RedirectView.as_view(pattern_name='artist_detail')(self.rf.get('/foo/'), pk=1)
-        self.assertEqual(response.status_code, 301)
+        self.assertEqual(response.status_code, 302)
         self.assertEqual(response['Location'], '/detail/artist/1/')
 
     def test_named_url_pattern_using_args(self):
         response = RedirectView.as_view(pattern_name='artist_detail')(self.rf.get('/foo/'), 1)
-        self.assertEqual(response.status_code, 301)
+        self.assertEqual(response.status_code, 302)
         self.assertEqual(response['Location'], '/detail/artist/1/')
 
     def test_wrong_named_url_pattern(self):
@@ -409,46 +419,46 @@ class RedirectViewTest(TestCase):
         self.assertEqual(response.status_code, 410)
 
     def test_redirect_POST(self):
-        "Default is a permanent redirect"
+        "Default is a temporary redirect"
         response = RedirectView.as_view(url='/bar/')(self.rf.post('/foo/'))
-        self.assertEqual(response.status_code, 301)
+        self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, '/bar/')
 
     def test_redirect_HEAD(self):
-        "Default is a permanent redirect"
+        "Default is a temporary redirect"
         response = RedirectView.as_view(url='/bar/')(self.rf.head('/foo/'))
-        self.assertEqual(response.status_code, 301)
+        self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, '/bar/')
 
     def test_redirect_OPTIONS(self):
-        "Default is a permanent redirect"
+        "Default is a temporary redirect"
         response = RedirectView.as_view(url='/bar/')(self.rf.options('/foo/'))
-        self.assertEqual(response.status_code, 301)
+        self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, '/bar/')
 
     def test_redirect_PUT(self):
-        "Default is a permanent redirect"
+        "Default is a temporary redirect"
         response = RedirectView.as_view(url='/bar/')(self.rf.put('/foo/'))
-        self.assertEqual(response.status_code, 301)
+        self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, '/bar/')
 
     def test_redirect_PATCH(self):
-        "Default is a permanent redirect"
+        "Default is a temporary redirect"
         response = RedirectView.as_view(url='/bar/')(self.rf.patch('/foo/'))
-        self.assertEqual(response.status_code, 301)
+        self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, '/bar/')
 
     def test_redirect_DELETE(self):
-        "Default is a permanent redirect"
+        "Default is a temporary redirect"
         response = RedirectView.as_view(url='/bar/')(self.rf.delete('/foo/'))
-        self.assertEqual(response.status_code, 301)
+        self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, '/bar/')
 
     def test_redirect_when_meta_contains_no_query_string(self):
         "regression for #16705"
         # we can't use self.rf.get because it always sets QUERY_STRING
         response = RedirectView.as_view(url='/bar/')(self.rf.request(PATH_INFO='/foo/'))
-        self.assertEqual(response.status_code, 301)
+        self.assertEqual(response.status_code, 302)
 
     def test_direct_instantiation(self):
         """
@@ -458,69 +468,6 @@ class RedirectViewTest(TestCase):
         view = RedirectView()
         response = view.dispatch(self.rf.head('/foo/'))
         self.assertEqual(response.status_code, 410)
-
-
-@override_settings(ROOT_URLCONF='generic_views.urls')
-class RedirectViewDeprecationTest(TestCase):
-
-    rf = RequestFactory()
-
-    def test_deprecation_warning_init(self):
-        with warnings.catch_warnings(record=True) as warns:
-            warnings.simplefilter('always')
-
-            view = RedirectView()
-            response = view.dispatch(self.rf.head('/python/'))
-
-        self.assertEqual(response.status_code, 410)
-        self.assertEqual(len(warns), 1)
-        self.assertIs(warns[0].category, RemovedInDjango19Warning)
-        self.assertEqual(
-            six.text_type(warns[0].message),
-            "Default value of 'RedirectView.permanent' will change "
-            "from True to False in Django 1.9. Set an explicit value "
-            "to silence this warning.",
-        )
-
-    def test_deprecation_warning_raised_when_permanent_not_passed(self):
-        with warnings.catch_warnings(record=True) as warns:
-            warnings.simplefilter('always')
-
-            view_function = RedirectView.as_view(url='/bbb/')
-            request = self.rf.request(PATH_INFO='/aaa/')
-            view_function(request)
-
-        self.assertEqual(len(warns), 1)
-        self.assertIs(warns[0].category, RemovedInDjango19Warning)
-        self.assertEqual(
-            six.text_type(warns[0].message),
-            "Default value of 'RedirectView.permanent' will change "
-            "from True to False in Django 1.9. Set an explicit value "
-            "to silence this warning.",
-        )
-
-    def test_no_deprecation_warning_when_permanent_passed(self):
-        with warnings.catch_warnings(record=True) as warns:
-            warnings.simplefilter('always')
-
-            view_function = RedirectView.as_view(url='/bar/', permanent=False)
-            request = self.rf.request(PATH_INFO='/foo/')
-            view_function(request)
-
-        self.assertEqual(len(warns), 0)
-
-    def test_no_deprecation_warning_with_custom_redirectview(self):
-        class CustomRedirectView(RedirectView):
-            permanent = False
-
-        with warnings.catch_warnings(record=True) as warns:
-            warnings.simplefilter('always')
-
-            view_function = CustomRedirectView.as_view(url='/eggs/')
-            request = self.rf.request(PATH_INFO='/spam/')
-            view_function(request)
-
-        self.assertEqual(len(warns), 0)
 
 
 class GetContextDataTest(unittest.TestCase):

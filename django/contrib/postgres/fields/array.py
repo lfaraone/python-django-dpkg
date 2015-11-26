@@ -29,9 +29,13 @@ class ArrayField(Field):
             self.default_validators.append(ArrayMaxLengthValidator(self.size))
         super(ArrayField, self).__init__(**kwargs)
 
+    def contribute_to_class(self, cls, name, **kwargs):
+        super(ArrayField, self).contribute_to_class(cls, name, **kwargs)
+        self.base_field.model = cls
+
     def check(self, **kwargs):
         errors = super(ArrayField, self).check(**kwargs)
-        if self.base_field.rel:
+        if self.base_field.remote_field:
             errors.append(
                 checks.Error(
                     'Base field for array cannot be a related field.',
@@ -91,7 +95,7 @@ class ArrayField(Field):
 
     def value_to_string(self, obj):
         values = []
-        vals = self._get_val_from_obj(obj)
+        vals = self.value_from_object(obj)
         base_field = self.base_field
 
         for val in vals:

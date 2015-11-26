@@ -11,6 +11,7 @@ from django.http import (
 )
 from django.shortcuts import render_to_response
 from django.template import Context, Template
+from django.test import Client
 from django.utils.decorators import method_decorator
 from django.utils.six.moves.urllib.parse import urlencode
 
@@ -229,7 +230,9 @@ def login_protected_view_changed_redirect(request):
     c = Context({'user': request.user})
 
     return HttpResponse(t.render(c))
-login_protected_view_changed_redirect = login_required(redirect_field_name="redirect_to")(login_protected_view_changed_redirect)
+login_protected_view_changed_redirect = (
+    login_required(redirect_field_name="redirect_to")(login_protected_view_changed_redirect)
+)
 
 
 def _permission_protected_view(request):
@@ -241,7 +244,9 @@ def _permission_protected_view(request):
     c = Context({'user': request.user})
     return HttpResponse(t.render(c))
 permission_protected_view = permission_required('permission_not_granted')(_permission_protected_view)
-permission_protected_view_exception = permission_required('permission_not_granted', raise_exception=True)(_permission_protected_view)
+permission_protected_view_exception = (
+    permission_required('permission_not_granted', raise_exception=True)(_permission_protected_view)
+)
 
 
 class _ViewManager(object):
@@ -307,6 +312,16 @@ def mass_mail_sending_view(request):
     c.send_messages([m1, m2])
 
     return HttpResponse("Mail sent")
+
+
+def nesting_exception_view(request):
+    """
+    A view that uses a nested client to call another view and then raises an
+    exception.
+    """
+    client = Client()
+    client.get('/get_view/')
+    raise Exception('exception message')
 
 
 def django_project_redirect(request):

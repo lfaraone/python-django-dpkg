@@ -2,13 +2,9 @@
 from __future__ import unicode_literals
 
 import json
-import warnings
-from unittest import skipUnless
 
-from django.test import SimpleTestCase, ignore_warnings
-from django.test.utils import reset_warning_registry
+from django.test import SimpleTestCase
 from django.utils import six, text
-from django.utils.deprecation import RemovedInDjango19Warning
 from django.utils.encoding import force_text
 from django.utils.functional import lazy
 from django.utils.translation import override
@@ -176,11 +172,16 @@ class TestUtilsText(SimpleTestCase):
 
     def test_slugify(self):
         items = (
-            ('Hello, World!', 'hello-world'),
-            ('spam & eggs', 'spam-eggs'),
+            # given - expected - unicode?
+            ('Hello, World!', 'hello-world', False),
+            ('spam & eggs', 'spam-eggs', False),
+            ('spam & ıçüş', 'spam-ıçüş', True),
+            ('foo ıç bar', 'foo-ıç-bar', True),
+            ('    foo ıç bar', 'foo-ıç-bar', True),
+            ('你好', '你好', True),
         )
-        for value, output in items:
-            self.assertEqual(text.slugify(value), output)
+        for value, output, is_unicode in items:
+            self.assertEqual(text.slugify(value, allow_unicode=is_unicode), output)
 
     def test_unescape_entities(self):
         items = [
@@ -207,30 +208,3 @@ class TestUtilsText(SimpleTestCase):
         out = text.compress_sequence(seq)
         compressed_length = len(b''.join(out))
         self.assertTrue(compressed_length < actual_length)
-
-    @ignore_warnings(category=RemovedInDjango19Warning)
-    def test_javascript_quote(self):
-        input = "<script>alert('Hello \\xff.\n Welcome\there\r');</script>"
-        output = r"<script>alert(\'Hello \\xff.\n Welcome\there\r\');<\/script>"
-        self.assertEqual(text.javascript_quote(input), output)
-
-        # Exercising quote_double_quotes keyword argument
-        input = '"Text"'
-        self.assertEqual(text.javascript_quote(input), '"Text"')
-        self.assertEqual(text.javascript_quote(input, quote_double_quotes=True),
-                         '&quot;Text&quot;')
-
-    @ignore_warnings(category=RemovedInDjango19Warning)
-    @skipUnless(IS_WIDE_BUILD, 'Not running in a wide build of Python')
-    def test_javascript_quote_unicode(self):
-        input = "<script>alert('Hello \\xff.\n Wel𝕃come\there\r');</script>"
-        output = r"<script>alert(\'Hello \\xff.\n Wel𝕃come\there\r\');<\/script>"
-        self.assertEqual(text.javascript_quote(input), output)
-
-    def test_deprecation(self):
-        reset_warning_registry()
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            text.javascript_quote('thingy')
-            self.assertEqual(len(w), 1)
-            self.assertIn('escapejs()', repr(w[0].message))

@@ -332,6 +332,45 @@ class ManyToManyTests(TestCase):
             ])
         self.assertQuerysetEqual(self.a3.publications.all(), [])
 
+    def test_set(self):
+        self.p2.article_set.set([self.a4, self.a3])
+        self.assertQuerysetEqual(self.p2.article_set.all(),
+            [
+                '<Article: NASA finds intelligent life on Earth>',
+                '<Article: Oxygen-free diet works wonders>',
+            ])
+        self.assertQuerysetEqual(self.a4.publications.all(),
+                                 ['<Publication: Science News>'])
+        self.a4.publications.set([self.p3.id])
+        self.assertQuerysetEqual(self.p2.article_set.all(),
+                                 ['<Article: NASA finds intelligent life on Earth>'])
+        self.assertQuerysetEqual(self.a4.publications.all(),
+                                 ['<Publication: Science Weekly>'])
+
+        self.p2.article_set.set([])
+        self.assertQuerysetEqual(self.p2.article_set.all(), [])
+        self.a4.publications.set([])
+        self.assertQuerysetEqual(self.a4.publications.all(), [])
+
+        self.p2.article_set.set([self.a4, self.a3], clear=True)
+        self.assertQuerysetEqual(self.p2.article_set.all(),
+            [
+                '<Article: NASA finds intelligent life on Earth>',
+                '<Article: Oxygen-free diet works wonders>',
+            ])
+        self.assertQuerysetEqual(self.a4.publications.all(),
+                                 ['<Publication: Science News>'])
+        self.a4.publications.set([self.p3.id], clear=True)
+        self.assertQuerysetEqual(self.p2.article_set.all(),
+                                 ['<Article: NASA finds intelligent life on Earth>'])
+        self.assertQuerysetEqual(self.a4.publications.all(),
+                                 ['<Publication: Science Weekly>'])
+
+        self.p2.article_set.set([], clear=True)
+        self.assertQuerysetEqual(self.p2.article_set.all(), [])
+        self.a4.publications.set([], clear=True)
+        self.assertQuerysetEqual(self.a4.publications.all(), [])
+
     def test_assign(self):
         # Relation sets can be assigned. Assignment clears any existing set members
         self.p2.article_set = [self.a4, self.a3]
@@ -373,7 +412,7 @@ class ManyToManyTests(TestCase):
     def test_forward_assign_with_queryset(self):
         # Ensure that querysets used in m2m assignments are pre-evaluated
         # so their value isn't affected by the clearing operation in
-        # ManyRelatedObjectsDescriptor.__set__. Refs #19816.
+        # ManyToManyDescriptor.__set__. Refs #19816.
         self.a1.publications = [self.p1, self.p2]
 
         qs = self.a1.publications.filter(title='The Python Journal')
@@ -385,7 +424,7 @@ class ManyToManyTests(TestCase):
     def test_reverse_assign_with_queryset(self):
         # Ensure that querysets used in M2M assignments are pre-evaluated
         # so their value isn't affected by the clearing operation in
-        # ReverseManyRelatedObjectsDescriptor.__set__. Refs #19816.
+        # ManyToManyDescriptor.__set__. Refs #19816.
         self.p1.article_set = [self.a1, self.a2]
 
         qs = self.p1.article_set.filter(headline='Django lets you build Web apps easily')

@@ -7,8 +7,9 @@ import unittest
 from django.utils import six
 from django.utils.encoding import (
     escape_uri_path, filepath_to_uri, force_bytes, force_text, iri_to_uri,
-    uri_to_iri,
+    smart_text, uri_to_iri,
 )
+from django.utils.functional import SimpleLazyObject
 from django.utils.http import urlquote_plus
 
 
@@ -28,6 +29,10 @@ class TestEncodingUtils(unittest.TestCase):
         exception = TypeError if six.PY3 else UnicodeError
         self.assertRaises(exception, force_text, MyString())
 
+    def test_force_text_lazy(self):
+        s = SimpleLazyObject(lambda: 'x')
+        self.assertTrue(issubclass(type(force_text(s)), six.text_type))
+
     def test_force_bytes_exception(self):
         """
         Test that force_bytes knows how to convert to bytes an exception
@@ -42,13 +47,33 @@ class TestEncodingUtils(unittest.TestCase):
         today = datetime.date.today()
         self.assertEqual(force_bytes(today, strings_only=True), today)
 
-    def test_escape_uri_path(self):
-        self.assertEqual(
-            escape_uri_path('/;some/=awful/?path/:with/@lots/&of/+awful/chars'),
-            '/%3Bsome/%3Dawful/%3Fpath/:with/@lots/&of/+awful/chars'
-        )
-        self.assertEqual(escape_uri_path('/foo#bar'), '/foo%23bar')
-        self.assertEqual(escape_uri_path('/foo?bar'), '/foo%3Fbar')
+    def test_smart_text(self):
+        class Test:
+            if six.PY3:
+                def __str__(self):
+                    return 'ŠĐĆŽćžšđ'
+            else:
+                def __str__(self):
+                    return 'ŠĐĆŽćžšđ'.encode('utf-8')
+
+        class TestU:
+            if six.PY3:
+                def __str__(self):
+                    return 'ŠĐĆŽćžšđ'
+
+                def __bytes__(self):
+                    return b'Foo'
+            else:
+                def __str__(self):
+                    return b'Foo'
+
+                def __unicode__(self):
+                    return '\u0160\u0110\u0106\u017d\u0107\u017e\u0161\u0111'
+
+        self.assertEqual(smart_text(Test()), '\u0160\u0110\u0106\u017d\u0107\u017e\u0161\u0111')
+        self.assertEqual(smart_text(TestU()), '\u0160\u0110\u0106\u017d\u0107\u017e\u0161\u0111')
+        self.assertEqual(smart_text(1), '1')
+        self.assertEqual(smart_text('foo'), 'foo')
 
 
 class TestRFC3987IEncodingUtils(unittest.TestCase):
@@ -114,3 +139,11 @@ class TestRFC3987IEncodingUtils(unittest.TestCase):
         for uri, iri in cases:
             self.assertEqual(iri_to_uri(uri_to_iri(uri)), uri)
             self.assertEqual(uri_to_iri(iri_to_uri(iri)), iri)
+
+    def test_escape_uri_path(self):
+        self.assertEqual(
+            escape_uri_path('/;some/=awful/?path/:with/@lots/&of/+awful/chars'),
+            '/%3Bsome/%3Dawful/%3Fpath/:with/@lots/&of/+awful/chars'
+        )
+        self.assertEqual(escape_uri_path('/foo#bar'), '/foo%23bar')
+        self.assertEqual(escape_uri_path('/foo?bar'), '/foo%3Fbar')

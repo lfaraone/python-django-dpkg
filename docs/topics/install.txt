@@ -142,7 +142,7 @@ following at your shell prompt (not the interactive Python prompt):
 
 .. code-block:: console
 
-    $ python -c "import sys; sys.path = sys.path[1:]; import django; print(django.__path__)"
+    $ python -c "import django; print(django.__path__)"
 
 .. _install-django-code:
 
@@ -165,7 +165,8 @@ This is the recommended way to install Django.
 1. Install pip_. The easiest is to use the `standalone pip installer`_. If your
    distribution already has ``pip`` installed, you might need to update it if
    it's outdated. (If it's outdated, you'll know because installation won't
-   work.)
+   work. You might see some :ref:`harmless SyntaxErrors
+   <syntax-error-old-pip-django-19>` also.)
 
 2. Take a look at virtualenv_ and virtualenvwrapper_. These tools provide
    isolated Python environments, which are more practical than installing
@@ -176,10 +177,10 @@ This is the recommended way to install Django.
 3. After you've created and activated a virtual environment, enter the command
    ``pip install Django`` at the shell prompt.
 
-.. _pip: http://www.pip-installer.org/
+.. _pip: https://pip.pypa.io/
 .. _virtualenv: http://www.virtualenv.org/
 .. _virtualenvwrapper: http://virtualenvwrapper.readthedocs.org/en/latest/
-.. _standalone pip installer: http://www.pip-installer.org/en/latest/installing.html#install-pip
+.. _standalone pip installer: https://pip.pypa.io/en/latest/installing.html#install-pip
 
 Installing a distribution-specific package
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

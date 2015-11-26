@@ -1,9 +1,9 @@
-from django.test import Client, TestCase, override_settings
+from django.test import Client, SimpleTestCase, override_settings
 from django.utils.translation import override
 
 
 @override_settings(ROOT_URLCONF="view_tests.urls")
-class CsrfViewTests(TestCase):
+class CsrfViewTests(SimpleTestCase):
 
     def setUp(self):
         super(CsrfViewTests, self).setUp()
@@ -11,11 +11,11 @@ class CsrfViewTests(TestCase):
 
     @override_settings(
         USE_I18N=True,
-        MIDDLEWARE_CLASSES=(
+        MIDDLEWARE_CLASSES=[
             'django.middleware.locale.LocaleMiddleware',
             'django.middleware.common.CommonMiddleware',
             'django.middleware.csrf.CsrfViewMiddleware',
-        ),
+        ],
     )
     def test_translation(self):
         """

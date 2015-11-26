@@ -3,7 +3,7 @@ import json
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.core.serializers.json import DjangoJSONEncoder
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import render_to_response
 from django.template import RequestContext
 from django.template.loader import render_to_string
@@ -38,17 +38,11 @@ get_view = login_required(get_view)
 
 def request_data(request, template='base.html', data='sausage'):
     "A simple view that returns the request data in the context"
-
-    request_foo = request.REQUEST.get('foo')
-    request_bar = request.REQUEST.get('bar')
-
     return render_to_response(template, {
         'get-foo': request.GET.get('foo'),
         'get-bar': request.GET.get('bar'),
         'post-foo': request.POST.get('foo'),
         'post-bar': request.POST.get('bar'),
-        'request-foo': request_foo,
-        'request-bar': request_bar,
         'data': data,
     })
 
@@ -72,7 +66,7 @@ def nested_view(request):
     """
     setup_test_environment()
     c = Client()
-    c.get("/no_template_view")
+    c.get("/no_template_view/")
     return render_to_response('base.html', {'nested': 'yes'})
 
 
@@ -112,6 +106,10 @@ def return_undecodable_binary(request):
     return HttpResponse(
         b'%PDF-1.4\r\n%\x93\x8c\x8b\x9e ReportLab Generated PDF document http://www.reportlab.com'
     )
+
+
+def return_json_response(request):
+    return JsonResponse({'key': 'value'})
 
 
 def return_json_file(request):
