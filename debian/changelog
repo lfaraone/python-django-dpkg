@@ -1,3 +1,10 @@
+python-django (1.2.3-3+squeeze15) UNRELEASED; urgency=medium
+
+  * Backport CVE-2015-8213: Fixed settings leak possibility in date template
+    filter.
+
+ -- Chris Lamb <lamby@debian.org>  Wed, 25 Nov 2015 23:15:40 +0200
+
 python-django (1.2.3-3+squeeze14) squeeze-lts; urgency=medium
 
   * Backport multiple security fixes released in 1.4 branch:
