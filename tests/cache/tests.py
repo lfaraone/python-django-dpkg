@@ -17,11 +17,10 @@ import warnings
 from django.conf import settings
 from django.core import management, signals
 from django.core.cache import (
-    DEFAULT_CACHE_ALIAS, CacheKeyWarning, InvalidCacheBackendError, cache,
-    caches, close_caches, get_cache,
+    DEFAULT_CACHE_ALIAS, CacheKeyWarning, cache, caches,
 )
 from django.core.cache.utils import make_template_fragment_key
-from django.db import connection, connections, transaction
+from django.db import connection, connections
 from django.http import HttpRequest, HttpResponse, StreamingHttpResponse
 from django.middleware.cache import (
     CacheMiddleware, FetchFromCacheMiddleware, UpdateCacheMiddleware,
@@ -31,7 +30,7 @@ from django.template import engines
 from django.template.context_processors import csrf
 from django.template.response import TemplateResponse
 from django.test import (
-    RequestFactory, TestCase, TransactionTestCase, ignore_warnings,
+    RequestFactory, SimpleTestCase, TestCase, TransactionTestCase,
     override_settings,
 )
 from django.test.signals import setting_changed
@@ -40,7 +39,6 @@ from django.utils.cache import (
     get_cache_key, learn_cache_key, patch_cache_control,
     patch_response_headers, patch_vary_headers,
 )
-from django.utils.deprecation import RemovedInDjango19Warning
 from django.utils.encoding import force_text
 from django.views.decorators.cache import cache_page
 
@@ -72,7 +70,7 @@ class Unpickable(object):
         'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
     }
 })
-class DummyCacheTests(TestCase):
+class DummyCacheTests(SimpleTestCase):
     # The Dummy cache backend doesn't really behave like a test backend,
     # so it has its own test case.
 
@@ -550,7 +548,6 @@ class BaseCacheTests(object):
         keys that would be refused by memcached. This encourages portable
         caching code without making it too difficult to use production backends
         with more liberal key rules. Refs #6447.
-
         """
         # mimic custom ``make_key`` method being defined since the default will
         # never show the below warnings
@@ -887,6 +884,28 @@ class BaseCacheTests(object):
         with self.assertRaises(pickle.PickleError):
             cache.set('unpickable', Unpickable())
 
+    def test_get_or_set(self):
+        self.assertIsNone(cache.get('projector'))
+        self.assertEqual(cache.get_or_set('projector', 42), 42)
+        self.assertEqual(cache.get('projector'), 42)
+
+    def test_get_or_set_callable(self):
+        def my_callable():
+            return 'value'
+
+        self.assertEqual(cache.get_or_set('mykey', my_callable), 'value')
+
+    def test_get_or_set_version(self):
+        cache.get_or_set('brian', 1979, version=2)
+        with self.assertRaisesMessage(ValueError, 'You need to specify a value.'):
+            cache.get_or_set('brian')
+        with self.assertRaisesMessage(ValueError, 'You need to specify a value.'):
+            cache.get_or_set('brian', version=1)
+        self.assertIsNone(cache.get('brian', version=1))
+        self.assertEqual(cache.get_or_set('brian', 42, version=1), 42)
+        self.assertEqual(cache.get_or_set('brian', 1979, version=2), 1979)
+        self.assertIsNone(cache.get('brian', version=3))
+
 
 @override_settings(CACHES=caches_setting_for_tests(
     BACKEND='django.core.cache.backends.db.DatabaseCache',
@@ -924,6 +943,17 @@ class DBCacheTests(BaseCacheTests, TransactionTestCase):
         self.assertEqual(out.getvalue(),
             "Cache table 'test cache table' already exists.\n" * len(settings.CACHES))
 
+    @override_settings(CACHES=caches_setting_for_tests(
+        BACKEND='django.core.cache.backends.db.DatabaseCache',
+        # Use another table name to avoid the 'table already exists' message.
+        LOCATION='createcachetable_dry_run_mode'
+    ))
+    def test_createcachetable_dry_run_mode(self):
+        out = six.StringIO()
+        management.call_command('createcachetable', dry_run=True, stdout=out)
+        output = out.getvalue()
+        self.assertTrue(output.startswith("CREATE TABLE"))
+
     def test_createcachetable_with_table_argument(self):
         """
         Delete and recreate cache table with legacy behavior (explicitly
@@ -939,13 +969,6 @@ class DBCacheTests(BaseCacheTests, TransactionTestCase):
         )
         self.assertEqual(out.getvalue(),
             "Cache table 'test cache table' created.\n")
-
-    def test_clear_commits_transaction(self):
-        # Ensure the database transaction is committed (#19896)
-        cache.set("key1", "spam")
-        cache.clear()
-        transaction.rollback()
-        self.assertIsNone(cache.get("key1"))
 
 
 @override_settings(USE_TZ=True)
@@ -1100,7 +1123,6 @@ class MemcachedCacheTests(BaseCacheTests, TestCase):
 
         In order to be memcached-API-library agnostic, we only assert
         that a generic exception of some kind is raised.
-
         """
         # memcached does not allow whitespace or control characters in keys
         self.assertRaises(Exception, cache.set, 'key with spaces', 'value')
@@ -1205,12 +1227,11 @@ class FileBasedCacheTests(BaseCacheTests, TestCase):
         'BACKEND': 'cache.liberal_backend.CacheClass',
     },
 })
-class CustomCacheKeyValidationTests(TestCase):
+class CustomCacheKeyValidationTests(SimpleTestCase):
     """
     Tests for the ability to mixin a custom ``validate_key`` method to
     a custom cache backend that otherwise inherits from a builtin
     backend, and override the default key validation. Refs #6447.
-
     """
     def test_custom_key_validation(self):
         # this key is both longer than 250 characters, and has spaces
@@ -1227,39 +1248,12 @@ class CustomCacheKeyValidationTests(TestCase):
         }
     }
 )
-class GetCacheTests(TestCase):
-
-    @ignore_warnings(category=RemovedInDjango19Warning)
-    def test_simple(self):
-        self.assertIsInstance(
-            caches[DEFAULT_CACHE_ALIAS],
-            get_cache('default').__class__
-        )
-
-        cache = get_cache(
-            'django.core.cache.backends.dummy.DummyCache',
-            **{'TIMEOUT': 120}
-        )
-        self.assertEqual(cache.default_timeout, 120)
-
-        self.assertRaises(InvalidCacheBackendError, get_cache, 'does_not_exist')
+class CacheClosingTests(SimpleTestCase):
 
     def test_close(self):
         self.assertFalse(cache.closed)
         signals.request_finished.send(self.__class__)
         self.assertTrue(cache.closed)
-
-    @ignore_warnings(category=RemovedInDjango19Warning)
-    def test_close_deprecated(self):
-        cache = get_cache('cache.closeable_cache.CacheClass')
-        self.assertFalse(cache.closed)
-        # Ensure that we don't close the global cache instances.
-        signals.request_finished.disconnect(close_caches)
-        try:
-            signals.request_finished.send(self.__class__)
-            self.assertTrue(cache.closed)
-        finally:
-            signals.request_finished.connect(close_caches)
 
 
 DEFAULT_MEMORY_CACHES_SETTINGS = {
@@ -1272,7 +1266,7 @@ NEVER_EXPIRING_CACHES_SETTINGS = copy.deepcopy(DEFAULT_MEMORY_CACHES_SETTINGS)
 NEVER_EXPIRING_CACHES_SETTINGS['default']['TIMEOUT'] = None
 
 
-class DefaultNonExpiringCacheKeyTests(TestCase):
+class DefaultNonExpiringCacheKeyTests(SimpleTestCase):
     """Tests that verify that settings having Cache arguments with a TIMEOUT
     set to `None` will create Caches that will set non-expiring keys.
 
@@ -1348,7 +1342,7 @@ class DefaultNonExpiringCacheKeyTests(TestCase):
     },
     USE_I18N=False,
 )
-class CacheUtils(TestCase):
+class CacheUtils(SimpleTestCase):
     """TestCase for django.utils.cache functions."""
 
     def setUp(self):
@@ -1497,7 +1491,7 @@ class PrefixedCacheUtils(CacheUtils):
         },
     },
 )
-class CacheHEADTest(TestCase):
+class CacheHEADTest(SimpleTestCase):
 
     def setUp(self):
         self.path = '/cache/test/'
@@ -1544,10 +1538,10 @@ class CacheHEADTest(TestCase):
             'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
         },
     },
-    LANGUAGES=(
+    LANGUAGES=[
         ('en', 'English'),
         ('es', 'Spanish'),
-    ),
+    ],
 )
 class CacheI18nTest(TestCase):
 
@@ -1817,7 +1811,7 @@ def csrf_view(request):
         },
     },
 )
-class CacheMiddlewareTest(TestCase):
+class CacheMiddlewareTest(SimpleTestCase):
 
     def setUp(self):
         super(CacheMiddlewareTest, self).setUp()
@@ -1850,7 +1844,8 @@ class CacheMiddlewareTest(TestCase):
 
         self.assertEqual(as_view_decorator.cache_timeout, 30)  # Timeout value for 'default' cache, i.e. 30
         self.assertEqual(as_view_decorator.key_prefix, '')
-        self.assertEqual(as_view_decorator.cache_alias, 'default')  # Value of DEFAULT_CACHE_ALIAS from django.core.cache
+        # Value of DEFAULT_CACHE_ALIAS from django.core.cache
+        self.assertEqual(as_view_decorator.cache_alias, 'default')
 
         # Next, test with custom values:
         as_view_decorator_with_custom = CacheMiddleware(cache_timeout=60, cache_alias='other', key_prefix='foo')
@@ -1998,7 +1993,7 @@ class CacheMiddlewareTest(TestCase):
     },
     USE_I18N=False,
 )
-class TestWithTemplateResponse(TestCase):
+class TestWithTemplateResponse(SimpleTestCase):
     """
     Tests various headers w/ TemplateResponse.
 
@@ -2094,7 +2089,7 @@ class TestWithTemplateResponse(TestCase):
         self.assertTrue(response.has_header('ETag'))
 
 
-class TestMakeTemplateFragmentKey(TestCase):
+class TestMakeTemplateFragmentKey(SimpleTestCase):
     def test_without_vary_on(self):
         key = make_template_fragment_key('a.fragment')
         self.assertEqual(key, 'template.cache.a.fragment.d41d8cd98f00b204e9800998ecf8427e')
@@ -2115,7 +2110,7 @@ class TestMakeTemplateFragmentKey(TestCase):
             'template.cache.spam.f27688177baec990cdf3fbd9d9c3f469')
 
 
-class CacheHandlerTest(TestCase):
+class CacheHandlerTest(SimpleTestCase):
     def test_same_instance(self):
         """
         Attempting to retrieve the same alias should yield the same instance.

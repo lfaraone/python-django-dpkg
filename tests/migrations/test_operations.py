@@ -8,7 +8,7 @@ from django.db.migrations.state import ProjectState
 from django.db.models.fields import NOT_PROVIDED
 from django.db.transaction import atomic
 from django.db.utils import IntegrityError
-from django.test import override_settings
+from django.test import override_settings, skipUnlessDBFeature
 from django.utils import six
 
 from .models import FoodManager, FoodQuerySet
@@ -111,8 +111,8 @@ class OperationTestBase(MigrationTestBase):
                 "Rider",
                 [
                     ("id", models.AutoField(primary_key=True)),
-                    ("pony", models.ForeignKey("Pony")),
-                    ("friend", models.ForeignKey("self"))
+                    ("pony", models.ForeignKey("Pony", models.CASCADE)),
+                    ("friend", models.ForeignKey("self", models.CASCADE))
                 ],
             ))
         if mti_model:
@@ -120,11 +120,12 @@ class OperationTestBase(MigrationTestBase):
                 "ShetlandPony",
                 fields=[
                     ('pony_ptr', models.OneToOneField(
+                        'Pony',
+                        models.CASCADE,
                         auto_created=True,
                         primary_key=True,
                         to_field='id',
                         serialize=False,
-                        to='Pony',
                     )),
                     ("cuteness", models.IntegerField(default=1)),
                 ],
@@ -215,7 +216,7 @@ class OperationTests(OperationTestBase):
             [
                 ("id", models.AutoField(primary_key=True)),
                 ("number", models.IntegerField(default=1)),
-                ("pony", models.ForeignKey("test_crmoua.Pony")),
+                ("pony", models.ForeignKey("test_crmoua.Pony", models.CASCADE)),
             ],
         )
         operation3 = migrations.AlterUniqueTogether(
@@ -290,11 +291,12 @@ class OperationTests(OperationTestBase):
             "ShetlandPony",
             [
                 ('pony_ptr', models.OneToOneField(
+                    'test_crmoih.Pony',
+                    models.CASCADE,
                     auto_created=True,
                     primary_key=True,
                     to_field='id',
                     serialize=False,
-                    to='test_crmoih.Pony',
                 )),
                 ("cuteness", models.IntegerField(default=1)),
             ],
@@ -479,7 +481,7 @@ class OperationTests(OperationTestBase):
         self.assertNotIn(("test_rnmo", "pony"), new_state.models)
         self.assertIn(("test_rnmo", "horse"), new_state.models)
         # RenameModel also repoints all incoming FKs and M2Ms
-        self.assertEqual("test_rnmo.Horse", new_state.models["test_rnmo", "rider"].fields[1][1].rel.to)
+        self.assertEqual("test_rnmo.Horse", new_state.models["test_rnmo", "rider"].fields[1][1].remote_field.model)
         self.assertTableNotExists("test_rnmo_pony")
         self.assertTableExists("test_rnmo_horse")
         if connection.features.supports_foreign_keys:
@@ -490,7 +492,7 @@ class OperationTests(OperationTestBase):
         # Test original state and database
         self.assertIn(("test_rnmo", "pony"), original_state.models)
         self.assertNotIn(("test_rnmo", "horse"), original_state.models)
-        self.assertEqual("Pony", original_state.models["test_rnmo", "rider"].fields[1][1].rel.to)
+        self.assertEqual("Pony", original_state.models["test_rnmo", "rider"].fields[1][1].remote_field.model)
         self.assertTableExists("test_rnmo_pony")
         self.assertTableNotExists("test_rnmo_horse")
         if connection.features.supports_foreign_keys:
@@ -515,7 +517,10 @@ class OperationTests(OperationTestBase):
         self.assertNotIn(("test_rmwsrf", "rider"), new_state.models)
         self.assertIn(("test_rmwsrf", "horserider"), new_state.models)
         # Remember, RenameModel also repoints all incoming FKs and M2Ms
-        self.assertEqual("test_rmwsrf.HorseRider", new_state.models["test_rmwsrf", "horserider"].fields[2][1].rel.to)
+        self.assertEqual(
+            "test_rmwsrf.HorseRider",
+            new_state.models["test_rmwsrf", "horserider"].fields[2][1].remote_field.model
+        )
         # Test the database alteration
         self.assertTableExists("test_rmwsrf_rider")
         self.assertTableNotExists("test_rmwsrf_horserider")
@@ -553,8 +558,8 @@ class OperationTests(OperationTestBase):
         self.assertIn(("test_rmwsc", "littlehorse"), new_state.models)
         # RenameModel shouldn't repoint the superclass's relations, only local ones
         self.assertEqual(
-            project_state.models["test_rmwsc", "rider"].fields[1][1].rel.to,
-            new_state.models["test_rmwsc", "rider"].fields[1][1].rel.to
+            project_state.models["test_rmwsc", "rider"].fields[1][1].remote_field.model,
+            new_state.models["test_rmwsc", "rider"].fields[1][1].remote_field.model
         )
         # Before running the migration we have a table for Shetland Pony, not Little Horse
         self.assertTableExists("test_rmwsc_shetlandpony")
@@ -612,7 +617,7 @@ class OperationTests(OperationTestBase):
         pony.riders.add(rider)
         self.assertEqual(Pony.objects.count(), 2)
         self.assertEqual(Rider.objects.count(), 2)
-        self.assertEqual(Pony._meta.get_field('riders').rel.through.objects.count(), 2)
+        self.assertEqual(Pony._meta.get_field('riders').remote_field.through.objects.count(), 2)
 
     def test_rename_m2m_target_model(self):
         app_label = "test_rename_m2m_target_model"
@@ -638,7 +643,7 @@ class OperationTests(OperationTestBase):
         pony.riders.add(rider)
         self.assertEqual(Pony.objects.count(), 2)
         self.assertEqual(Rider.objects.count(), 2)
-        self.assertEqual(Pony._meta.get_field('riders').rel.through.objects.count(), 2)
+        self.assertEqual(Pony._meta.get_field('riders').remote_field.through.objects.count(), 2)
 
     def test_add_field(self):
         """
@@ -887,7 +892,9 @@ class OperationTests(OperationTestBase):
         self.assertFalse(Pony._meta.get_field('stables').blank)
 
         project_state = self.apply_operations("test_alflmm", project_state, operations=[
-            migrations.AlterField("Pony", "stables", models.ManyToManyField(to="Stable", related_name="ponies", blank=True))
+            migrations.AlterField(
+                "Pony", "stables", models.ManyToManyField(to="Stable", related_name="ponies", blank=True)
+            )
         ])
         Pony = project_state.apps.get_model("test_alflmm", "Pony")
         self.assertTrue(Pony._meta.get_field('stables').blank)
@@ -934,10 +941,13 @@ class OperationTests(OperationTestBase):
         self.assertTableNotExists("test_rmflmmwt_ponystables")
         project_state = self.apply_operations("test_rmflmmwt", project_state, operations=[
             migrations.CreateModel("PonyStables", fields=[
-                ("pony", models.ForeignKey('test_rmflmmwt.Pony')),
-                ("stable", models.ForeignKey('test_rmflmmwt.Stable')),
+                ("pony", models.ForeignKey('test_rmflmmwt.Pony', models.CASCADE)),
+                ("stable", models.ForeignKey('test_rmflmmwt.Stable', models.CASCADE)),
             ]),
-            migrations.AddField("Pony", "stables", models.ManyToManyField("Stable", related_name="ponies", through='test_rmflmmwt.PonyStables'))
+            migrations.AddField(
+                "Pony", "stables",
+                models.ManyToManyField("Stable", related_name="ponies", through='test_rmflmmwt.PonyStables')
+            )
         ])
         self.assertTableExists("test_rmflmmwt_ponystables")
 
@@ -1112,7 +1122,7 @@ class OperationTests(OperationTestBase):
         with connection.schema_editor() as editor:
             operation.database_backwards("test_alflpk", editor, new_state, project_state)
 
-    @unittest.skipUnless(connection.features.supports_foreign_keys, "No FK support")
+    @skipUnlessDBFeature('supports_foreign_keys')
     def test_alter_field_pk_fk(self):
         """
         Tests the AlterField operation on primary keys changes any FKs pointing to it.
@@ -1321,8 +1331,13 @@ class OperationTests(OperationTestBase):
         self.assertEqual(operation.describe(), "Set order_with_respect_to on Rider to pony")
         new_state = project_state.clone()
         operation.state_forwards("test_alorwrtto", new_state)
-        self.assertEqual(project_state.models["test_alorwrtto", "rider"].options.get("order_with_respect_to", None), None)
-        self.assertEqual(new_state.models["test_alorwrtto", "rider"].options.get("order_with_respect_to", None), "pony")
+        self.assertIsNone(
+            project_state.models["test_alorwrtto", "rider"].options.get("order_with_respect_to", None)
+        )
+        self.assertEqual(
+            new_state.models["test_alorwrtto", "rider"].options.get("order_with_respect_to", None),
+            "pony"
+        )
         # Make sure there's no matching index
         self.assertColumnNotExists("test_alorwrtto_rider", "_order")
         # Create some rows before alteration
@@ -1414,7 +1429,7 @@ class OperationTests(OperationTestBase):
             name="Rider",
             fields=[
                 ("id", models.AutoField(primary_key=True)),
-                ("pony", models.ForeignKey(to="Pony")),
+                ("pony", models.ForeignKey("Pony", models.CASCADE)),
             ],
         )
         create_state = project_state.clone()
@@ -1422,7 +1437,7 @@ class OperationTests(OperationTestBase):
         alter_operation = migrations.AlterField(
             model_name='Rider',
             name='pony',
-            field=models.ForeignKey(editable=False, to="Pony"),
+            field=models.ForeignKey("Pony", models.CASCADE, editable=False),
         )
         alter_state = create_state.clone()
         alter_operation.state_forwards("test_alfk", alter_state)
@@ -1754,7 +1769,7 @@ class OperationTests(OperationTestBase):
             [
                 ("id", models.AutoField(primary_key=True)),
                 ("title", models.CharField(max_length=100)),
-                ("author", models.ForeignKey("test_authors.Author"))
+                ("author", models.ForeignKey("test_authors.Author", models.CASCADE))
             ],
             options={},
         )

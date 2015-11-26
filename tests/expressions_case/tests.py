@@ -689,7 +689,15 @@ class CaseExpressionTests(TestCase):
         )
         self.assertQuerysetEqual(
             CaseTestModel.objects.all().order_by('pk'),
-            [(1, Decimal('1.1')), (2, Decimal('2.2')), (3, None), (2, Decimal('2.2')), (3, None), (3, None), (4, None)],
+            [
+                (1, Decimal('1.1')),
+                (2, Decimal('2.2')),
+                (3, None),
+                (2, Decimal('2.2')),
+                (3, None),
+                (3, None),
+                (4, None)
+            ],
             transform=attrgetter('integer', 'decimal')
         )
 
@@ -774,21 +782,6 @@ class CaseExpressionTests(TestCase):
             CaseTestModel.objects.all().order_by('pk'),
             [(1, '~/1'), (2, '~/2'), (3, ''), (2, '~/2'), (3, ''), (3, ''), (4, '')],
             transform=lambda o: (o.integer, six.text_type(o.image))
-        )
-
-    def test_update_ip_address(self):
-        CaseTestModel.objects.update(
-            ip_address=Case(
-                # fails on postgresql if output_field is not set explicitly
-                When(integer=1, then=Value('1.1.1.1')),
-                When(integer=2, then=Value('2.2.2.2')),
-                output_field=models.IPAddressField(),
-            ),
-        )
-        self.assertQuerysetEqual(
-            CaseTestModel.objects.all().order_by('pk'),
-            [(1, '1.1.1.1'), (2, '2.2.2.2'), (3, None), (2, '2.2.2.2'), (3, None), (3, None), (4, None)],
-            transform=attrgetter('integer', 'ip_address')
         )
 
     def test_update_generic_ip_address(self):
@@ -949,8 +942,13 @@ class CaseExpressionTests(TestCase):
         self.assertQuerysetEqual(
             CaseTestModel.objects.all().order_by('pk'),
             [
-                (1, UUID('11111111111111111111111111111111')), (2, UUID('22222222222222222222222222222222')), (3, None),
-                (2, UUID('22222222222222222222222222222222')), (3, None), (3, None), (4, None)
+                (1, UUID('11111111111111111111111111111111')),
+                (2, UUID('22222222222222222222222222222222')),
+                (3, None),
+                (2, UUID('22222222222222222222222222222222')),
+                (3, None),
+                (3, None),
+                (4, None),
             ],
             transform=attrgetter('integer', 'uuid')
         )

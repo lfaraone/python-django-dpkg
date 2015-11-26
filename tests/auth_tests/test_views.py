@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
+import datetime
 import itertools
+import os
 import re
 from importlib import import_module
 
@@ -13,6 +15,7 @@ from django.contrib.auth.forms import (
     AuthenticationForm, PasswordChangeForm, SetPasswordForm,
 )
 from django.contrib.auth.models import User
+from django.contrib.auth.tests.custom_user import CustomUser
 from django.contrib.auth.views import login as login_view, redirect_to_login
 from django.contrib.sessions.middleware import SessionMiddleware
 from django.contrib.sites.requests import RequestSite
@@ -20,7 +23,7 @@ from django.core import mail
 from django.core.urlresolvers import NoReverseMatch, reverse, reverse_lazy
 from django.db import connection
 from django.http import HttpRequest, QueryDict
-from django.middleware.csrf import CsrfViewMiddleware
+from django.middleware.csrf import CsrfViewMiddleware, get_token
 from django.test import (
     TestCase, ignore_warnings, modify_settings, override_settings,
 )
@@ -36,9 +39,9 @@ from .settings import AUTH_TEMPLATES
 
 
 @override_settings(
-    LANGUAGES=(
+    LANGUAGES=[
         ('en', 'English'),
-    ),
+    ],
     LANGUAGE_CODE='en',
     TEMPLATES=AUTH_TEMPLATES,
     USE_TZ=False,
@@ -49,7 +52,44 @@ class AuthViewsTestCase(TestCase):
     """
     Helper base class for all the follow test cases.
     """
-    fixtures = ['authtestdata.json']
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.u1 = User.objects.create(
+            password='sha1$6efc0$f93efe9fd7542f25a7be94871ea45aa95de57161',
+            last_login=datetime.datetime(2006, 12, 17, 7, 3, 31), is_superuser=False, username='testclient',
+            first_name='Test', last_name='Client', email='testclient@example.com', is_staff=False, is_active=True,
+            date_joined=datetime.datetime(2006, 12, 17, 7, 3, 31)
+        )
+        cls.u2 = User.objects.create(
+            password='sha1$6efc0$f93efe9fd7542f25a7be94871ea45aa95de57161',
+            last_login=datetime.datetime(2006, 12, 17, 7, 3, 31), is_superuser=False, username='inactive',
+            first_name='Inactive', last_name='User', email='testclient2@example.com', is_staff=False, is_active=False,
+            date_joined=datetime.datetime(2006, 12, 17, 7, 3, 31)
+        )
+        cls.u3 = User.objects.create(
+            password='sha1$6efc0$f93efe9fd7542f25a7be94871ea45aa95de57161',
+            last_login=datetime.datetime(2006, 12, 17, 7, 3, 31), is_superuser=False, username='staff',
+            first_name='Staff', last_name='Member', email='staffmember@example.com', is_staff=True, is_active=True,
+            date_joined=datetime.datetime(2006, 12, 17, 7, 3, 31)
+        )
+        cls.u4 = User.objects.create(
+            password='', last_login=datetime.datetime(2006, 12, 17, 7, 3, 31), is_superuser=False,
+            username='empty_password', first_name='Empty', last_name='Password', email='empty_password@example.com',
+            is_staff=False, is_active=True, date_joined=datetime.datetime(2006, 12, 17, 7, 3, 31)
+        )
+        cls.u5 = User.objects.create(
+            password='$', last_login=datetime.datetime(2006, 12, 17, 7, 3, 31), is_superuser=False,
+            username='unmanageable_password', first_name='Unmanageable', last_name='Password',
+            email='unmanageable_password@example.com', is_staff=False, is_active=True,
+            date_joined=datetime.datetime(2006, 12, 17, 7, 3, 31)
+        )
+        cls.u6 = User.objects.create(
+            password='foo$bar', last_login=datetime.datetime(2006, 12, 17, 7, 3, 31), is_superuser=False,
+            username='unknown_password', first_name='Unknown', last_name='Password',
+            email='unknown_password@example.com', is_staff=False, is_active=True,
+            date_joined=datetime.datetime(2006, 12, 17, 7, 3, 31)
+        )
 
     def login(self, username='testclient', password='password'):
         response = self.client.post('/login/', {
@@ -133,6 +173,18 @@ class PasswordResetTest(AuthViewsTestCase):
         # optional multipart text/html email has been added.  Make sure original,
         # default functionality is 100% the same
         self.assertFalse(mail.outbox[0].message().is_multipart())
+
+    def test_extra_email_context(self):
+        """
+        extra_email_context should be available in the email template context.
+        """
+        response = self.client.post(
+            '/password_reset_extra_email_context/',
+            {'email': 'staffmember@example.com'},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('Email email context: "Hello!"', mail.outbox[0].body)
 
     def test_html_mail_template(self):
         """
@@ -333,8 +385,15 @@ class PasswordResetTest(AuthViewsTestCase):
 
 @override_settings(AUTH_USER_MODEL='auth.CustomUser')
 class CustomUserPasswordResetTest(AuthViewsTestCase):
-    fixtures = ['custom_user.json']
     user_email = 'staffmember@example.com'
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.u1 = CustomUser.custom_objects.create(
+            password='sha1$6efc0$f93efe9fd7542f25a7be94871ea45aa95de57161',
+            last_login=datetime.datetime(2006, 12, 17, 7, 3, 31), email='staffmember@example.com', is_active=True,
+            is_admin=False, date_of_birth=datetime.date(1976, 11, 8)
+        )
 
     def _test_confirm_start(self):
         # Start by creating the email
@@ -361,9 +420,8 @@ class CustomUserPasswordResetTest(AuthViewsTestCase):
         self.assertRedirects(response, '/reset/done/')
 
 
-@override_settings(AUTH_USER_MODEL='auth.UUIDUser')
+@override_settings(AUTH_USER_MODEL='auth_tests.UUIDUser')
 class UUIDUserPasswordResetTest(CustomUserPasswordResetTest):
-    fixtures = None
 
     def _test_confirm_start(self):
         # instead of fixture
@@ -464,9 +522,9 @@ class ChangePasswordTest(AuthViewsTestCase):
         self.assertURLEqual(response.url, '/password_reset/')
 
 
-@override_settings(MIDDLEWARE_CLASSES=list(settings.MIDDLEWARE_CLASSES) + [
-    'django.contrib.auth.middleware.SessionAuthenticationMiddleware'
-])
+@modify_settings(MIDDLEWARE_CLASSES={
+    'append': 'django.contrib.auth.middleware.SessionAuthenticationMiddleware',
+})
 class SessionAuthenticationTests(AuthViewsTestCase):
     def test_user_password_change_updates_session(self):
         """
@@ -560,7 +618,8 @@ class LoginTest(AuthViewsTestCase):
         # TestClient isn't used here as we're testing middleware, essentially.
         req = HttpRequest()
         CsrfViewMiddleware().process_view(req, login_view, (), {})
-        req.META["CSRF_COOKIE_USED"] = True
+        # get_token() triggers CSRF token inclusion in the response
+        get_token(req)
         resp = login_view(req)
         resp2 = CsrfViewMiddleware().process_response(req, resp)
         csrf_cookie = resp2.cookies.get(settings.CSRF_COOKIE_NAME, None)
@@ -846,7 +905,7 @@ class ChangelistTests(AuthViewsTestCase):
         # Make me a superuser before logging in.
         User.objects.filter(username='testclient').update(is_staff=True, is_superuser=True)
         self.login()
-        self.admin = User.objects.get(pk=1)
+        self.admin = User.objects.get(pk=self.u1.pk)
 
     def get_user_data(self, user):
         return {
@@ -873,32 +932,53 @@ class ChangelistTests(AuthViewsTestCase):
     def test_changelist_disallows_password_lookups(self):
         # A lookup that tries to filter on password isn't OK
         with patch_logger('django.security.DisallowedModelAdminLookup', 'error') as logger_calls:
-            response = self.client.get('/admin/auth/user/?password__startswith=sha1$')
+            response = self.client.get(reverse('auth_test_admin:auth_user_changelist') + '?password__startswith=sha1$')
             self.assertEqual(response.status_code, 400)
             self.assertEqual(len(logger_calls), 1)
 
     def test_user_change_email(self):
         data = self.get_user_data(self.admin)
         data['email'] = 'new_' + data['email']
-        response = self.client.post('/admin/auth/user/%s/' % self.admin.pk, data)
-        self.assertRedirects(response, '/admin/auth/user/')
+        response = self.client.post(
+            reverse('auth_test_admin:auth_user_change', args=(self.admin.pk,)),
+            data
+        )
+        self.assertRedirects(response, reverse('auth_test_admin:auth_user_changelist'))
         row = LogEntry.objects.latest('id')
         self.assertEqual(row.change_message, 'Changed email.')
 
     def test_user_not_change(self):
-        response = self.client.post('/admin/auth/user/%s/' % self.admin.pk,
+        response = self.client.post(
+            reverse('auth_test_admin:auth_user_change', args=(self.admin.pk,)),
             self.get_user_data(self.admin)
         )
-        self.assertRedirects(response, '/admin/auth/user/')
+        self.assertRedirects(response, reverse('auth_test_admin:auth_user_changelist'))
         row = LogEntry.objects.latest('id')
         self.assertEqual(row.change_message, 'No fields changed.')
 
     def test_user_change_password(self):
-        response = self.client.post('/admin/auth/user/%s/password/' % self.admin.pk, {
-            'password1': 'password1',
-            'password2': 'password1',
-        })
-        self.assertRedirects(response, '/admin/auth/user/%s/' % self.admin.pk)
+        user_change_url = reverse('auth_test_admin:auth_user_change', args=(self.admin.pk,))
+        password_change_url = reverse('auth_test_admin:auth_user_password_change', args=(self.admin.pk,))
+
+        response = self.client.get(user_change_url)
+        # Test the link inside password field help_text.
+        rel_link = re.search(
+            r'you can change the password using <a href="([^"]*)">this form</a>',
+            force_text(response.content)
+        ).groups()[0]
+        self.assertEqual(
+            os.path.normpath(user_change_url + rel_link),
+            os.path.normpath(password_change_url)
+        )
+
+        response = self.client.post(
+            password_change_url,
+            {
+                'password1': 'password1',
+                'password2': 'password1',
+            }
+        )
+        self.assertRedirects(response, user_change_url)
         row = LogEntry.objects.latest('id')
         self.assertEqual(row.change_message, 'Changed password.')
         self.logout()
@@ -906,11 +986,14 @@ class ChangelistTests(AuthViewsTestCase):
 
     def test_user_change_different_user_password(self):
         u = User.objects.get(email='staffmember@example.com')
-        response = self.client.post('/admin/auth/user/%s/password/' % u.pk, {
-            'password1': 'password1',
-            'password2': 'password1',
-        })
-        self.assertRedirects(response, '/admin/auth/user/%s/' % u.pk)
+        response = self.client.post(
+            reverse('auth_test_admin:auth_user_password_change', args=(u.pk,)),
+            {
+                'password1': 'password1',
+                'password2': 'password1',
+            }
+        )
+        self.assertRedirects(response, reverse('auth_test_admin:auth_user_change', args=(u.pk,)))
         row = LogEntry.objects.latest('id')
         self.assertEqual(row.user_id, self.admin.pk)
         self.assertEqual(row.object_id, str(u.pk))
@@ -922,7 +1005,7 @@ class ChangelistTests(AuthViewsTestCase):
 
 
 @override_settings(
-    AUTH_USER_MODEL='auth.UUIDUser',
+    AUTH_USER_MODEL='auth_tests.UUIDUser',
     ROOT_URLCONF='auth_tests.urls_custom_user_admin',
 )
 class UUIDUserTests(TestCase):
@@ -931,7 +1014,7 @@ class UUIDUserTests(TestCase):
         u = UUIDUser.objects.create_superuser(username='uuid', email='foo@bar.com', password='test')
         self.assertTrue(self.client.login(username='uuid', password='test'))
 
-        user_change_url = reverse('custom_user_admin:auth_uuiduser_change', args=(u.pk,))
+        user_change_url = reverse('custom_user_admin:auth_tests_uuiduser_change', args=(u.pk,))
         response = self.client.get(user_change_url)
         self.assertEqual(response.status_code, 200)
 

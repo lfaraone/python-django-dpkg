@@ -4,20 +4,24 @@ import re
 import tempfile
 
 from django.contrib.gis import gdal
-from django.contrib.gis.geos import HAS_GEOS
+from django.contrib.gis.db.models import Extent, MakeLine, Union
+from django.contrib.gis.geos import (
+    GeometryCollection, GEOSGeometry, LinearRing, LineString, Point, Polygon,
+    fromstr,
+)
 from django.core.management import call_command
 from django.db import connection
 from django.test import TestCase, ignore_warnings, skipUnlessDBFeature
 from django.utils import six
-from django.utils.deprecation import RemovedInDjango110Warning
+from django.utils.deprecation import (
+    RemovedInDjango20Warning, RemovedInDjango110Warning,
+)
 
 from ..utils import no_oracle, oracle, postgis, skipUnlessGISLookup, spatialite
-
-if HAS_GEOS:
-    from django.contrib.gis.db.models import Extent, MakeLine, Union
-    from django.contrib.gis.geos import (fromstr, GEOSGeometry,
-        Point, LineString, LinearRing, Polygon, GeometryCollection)
-    from .models import Country, City, PennsylvaniaCity, State, Track, NonConcreteModel, Feature, MinusOneSRID
+from .models import (
+    City, Country, Feature, MinusOneSRID, NonConcreteModel, PennsylvaniaCity,
+    State, Track,
+)
 
 
 def postgis_bug_version():
@@ -445,6 +449,7 @@ class GeoLookupTest(TestCase):
 
 
 @skipUnlessDBFeature("gis_enabled")
+@ignore_warnings(category=RemovedInDjango20Warning)
 class GeoQuerySetTest(TestCase):
     fixtures = ['initial']
 
@@ -624,7 +629,7 @@ class GeoQuerySetTest(TestCase):
         if oracle:
             # No precision parameter for Oracle :-/
             gml_regex = re.compile(
-                r'^<gml:Point srsName="SDO:4326" xmlns:gml="http://www.opengis.net/gml">'
+                r'^<gml:Point srsName="EPSG:4326" xmlns:gml="http://www.opengis.net/gml">'
                 r'<gml:coordinates decimal="\." cs="," ts=" ">-104.60925\d+,38.25500\d+ '
                 r'</gml:coordinates></gml:Point>'
             )
@@ -705,12 +710,8 @@ class GeoQuerySetTest(TestCase):
 
         for c in City.objects.filter(point__isnull=False).num_geom():
             # Oracle and PostGIS 2.0+ will return 1 for the number of
-            # geometries on non-collections, whereas PostGIS < 2.0.0
-            # will return None.
-            if postgis and connection.ops.spatial_version < (2, 0, 0):
-                self.assertIsNone(c.num_geom)
-            else:
-                self.assertEqual(1, c.num_geom)
+            # geometries on non-collections.
+            self.assertEqual(1, c.num_geom)
 
     @skipUnlessDBFeature("supports_num_points_poly")
     def test_num_points(self):

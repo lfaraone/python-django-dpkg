@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 
 from datetime import datetime
+from decimal import Decimal
 
 from django import forms
 from django.conf import settings
@@ -8,11 +9,10 @@ from django.contrib import admin
 from django.contrib.admin import helpers
 from django.contrib.admin.utils import (
     NestedObjects, display_for_field, flatten, flatten_fieldsets,
-    label_for_field, lookup_field,
+    label_for_field, lookup_field, quote,
 )
-from django.contrib.admin.views.main import EMPTY_CHANGELIST_VALUE
 from django.db import DEFAULT_DB_ALIAS, models
-from django.test import SimpleTestCase, TestCase
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.utils import six
 from django.utils.formats import localize
 from django.utils.safestring import mark_safe
@@ -96,6 +96,8 @@ class NestedObjectsTests(TestCase):
 
 class UtilsTests(SimpleTestCase):
 
+    empty_value = '-empty-'
+
     def test_values_from_lookup_field(self):
         """
         Regression test for #12654: lookup_field
@@ -136,7 +138,7 @@ class UtilsTests(SimpleTestCase):
             field, attr, resolved_value = lookup_field(name, article, mock_admin)
 
             if field is not None:
-                resolved_value = display_for_field(resolved_value, field)
+                resolved_value = display_for_field(resolved_value, field, self.empty_value)
 
             self.assertEqual(value, resolved_value)
 
@@ -145,33 +147,54 @@ class UtilsTests(SimpleTestCase):
         Regression test for #12550: display_for_field should handle None
         value.
         """
-        display_value = display_for_field(None, models.CharField())
-        self.assertEqual(display_value, EMPTY_CHANGELIST_VALUE)
+        display_value = display_for_field(None, models.CharField(), self.empty_value)
+        self.assertEqual(display_value, self.empty_value)
 
         display_value = display_for_field(None, models.CharField(
             choices=(
                 (None, "test_none"),
             )
-        ))
+        ), self.empty_value)
         self.assertEqual(display_value, "test_none")
 
-        display_value = display_for_field(None, models.DateField())
-        self.assertEqual(display_value, EMPTY_CHANGELIST_VALUE)
+        display_value = display_for_field(None, models.DateField(), self.empty_value)
+        self.assertEqual(display_value, self.empty_value)
 
-        display_value = display_for_field(None, models.TimeField())
-        self.assertEqual(display_value, EMPTY_CHANGELIST_VALUE)
+        display_value = display_for_field(None, models.TimeField(), self.empty_value)
+        self.assertEqual(display_value, self.empty_value)
 
         # Regression test for #13071: NullBooleanField has special
         # handling.
-        display_value = display_for_field(None, models.NullBooleanField())
-        expected = '<img src="%sadmin/img/icon-unknown.gif" alt="None" />' % settings.STATIC_URL
+        display_value = display_for_field(None, models.NullBooleanField(), self.empty_value)
+        expected = '<img src="%sadmin/img/icon-unknown.svg" alt="None" />' % settings.STATIC_URL
         self.assertHTMLEqual(display_value, expected)
 
-        display_value = display_for_field(None, models.DecimalField())
-        self.assertEqual(display_value, EMPTY_CHANGELIST_VALUE)
+        display_value = display_for_field(None, models.DecimalField(), self.empty_value)
+        self.assertEqual(display_value, self.empty_value)
 
-        display_value = display_for_field(None, models.FloatField())
-        self.assertEqual(display_value, EMPTY_CHANGELIST_VALUE)
+        display_value = display_for_field(None, models.FloatField(), self.empty_value)
+        self.assertEqual(display_value, self.empty_value)
+
+    def test_number_formats_display_for_field(self):
+        display_value = display_for_field(12345.6789, models.FloatField(), self.empty_value)
+        self.assertEqual(display_value, '12345.6789')
+
+        display_value = display_for_field(Decimal('12345.6789'), models.DecimalField(), self.empty_value)
+        self.assertEqual(display_value, '12345.6789')
+
+        display_value = display_for_field(12345, models.IntegerField(), self.empty_value)
+        self.assertEqual(display_value, '12345')
+
+    @override_settings(USE_L10N=True, USE_THOUSAND_SEPARATOR=True)
+    def test_number_formats_with_thousand_separator_display_for_field(self):
+        display_value = display_for_field(12345.6789, models.FloatField(), self.empty_value)
+        self.assertEqual(display_value, '12,345.6789')
+
+        display_value = display_for_field(Decimal('12345.6789'), models.DecimalField(), self.empty_value)
+        self.assertEqual(display_value, '12,345.6789')
+
+        display_value = display_for_field(12345, models.IntegerField(), self.empty_value)
+        self.assertEqual(display_value, '12,345')
 
     def test_label_for_field(self):
         """
@@ -356,3 +379,6 @@ class UtilsTests(SimpleTestCase):
             }),
         )
         self.assertEqual(flatten_fieldsets(fieldsets), ['url', 'title', 'content', 'sites'])
+
+    def test_quote(self):
+        self.assertEqual(quote('something\nor\nother'), 'something_0Aor_0Aother')

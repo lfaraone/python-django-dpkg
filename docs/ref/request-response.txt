@@ -33,8 +33,6 @@ All attributes should be considered read-only, unless stated otherwise.
 
 .. attribute:: HttpRequest.scheme
 
-    .. versionadded:: 1.7
-
     A string representing the scheme of the request (``http`` or ``https``
     usually).
 
@@ -107,21 +105,6 @@ All attributes should be considered read-only, unless stated otherwise.
 
     Note: ``POST`` does *not* include file-upload information. See ``FILES``.
 
-.. attribute:: HttpRequest.REQUEST
-
-    .. deprecated:: 1.7
-        Use the more explicit ``GET`` and ``POST`` instead.
-
-    For convenience, a dictionary-like object that searches ``POST`` first,
-    then ``GET``. Inspired by PHP's ``$_REQUEST``.
-
-    For example, if ``GET = {"name": "john"}`` and ``POST = {"age": '34'}``,
-    ``REQUEST["name"]`` would be ``"john"``, and ``REQUEST["age"]`` would be
-    ``"34"``.
-
-    It's strongly suggested that you use ``GET`` and ``POST`` instead of
-    ``REQUEST``, because the former are more explicit.
-
 .. attribute:: HttpRequest.COOKIES
 
     A standard Python dictionary containing all cookies. Keys and values are
@@ -175,13 +158,6 @@ All attributes should be considered read-only, unless stated otherwise.
     underscores in WSGI environment variables. It matches the behavior of
     Web servers like Nginx and Apache 2.4+.
 
-.. attribute:: HttpRequest.urlconf
-
-    Not defined by Django itself, but will be read if other code (e.g., a custom
-    middleware class) sets it. When present, this will be used as the root
-    URLconf for the current request, overriding the :setting:`ROOT_URLCONF`
-    setting. See :ref:`how-django-processes-a-request` for details.
-
 .. attribute:: HttpRequest.resolver_match
 
     An instance of :class:`~django.core.urlresolvers.ResolverMatch` representing
@@ -190,13 +166,32 @@ All attributes should be considered read-only, unless stated otherwise.
     are executed before url resolving takes place (like ``process_request``, you
     can use ``process_view`` instead).
 
+Attributes set by application code
+----------------------------------
+
+Django doesn't set these attributes itself but makes use of them if set by your
+application.
+
 .. attribute:: HttpRequest.current_app
 
     .. versionadded:: 1.8
 
-    Not defined by Django itself, but if set, the :ttag:`url` template tag
-    will use its value as the ``current_app`` argument to
-    :func:`~django.core.urlresolvers.reverse()`.
+    The :ttag:`url` template tag will use its value as the ``current_app``
+    argument to :func:`~django.core.urlresolvers.reverse()`.
+
+.. attribute:: HttpRequest.urlconf
+
+    This will be used as the root URLconf for the current request, overriding
+    the :setting:`ROOT_URLCONF` setting. See
+    :ref:`how-django-processes-a-request` for details.
+
+    ``urlconf`` can be set to ``None`` to revert any changes made by previous
+    middleware and return to using the :setting:`ROOT_URLCONF`.
+
+    .. versionchanged:: 1.9
+
+        Setting ``urlconf=None`` raised
+        :exc:`~django.core.exceptions.ImproperlyConfigured` in older versions.
 
 Attributes set by middleware
 ----------------------------
@@ -273,6 +268,14 @@ Methods
         :class:`~django.middleware.common.CommonMiddleware` or
         :class:`~django.middleware.csrf.CsrfViewMiddleware`.
 
+.. method:: HttpRequest.get_port()
+
+    .. versionadded:: 1.9
+
+    Returns the originating port of the request using information from the
+    ``HTTP_X_FORWARDED_PORT`` (if :setting:`USE_X_FORWARDED_PORT` is enabled)
+    and ``SERVER_PORT`` ``META`` variables, in that order.
+
 .. method:: HttpRequest.get_full_path()
 
     Returns the ``path``, plus an appended query string, if applicable.
@@ -289,6 +292,14 @@ Methods
     this request.
 
     Example: ``"http://example.com/music/bands/the_beatles/?print=true"``
+
+    .. note::
+
+        Mixing HTTP and HTTPS on the same site is discouraged, therefore
+        :meth:`~HttpRequest.build_absolute_uri()` will always generate an
+        absolute URI with the same scheme the current request has. If you need
+        to redirect users to HTTPS, it's best to let your webserver redirect
+        all HTTP traffic to HTTPS.
 
 .. method:: HttpRequest.get_signed_cookie(key, default=RAISE_ERROR, salt='', max_age=None)
 
@@ -664,9 +675,25 @@ Attributes
 
     The `HTTP status code`_ for the response.
 
+    .. versionchanged:: 1.9
+
+        Unless :attr:`reason_phrase` is explicitly set, modifying the value of
+        ``status_code`` outside the constructor will also modify the value of
+        ``reason_phrase``.
+
 .. attribute:: HttpResponse.reason_phrase
 
     The HTTP reason phrase for the response.
+
+    .. versionchanged:: 1.9
+
+        ``reason_phrase`` no longer defaults to all capital letters. It now
+        uses the `HTTP standard's`_ default reason phrases.
+
+        .. _`HTTP standard's`: https://www.ietf.org/rfc/rfc2616.txt
+
+        Unless explicitly set, ``reason_phrase`` is determined by the current
+        value of :attr:`status_code`.
 
 .. attribute:: HttpResponse.streaming
 
@@ -841,8 +868,10 @@ types of HTTP responses. Like ``HttpResponse``, these subclasses live in
 
     The first argument to the constructor is required -- the path to redirect
     to. This can be a fully qualified URL
-    (e.g. ``'http://www.yahoo.com/search/'``) or an absolute path with no
-    domain (e.g. ``'/search/'``). See :class:`HttpResponse` for other optional
+    (e.g. ``'http://www.yahoo.com/search/'``), an absolute path with no domain
+    (e.g. ``'/search/'``), or even a relative path (e.g. ``'search/'``). In that
+    last case, the client browser will reconstruct the full URL itself
+    according to the current path. See :class:`HttpResponse` for other optional
     constructor arguments. Note that this returns an HTTP status code 302.
 
     .. attribute:: HttpResponseRedirect.url
@@ -897,9 +926,7 @@ types of HTTP responses. Like ``HttpResponse``, these subclasses live in
 JsonResponse objects
 ====================
 
-.. versionadded:: 1.7
-
-.. class:: JsonResponse(data, encoder=DjangoJSONEncoder, safe=True, **kwargs)
+.. class:: JsonResponse(data, encoder=DjangoJSONEncoder, safe=True, json_dumps_params=None, **kwargs)
 
     An :class:`HttpResponse` subclass that helps to create a JSON-encoded
     response. It inherits most behavior from its superclass with a couple
@@ -920,6 +947,13 @@ JsonResponse objects
     ``False``, any object can be passed for serialization (otherwise only
     ``dict`` instances are allowed). If ``safe`` is ``True`` and a non-``dict``
     object is passed as the first argument, a :exc:`TypeError` will be raised.
+
+    The ``json_dumps_params`` parameter is a dictionary of keyword arguments
+    to pass to the ``json.dumps()`` call used to generate the response.
+
+    .. versionchanged:: 1.9
+
+        The ``json_dumps_params`` argument was added.
 
 Usage
 -----
@@ -1013,9 +1047,25 @@ Attributes
 
     The `HTTP status code`_ for the response.
 
+    .. versionchanged:: 1.9
+
+        Unless :attr:`reason_phrase` is explicitly set, modifying the value of
+        ``status_code`` outside the constructor will also modify the value of
+        ``reason_phrase``.
+
 .. attribute:: StreamingHttpResponse.reason_phrase
 
     The HTTP reason phrase for the response.
+
+    .. versionchanged:: 1.9
+
+        ``reason_phrase`` no longer defaults to all capital letters. It now
+        uses the `HTTP standard's`_ default reason phrases.
+
+        .. _`HTTP standard's`: https://www.ietf.org/rfc/rfc2616.txt
+
+        Unless explicitly set, ``reason_phrase`` is determined by the current
+        value of :attr:`status_code`.
 
 .. attribute:: StreamingHttpResponse.streaming
 

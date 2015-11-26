@@ -1,6 +1,8 @@
 from __future__ import unicode_literals
 
-from django.contrib.gis.geos import HAS_GEOS
+from django.contrib.gis.db.models import F, Collect, Count, Extent, Union
+from django.contrib.gis.geometry.backend import Geometry
+from django.contrib.gis.geos import GEOSGeometry, MultiPoint, Point
 from django.db import connection
 from django.test import TestCase, ignore_warnings, skipUnlessDBFeature
 from django.test.utils import override_settings
@@ -8,13 +10,9 @@ from django.utils import timezone
 from django.utils.deprecation import RemovedInDjango110Warning
 
 from ..utils import no_oracle
-
-if HAS_GEOS:
-    from django.contrib.gis.db.models import Collect, Count, Extent, F, Union
-    from django.contrib.gis.geometry.backend import Geometry
-    from django.contrib.gis.geos import GEOSGeometry, Point, MultiPoint
-
-    from .models import City, Location, DirectoryEntry, Parcel, Book, Author, Article, Event
+from .models import (
+    Article, Author, Book, City, DirectoryEntry, Event, Location, Parcel,
+)
 
 
 @skipUnlessDBFeature("gis_enabled")
@@ -193,7 +191,6 @@ class RelatedGeoModelTest(TestCase):
 
     def test07_values(self):
         "Testing values() and values_list() and GeoQuerySets."
-        # GeoQuerySet and GeoValuesQuerySet, and GeoValuesListQuerySet respectively.
         gqs = Location.objects.all()
         gvqs = Location.objects.values()
         gvlqs = Location.objects.values_list()
@@ -265,7 +262,7 @@ class RelatedGeoModelTest(TestCase):
         "Testing `Count` aggregate use with the `GeoManager` on non geo-fields. See #11087."
         # Should only be one author (Trevor Paglen) returned by this query, and
         # the annotation should have 3 for the number of books, see #11087.
-        # Also testing with a `GeoValuesQuerySet`, see #11489.
+        # Also testing with a values(), see #11489.
         qs = Author.objects.annotate(num_books=Count('books')).filter(num_books__gt=1)
         vqs = Author.objects.values('name').annotate(num_books=Count('books')).filter(num_books__gt=1)
         self.assertEqual(1, len(qs))

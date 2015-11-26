@@ -305,22 +305,28 @@ class FieldNamesTests(IsolatedModelsTestCase):
                 related_name="rn3",
                 through='m2mcomplex'
             )
-            fk = models.ForeignKey(VeryLongModelNamezzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz, related_name="rn4")
+            fk = models.ForeignKey(
+                VeryLongModelNamezzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz,
+                models.CASCADE,
+                related_name="rn4",
+            )
 
         # Models used for setting `through` in M2M field.
         class m2msimple(models.Model):
-            id2 = models.ForeignKey(ModelWithLongField)
+            id2 = models.ForeignKey(ModelWithLongField, models.CASCADE)
 
         class m2mcomplex(models.Model):
-            id2 = models.ForeignKey(ModelWithLongField)
+            id2 = models.ForeignKey(ModelWithLongField, models.CASCADE)
 
         long_field_name = 'a' * (self.max_column_name_length + 1)
         models.ForeignKey(
-            VeryLongModelNamezzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz
+            VeryLongModelNamezzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz,
+            models.CASCADE,
         ).contribute_to_class(m2msimple, long_field_name)
 
         models.ForeignKey(
             VeryLongModelNamezzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz,
+            models.CASCADE,
             db_column=long_field_name
         ).contribute_to_class(m2mcomplex, long_field_name)
 
@@ -430,6 +436,25 @@ class FieldNamesTests(IsolatedModelsTestCase):
 
 class ShadowingFieldsTests(IsolatedModelsTestCase):
 
+    def test_field_name_clash_with_child_accessor(self):
+        class Parent(models.Model):
+            pass
+
+        class Child(Parent):
+            child = models.CharField(max_length=100)
+
+        errors = Child.check()
+        expected = [
+            Error(
+                "The field 'child' clashes with the field "
+                "'child' from model 'invalid_models_tests.parent'.",
+                hint=None,
+                obj=Child._meta.get_field('child'),
+                id='models.E006',
+            )
+        ]
+        self.assertEqual(errors, expected)
+
     def test_multiinheritance_clash(self):
         class Mother(models.Model):
             clash = models.IntegerField()
@@ -473,7 +498,7 @@ class ShadowingFieldsTests(IsolatedModelsTestCase):
 
         class Child(Parent):
             # This field clashes with parent "f_id" field.
-            f = models.ForeignKey(Target)
+            f = models.ForeignKey(Target, models.CASCADE)
 
         errors = Child.check()
         expected = [
@@ -517,7 +542,7 @@ class ShadowingFieldsTests(IsolatedModelsTestCase):
             pass
 
         class Model(models.Model):
-            fk = models.ForeignKey(Target)
+            fk = models.ForeignKey(Target, models.CASCADE)
             fk_id = models.IntegerField()
 
         errors = Model.check()
@@ -566,6 +591,50 @@ class OtherModelTests(IsolatedModelsTestCase):
                 hint=None,
                 obj=Model,
                 id='models.E014',
+            ),
+        ]
+        self.assertEqual(errors, expected)
+
+    def test_just_ordering_no_errors(self):
+        class Model(models.Model):
+            order = models.PositiveIntegerField()
+
+            class Meta:
+                ordering = ['order']
+
+        self.assertEqual(Model.check(), [])
+
+    def test_just_order_with_respect_to_no_errors(self):
+        class Question(models.Model):
+            pass
+
+        class Answer(models.Model):
+            question = models.ForeignKey(Question, models.CASCADE)
+
+            class Meta:
+                order_with_respect_to = 'question'
+
+        self.assertEqual(Answer.check(), [])
+
+    def test_ordering_with_order_with_respect_to(self):
+        class Question(models.Model):
+            pass
+
+        class Answer(models.Model):
+            question = models.ForeignKey(Question, models.CASCADE)
+            order = models.IntegerField()
+
+            class Meta:
+                order_with_respect_to = 'question'
+                ordering = ['order']
+
+        errors = Answer.check()
+        expected = [
+            Error(
+                "'ordering' and 'order_with_respect_to' cannot be used together.",
+                hint=None,
+                obj=Answer,
+                id='models.E021',
             ),
         ]
         self.assertEqual(errors, expected)
@@ -634,7 +703,7 @@ class OtherModelTests(IsolatedModelsTestCase):
             pass
 
         class Child(models.Model):
-            parent = models.ForeignKey(Parent)
+            parent = models.ForeignKey(Parent, models.CASCADE)
 
             class Meta:
                 ordering = ("parent_id",)
@@ -687,8 +756,8 @@ class OtherModelTests(IsolatedModelsTestCase):
                 related_name="secondary")
 
         class Membership(models.Model):
-            person = models.ForeignKey(Person)
-            group = models.ForeignKey(Group)
+            person = models.ForeignKey(Person, models.CASCADE)
+            group = models.ForeignKey(Group, models.CASCADE)
 
         errors = Group.check()
         expected = [

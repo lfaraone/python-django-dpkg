@@ -1,9 +1,9 @@
-from django.conf.urls import include, url
+from django.conf.urls import url
 from django.contrib import admin
 from django.contrib.auth import views
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm
-from django.contrib.auth.urls import urlpatterns
+from django.contrib.auth.urls import urlpatterns as auth_urlpatterns
 from django.contrib.messages.api import info
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
@@ -65,12 +65,14 @@ def custom_request_auth_login(request):
     return views.login(request, authentication_form=CustomRequestAuthenticationForm)
 
 # special urls for auth test cases
-urlpatterns += [
+urlpatterns = auth_urlpatterns + [
     url(r'^logout/custom_query/$', views.logout, dict(redirect_field_name='follow')),
     url(r'^logout/next_page/$', views.logout, dict(next_page='/somewhere/')),
     url(r'^logout/next_page/named/$', views.logout, dict(next_page='password_reset')),
     url(r'^remote_user/$', remote_user_auth_view),
     url(r'^password_reset_from_email/$', views.password_reset, dict(from_email='staffmember@example.com')),
+    url(r'^password_reset_extra_email_context/$', views.password_reset,
+        dict(extra_email_context=dict(greeting='Hello!'))),
     url(r'^password_reset/custom_redirect/$', views.password_reset, dict(post_reset_redirect='/custom/')),
     url(r'^password_reset/custom_redirect/named/$', views.password_reset, dict(post_reset_redirect='password_reset')),
     url(r'^password_reset/html_email_template/$', views.password_reset,
@@ -97,5 +99,5 @@ urlpatterns += [
     url(r'^userpage/(.+)/$', userpage, name="userpage"),
 
     # This line is only required to render the password reset with is_admin=True
-    url(r'^admin/', include(admin.site.urls)),
+    url(r'^admin/', admin.site.urls),
 ]

@@ -1,4 +1,4 @@
-From b3992b07f827d3c952aca397708b5d8074230686 Mon Sep 17 00:00:00 2001
+From 07558c08593ad5a006d6608e309bf846f228331c Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Rapha=C3=ABl=20Hertzog?= <hertzog@debian.org>
 Date: Wed, 25 Nov 2015 12:54:52 +0100
 Subject: Fix #25761 -- re-raised exceptions need __cause__.__traceback__
@@ -27,10 +27,10 @@ Patch-Name: fix-25761-add-traceback-attribute.patch
  4 files changed, 9 insertions(+), 1 deletion(-)
 
 diff --git a/django/db/migrations/loader.py b/django/db/migrations/loader.py
-index bbd60a6..8939537 100644
+index 310a4d0..7ef5e9d 100644
 --- a/django/db/migrations/loader.py
 +++ b/django/db/migrations/loader.py
-@@ -287,6 +287,8 @@ class MigrationLoader(object):
+@@ -272,6 +272,8 @@ class MigrationLoader(object):
                          ),
                          missing)
                      exc_value.__cause__ = exc
@@ -40,10 +40,10 @@ index bbd60a6..8939537 100644
              raise exc
  
 diff --git a/django/db/utils.py b/django/db/utils.py
-index ccfcfd4..24020dc 100644
+index 380a4b9..73ed6a6 100644
 --- a/django/db/utils.py
 +++ b/django/db/utils.py
-@@ -91,6 +91,8 @@ class DatabaseErrorWrapper(object):
+@@ -88,6 +88,8 @@ class DatabaseErrorWrapper(object):
              if issubclass(exc_type, db_exc_type):
                  dj_exc_value = dj_exc_type(*exc_value.args)
                  dj_exc_value.__cause__ = exc_value
@@ -53,7 +53,7 @@ index ccfcfd4..24020dc 100644
                  # the connection unusable.
                  if dj_exc_type not in (DataError, IntegrityError):
 diff --git a/django/utils/timezone.py b/django/utils/timezone.py
-index dbda90c..f64576d 100644
+index 70fd5e3..205cac4 100644
 --- a/django/utils/timezone.py
 +++ b/django/utils/timezone.py
 @@ -146,6 +146,8 @@ class LocalTimezone(ReferenceLocalTimezone):

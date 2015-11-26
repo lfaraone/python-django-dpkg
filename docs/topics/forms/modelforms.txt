@@ -280,8 +280,6 @@ Error messages  defined on :attr:`model fields
 <validating-objects>` step and no corresponding error messages are defined at
 the form level.
 
-.. versionadded:: 1.7
-
 You can override the error messages from ``NON_FIELD_ERRORS`` raised by model
 validation by adding the :data:`~django.core.exceptions.NON_FIELD_ERRORS` key
 to the ``error_messages`` dictionary of the ``ModelForm``’s inner ``Meta`` class::
@@ -482,9 +480,8 @@ Overriding the default fields
 
 The default field types, as described in the `Field types`_ table above, are
 sensible defaults. If you have a ``DateField`` in your model, chances are you'd
-want that to be represented as a ``DateField`` in your form. But
-``ModelForm`` gives you the flexibility of changing the form field type and
-widget for a given model field.
+want that to be represented as a ``DateField`` in your form. But ``ModelForm``
+gives you the flexibility of changing the form field for a given model.
 
 To specify a custom widget for a field, use the ``widgets`` attribute of the
 inner ``Meta`` class. This should be a dictionary mapping field names to widget
@@ -532,9 +529,8 @@ the ``name`` field::
                 },
             }
 
-Finally, if you want complete control over of a field -- including its type,
-validators, etc. -- you can do this by declaratively specifying fields like you
-would in a regular ``Form``.
+You can also specify ``field_classes`` to customize the type of fields
+instantiated by the form.
 
 For example, if you wanted to use ``MySlugFormField`` for the ``slug``
 field, you could do the following::
@@ -543,12 +539,17 @@ field, you could do the following::
     from myapp.models import Article
 
     class ArticleForm(ModelForm):
-        slug = MySlugFormField()
-
         class Meta:
             model = Article
             fields = ['pub_date', 'headline', 'content', 'reporter', 'slug']
+            field_classes = {
+                'slug': MySlugFormField,
+            }
 
+
+Finally, if you want complete control over of a field -- including its type,
+validators, required, etc. -- you can do this by declaratively specifying
+fields like you would in a regular ``Form``.
 
 If you want to specify a field's validators, you can do so by defining
 the field declaratively and setting its ``validators`` parameter::
@@ -562,6 +563,10 @@ the field declaratively and setting its ``validators`` parameter::
         class Meta:
             model = Article
             fields = ['pub_date', 'headline', 'content', 'reporter', 'slug']
+
+.. versionadded:: 1.9
+
+    The ``Meta.field_classes`` attribute was added.
 
 .. note::
 
@@ -661,14 +666,10 @@ There are a couple of things to note, however.
   used. This means the child's ``Meta``, if it exists, otherwise the
   ``Meta`` of the first parent, etc.
 
-.. versionchanged:: 1.7
-
 * It's possible to inherit from both ``Form`` and ``ModelForm`` simultaneously,
   however, you must ensure that ``ModelForm`` appears first in the MRO. This is
   because these classes rely on different metaclasses and a class can only have
   one metaclass.
-
-.. versionadded:: 1.7
 
 * It's possible to declaratively remove a ``Field`` inherited from a parent class by
   setting the name to be ``None`` on the subclass.
@@ -1118,7 +1119,7 @@ you have these two models::
         name = models.CharField(max_length=100)
 
     class Book(models.Model):
-        author = models.ForeignKey(Author)
+        author = models.ForeignKey(Author, on_delete=models.CASCADE)
         title = models.CharField(max_length=100)
 
 If you want to create a formset that allows you to edit books belonging to
@@ -1177,8 +1178,16 @@ need to resolve the ambiguity manually using ``fk_name``. For example, consider
 the following model::
 
     class Friendship(models.Model):
-        from_friend = models.ForeignKey(Friend, related_name='from_friends')
-        to_friend = models.ForeignKey(Friend, related_name='friends')
+        from_friend = models.ForeignKey(
+            Friend,
+            on_delete=models.CASCADE,
+            related_name='from_friends',
+        )
+        to_friend = models.ForeignKey(
+            Friend,
+            on_delete=models.CASCADE,
+            related_name='friends',
+        )
         length_in_months = models.IntegerField()
 
 To resolve this, you can use ``fk_name`` to

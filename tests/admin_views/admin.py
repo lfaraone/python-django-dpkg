@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 
 import os
 import tempfile
+from wsgiref.util import FileWrapper
 
 from django import forms
 from django.conf.urls import url
@@ -10,23 +11,23 @@ from django.contrib import admin
 from django.contrib.admin import BooleanFieldListFilter
 from django.contrib.admin.views.main import ChangeList
 from django.contrib.auth.admin import GroupAdmin, UserAdmin
-# Register core models we need in our tests
 from django.contrib.auth.models import Group, User
 from django.core.exceptions import ValidationError
 from django.core.files.storage import FileSystemStorage
 from django.core.mail import EmailMessage
-from django.core.servers.basehttp import FileWrapper
+from django.db import models
 from django.forms.models import BaseModelFormSet
 from django.http import HttpResponse, StreamingHttpResponse
+from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from django.utils.six import StringIO
 
 from .models import (
     Actor, AdminOrderedAdminMethod, AdminOrderedCallable, AdminOrderedField,
     AdminOrderedModelMethod, Album, Answer, Article, BarAccount, Book,
-    Category, Chapter, ChapterXtra1, Child, ChildOfReferer, Choice, City,
-    Collector, Color, Color2, ComplexSortedPerson, CoverLetter, CustomArticle,
-    CyclicOne, CyclicTwo, DependentChild, DooHickey, EmptyModel,
+    Bookmark, Category, Chapter, ChapterXtra1, Child, ChildOfReferer, Choice,
+    City, Collector, Color, Color2, ComplexSortedPerson, CoverLetter,
+    CustomArticle, CyclicOne, CyclicTwo, DependentChild, DooHickey, EmptyModel,
     EmptyModelHidden, EmptyModelMixin, EmptyModelVisible, ExplicitlyProvidedPK,
     ExternalSubscriber, Fabric, FancyDoodad, FieldOverridePost,
     FilteredManager, FooAccount, FoodDelivery, FunkyTag, Gadget, Gallery,
@@ -294,6 +295,7 @@ class ChildInline(admin.StackedInline):
 class ParentAdmin(admin.ModelAdmin):
     model = Parent
     inlines = [ChildInline]
+    save_as = True
 
     list_editable = ('name',)
 
@@ -429,7 +431,8 @@ class PostAdmin(admin.ModelAdmin):
     list_display = ['title', 'public']
     readonly_fields = (
         'posted', 'awesomeness_level', 'coolness', 'value',
-        'multiline', 'multiline_html', lambda obj: "foo"
+        'multiline', 'multiline_html', lambda obj: "foo",
+        'multiline_html_allow_tags',
     )
 
     inlines = [
@@ -444,15 +447,17 @@ class PostAdmin(admin.ModelAdmin):
 
     def value(self, instance):
         return 1000
+    value.short_description = 'Value in $US'
 
     def multiline(self, instance):
         return "Multiline\ntest\nstring"
 
     def multiline_html(self, instance):
         return mark_safe("Multiline<br>\nhtml<br>\ncontent")
-    multiline_html.allow_tags = True
 
-    value.short_description = 'Value in $US'
+    def multiline_html_allow_tags(self, instance):
+        return "Multiline<br>html<br>content<br>with allow tags"
+    multiline_html_allow_tags.allow_tags = True
 
 
 class FieldOverridePostForm(forms.ModelForm):
@@ -574,8 +579,7 @@ class ComplexSortedPersonAdmin(admin.ModelAdmin):
     ordering = ('name',)
 
     def colored_name(self, obj):
-        return '<span style="color: #%s;">%s</span>' % ('ff00ff', obj.name)
-    colored_name.allow_tags = True
+        return format_html('<span style="color: #ff00ff;">{}</span>', obj.name)
     colored_name.admin_order_field = 'name'
 
 
@@ -584,7 +588,9 @@ class PluggableSearchPersonAdmin(admin.ModelAdmin):
     search_fields = ('name',)
 
     def get_search_results(self, request, queryset, search_term):
-        queryset, use_distinct = super(PluggableSearchPersonAdmin, self).get_search_results(request, queryset, search_term)
+        queryset, use_distinct = super(PluggableSearchPersonAdmin, self).get_search_results(
+            request, queryset, search_term
+        )
         try:
             search_term_as_int = int(search_term)
             queryset |= self.model.objects.filter(age=search_term_as_int)
@@ -659,6 +665,7 @@ class RelatedPrepopulatedInline1(admin.StackedInline):
             'fields': (('pubdate', 'status'), ('name', 'slug1', 'slug2',),)
         }),
     )
+    formfield_overrides = {models.CharField: {'strip': False}}
     model = RelatedPrepopulated
     extra = 1
     prepopulated_fields = {'slug1': ['name', 'pubdate'],
@@ -676,11 +683,15 @@ class MainPrepopulatedAdmin(admin.ModelAdmin):
     inlines = [RelatedPrepopulatedInline1, RelatedPrepopulatedInline2]
     fieldsets = (
         (None, {
-            'fields': (('pubdate', 'status'), ('name', 'slug1', 'slug2',),)
+            'fields': (('pubdate', 'status'), ('name', 'slug1', 'slug2', 'slug3'))
         }),
     )
-    prepopulated_fields = {'slug1': ['name', 'pubdate'],
-                           'slug2': ['status', 'name']}
+    formfield_overrides = {models.CharField: {'strip': False}}
+    prepopulated_fields = {
+        'slug1': ['name', 'pubdate'],
+        'slug2': ['status', 'name'],
+        'slug3': ['name'],
+    }
 
 
 class UnorderedObjectAdmin(admin.ModelAdmin):
@@ -699,7 +710,7 @@ class UnchangeableObjectAdmin(admin.ModelAdmin):
     def get_urls(self):
         # Disable change_view, but leave other urls untouched
         urlpatterns = super(UnchangeableObjectAdmin, self).get_urls()
-        return [p for p in urlpatterns if not p.name.endswith("_change")]
+        return [p for p in urlpatterns if p.name and not p.name.endswith("_change")]
 
 
 def callable_on_unknown(obj):
@@ -907,6 +918,7 @@ site.register(Villain)
 site.register(SuperVillain)
 site.register(Plot)
 site.register(PlotDetails)
+site.register(Bookmark)
 site.register(CyclicOne)
 site.register(CyclicTwo)
 site.register(WorkHour, WorkHourAdmin)
@@ -977,6 +989,7 @@ site.register(NotReferenced)
 site.register(ExplicitlyProvidedPK, GetFormsetsArgumentCheckingAdmin)
 site.register(ImplicitlyGeneratedPK, GetFormsetsArgumentCheckingAdmin)
 
+# Register core models we need in our tests
 site.register(User, UserAdmin)
 site.register(Group, GroupAdmin)
 

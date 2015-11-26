@@ -1,9 +1,11 @@
 import datetime
 from operator import attrgetter
 
-from django import forms
+from django.apps.registry import Apps
 from django.core.exceptions import FieldError
-from django.test import TestCase, skipUnlessDBFeature
+from django.db import models
+from django.db.models.fields.related import ForeignObject
+from django.test import SimpleTestCase, TestCase, skipUnlessDBFeature
 from django.utils import translation
 
 from .models import (
@@ -291,7 +293,7 @@ class MultiColumnFKTests(TestCase):
 
         self.assertQuerysetEqual(self.jane.friends.all(), [])
 
-    def test_prefetch_related_m2m_foward_works(self):
+    def test_prefetch_related_m2m_forward_works(self):
         Membership.objects.create(membership_country=self.usa, person=self.bob, group=self.cia)
         Membership.objects.create(membership_country=self.usa, person=self.jim, group=self.democrat)
 
@@ -319,6 +321,9 @@ class MultiColumnFKTests(TestCase):
         at1_fi.save()
         at2_en = ArticleTranslation(article=a1, lang='en', title='Title', body='Lalalalala')
         at2_en.save()
+
+        self.assertEqual(Article.objects.get(pk=a1.pk).active_translation, at1_fi)
+
         with self.assertNumQueries(1):
             fetched = Article.objects.select_related('active_translation').get(
                 active_translation__title='Otsikko')
@@ -391,24 +396,62 @@ class MultiColumnFKTests(TestCase):
         Person.objects.bulk_create(objs, 10)
 
 
-class FormsTests(TestCase):
-    # ForeignObjects should not have any form fields, currently the user needs
-    # to manually deal with the foreignobject relation.
-    class ArticleForm(forms.ModelForm):
-        class Meta:
-            model = Article
-            fields = '__all__'
+class TestModelCheckTests(SimpleTestCase):
 
-    def test_foreign_object_form(self):
-        # A very crude test checking that the non-concrete fields do not get form fields.
-        form = FormsTests.ArticleForm()
-        self.assertIn('id_pub_date', form.as_table())
-        self.assertNotIn('active_translation', form.as_table())
-        form = FormsTests.ArticleForm(data={'pub_date': str(datetime.date.today())})
-        self.assertTrue(form.is_valid())
-        a = form.save()
-        self.assertEqual(a.pub_date, datetime.date.today())
-        form = FormsTests.ArticleForm(instance=a, data={'pub_date': '2013-01-01'})
-        a2 = form.save()
-        self.assertEqual(a.pk, a2.pk)
-        self.assertEqual(a2.pub_date, datetime.date(2013, 1, 1))
+    def test_check_composite_foreign_object(self):
+        test_apps = Apps(['foreign_object'])
+
+        class Parent(models.Model):
+            a = models.PositiveIntegerField()
+            b = models.PositiveIntegerField()
+
+            class Meta:
+                apps = test_apps
+                unique_together = (('a', 'b'),)
+
+        class Child(models.Model):
+            a = models.PositiveIntegerField()
+            b = models.PositiveIntegerField()
+            value = models.CharField(max_length=255)
+            parent = ForeignObject(
+                Parent,
+                on_delete=models.SET_NULL,
+                from_fields=('a', 'b'),
+                to_fields=('a', 'b'),
+                related_name='children',
+            )
+
+            class Meta:
+                apps = test_apps
+
+        self.assertEqual(Child._meta.get_field('parent').check(from_model=Child), [])
+
+    def test_check_subset_composite_foreign_object(self):
+        test_apps = Apps(['foreign_object'])
+
+        class Parent(models.Model):
+            a = models.PositiveIntegerField()
+            b = models.PositiveIntegerField()
+            c = models.PositiveIntegerField()
+
+            class Meta:
+                apps = test_apps
+                unique_together = (('a', 'b'),)
+
+        class Child(models.Model):
+            a = models.PositiveIntegerField()
+            b = models.PositiveIntegerField()
+            c = models.PositiveIntegerField()
+            d = models.CharField(max_length=255)
+            parent = ForeignObject(
+                Parent,
+                on_delete=models.SET_NULL,
+                from_fields=('a', 'b', 'c'),
+                to_fields=('a', 'b', 'c'),
+                related_name='children',
+            )
+
+            class Meta:
+                apps = test_apps
+
+        self.assertEqual(Child._meta.get_field('parent').check(from_model=Child), [])

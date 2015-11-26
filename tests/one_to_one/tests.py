@@ -135,9 +135,14 @@ class OneToOneTests(TestCase):
         should raise an exception.
         """
         place = Place(name='User', address='London')
+        with self.assertRaises(Restaurant.DoesNotExist):
+            place.restaurant
         msg = "save() prohibited to prevent data loss due to unsaved related object 'place'."
         with self.assertRaisesMessage(ValueError, msg):
             Restaurant.objects.create(place=place, serves_hot_dogs=True, serves_pizza=False)
+        # place should not cache restaurant
+        with self.assertRaises(Restaurant.DoesNotExist):
+            place.restaurant
 
     def test_reverse_relationship_cache_cascade(self):
         """
@@ -180,6 +185,22 @@ class OneToOneTests(TestCase):
         """
         self.assertEqual(self.p1.restaurant, self.r1)
         self.assertEqual(self.p1.bar, self.b1)
+
+    def test_assign_none_reverse_relation(self):
+        p = Place.objects.get(name="Demon Dogs")
+        # Assigning None succeeds if field is null=True.
+        ug_bar = UndergroundBar.objects.create(place=p, serves_cocktails=False)
+        p.undergroundbar = None
+        self.assertIsNone(ug_bar.place)
+        ug_bar.save()
+        ug_bar.refresh_from_db()
+        self.assertIsNone(ug_bar.place)
+
+    def test_assign_none_null_reverse_relation(self):
+        p = Place.objects.get(name="Demon Dogs")
+        # Assigning None doesn't throw AttributeError if there isn't a related
+        # UndergroundBar.
+        p.undergroundbar = None
 
     def test_related_object_cache(self):
         """ Regression test for #6886 (the related-object cache) """
@@ -260,7 +281,9 @@ class OneToOneTests(TestCase):
     def test_o2o_primary_key_delete(self):
         t = Target.objects.create(name='name')
         Pointer.objects.create(other=t)
-        Pointer.objects.filter(other__name='name').delete()
+        num_deleted, objs = Pointer.objects.filter(other__name='name').delete()
+        self.assertEqual(num_deleted, 1)
+        self.assertEqual(objs, {'one_to_one.Pointer': 1})
 
     def test_reverse_object_does_not_exist_cache(self):
         """
@@ -395,7 +418,7 @@ class OneToOneTests(TestCase):
         be added to the related model.
         """
         self.assertFalse(
-            hasattr(Target, HiddenPointer._meta.get_field('target').rel.get_accessor_name())
+            hasattr(Target, HiddenPointer._meta.get_field('target').remote_field.get_accessor_name())
         )
 
     def test_related_object(self):
@@ -464,3 +487,21 @@ class OneToOneTests(TestCase):
         Waiter.objects.update(restaurant=r2)
         w.refresh_from_db()
         self.assertEqual(w.restaurant, r2)
+
+    def test_rel_pk_subquery(self):
+        r = Restaurant.objects.first()
+        q1 = Restaurant.objects.filter(place_id=r.pk)
+        # Test that subquery using primary key and a query against the
+        # same model works correctly.
+        q2 = Restaurant.objects.filter(place_id__in=q1)
+        self.assertQuerysetEqual(q2, [r], lambda x: x)
+        # Test that subquery using 'pk__in' instead of 'place_id__in' work, too.
+        q2 = Restaurant.objects.filter(
+            pk__in=Restaurant.objects.filter(place__id=r.place.pk)
+        )
+        self.assertQuerysetEqual(q2, [r], lambda x: x)
+
+    def test_rel_pk_exact(self):
+        r = Restaurant.objects.first()
+        r2 = Restaurant.objects.filter(pk__exact=r).first()
+        self.assertEqual(r, r2)

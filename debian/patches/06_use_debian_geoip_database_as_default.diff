@@ -1,4 +1,4 @@
-From 3b2c1c4d755a49e4346593c11bb7a34e7161e6bd Mon Sep 17 00:00:00 2001
+From a28aa9bc8f4bb489b262440f846881b59b66b741 Mon Sep 17 00:00:00 2001
 From: Tapio Rantala <tapio.rantala@iki.fi>
 Date: Sun, 11 Oct 2015 11:43:20 +1100
 Subject: Use Debian GeoIP database path as default
@@ -16,10 +16,10 @@ Patch-Name: 06_use_debian_geoip_database_as_default.diff
  1 file changed, 10 insertions(+), 9 deletions(-)
 
 diff --git a/django/contrib/gis/geoip/base.py b/django/contrib/gis/geoip/base.py
-index 0b160ff..0420bba 100644
+index d40ae7e..1e33033 100644
 --- a/django/contrib/gis/geoip/base.py
 +++ b/django/contrib/gis/geoip/base.py
-@@ -66,7 +66,8 @@ class GeoIP(object):
+@@ -68,7 +68,8 @@ class GeoIP(object):
          * path: Base directory to where GeoIP data is located or the full path
              to where the city or country data files (*.dat) are located.
              Assumes that both the city and country data sets are located in
@@ -29,7 +29,7 @@ index 0b160ff..0420bba 100644
  
          * cache: The cache settings when opening up the GeoIP datasets,
              and may be an integer in (0, 1, 2, 4, 8) corresponding to
-@@ -75,11 +76,13 @@ class GeoIP(object):
+@@ -77,11 +78,13 @@ class GeoIP(object):
              settings,  respectively.  Defaults to 0, meaning that the data is read
              from the disk.
  
@@ -45,20 +45,20 @@ index 0b160ff..0420bba 100644
 +            GEOIP_CITY settings attribute. If neither is set, defaults
 +            to 'GeoIPCity.dat'.
          """
-         # Checking the given cache option.
-         if cache in self.cache_options:
-@@ -89,9 +92,7 @@ class GeoIP(object):
+ 
+         warnings.warn(
+@@ -98,9 +101,7 @@ class GeoIP(object):
  
          # Getting the GeoIP data path.
          if not path:
--            path = GEOIP_SETTINGS.get('GEOIP_PATH', None)
+-            path = GEOIP_SETTINGS.get('GEOIP_PATH')
 -            if not path:
 -                raise GeoIPException('GeoIP path must be provided via parameter or the GEOIP_PATH setting.')
 +            path = GEOIP_SETTINGS.get('GEOIP_PATH', '/usr/share/GeoIP')
          if not isinstance(path, six.string_types):
              raise TypeError('Invalid path type: %s' % type(path).__name__)
  
-@@ -104,7 +105,7 @@ class GeoIP(object):
+@@ -113,7 +114,7 @@ class GeoIP(object):
                  self._country = GeoIP_open(force_bytes(country_db), cache)
                  self._country_file = country_db
  

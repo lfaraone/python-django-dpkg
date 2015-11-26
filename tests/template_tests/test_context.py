@@ -2,10 +2,10 @@
 
 from django.http import HttpRequest
 from django.template import (
-    Context, RequestContext, Template, Variable, VariableDoesNotExist,
+    Context, Engine, RequestContext, Template, Variable, VariableDoesNotExist,
 )
 from django.template.context import RenderContext
-from django.test import RequestFactory, SimpleTestCase, override_settings
+from django.test import RequestFactory, SimpleTestCase
 
 
 class ContextTests(SimpleTestCase):
@@ -21,6 +21,8 @@ class ContextTests(SimpleTestCase):
         self.assertEqual(c["a"], 1)
         self.assertEqual(c.get("foo", 42), 42)
 
+    def test_push_context_manager(self):
+        c = Context({"a": 1})
         with c.push():
             c['a'] = 2
             self.assertEqual(c['a'], 2)
@@ -29,6 +31,68 @@ class ContextTests(SimpleTestCase):
         with c.push(a=3):
             self.assertEqual(c['a'], 3)
         self.assertEqual(c['a'], 1)
+
+    def test_update_context_manager(self):
+        c = Context({"a": 1})
+        with c.update({}):
+            c['a'] = 2
+            self.assertEqual(c['a'], 2)
+        self.assertEqual(c['a'], 1)
+
+        with c.update({'a': 3}):
+            self.assertEqual(c['a'], 3)
+        self.assertEqual(c['a'], 1)
+
+    def test_push_context_manager_with_context_object(self):
+        c = Context({'a': 1})
+        with c.push(Context({'a': 3})):
+            self.assertEqual(c['a'], 3)
+        self.assertEqual(c['a'], 1)
+
+    def test_update_context_manager_with_context_object(self):
+        c = Context({'a': 1})
+        with c.update(Context({'a': 3})):
+            self.assertEqual(c['a'], 3)
+        self.assertEqual(c['a'], 1)
+
+    def test_push_proper_layering(self):
+        c = Context({'a': 1})
+        c.push(Context({'b': 2}))
+        c.push(Context({'c': 3, 'd': {'z': '26'}}))
+        self.assertEqual(
+            c.dicts,
+            [
+                {'False': False, 'None': None, 'True': True},
+                {'a': 1},
+                {'b': 2},
+                {'c': 3, 'd': {'z': '26'}},
+            ]
+        )
+
+    def test_update_proper_layering(self):
+        c = Context({'a': 1})
+        c.update(Context({'b': 2}))
+        c.update(Context({'c': 3, 'd': {'z': '26'}}))
+        self.assertEqual(
+            c.dicts,
+            [
+                {'False': False, 'None': None, 'True': True},
+                {'a': 1},
+                {'b': 2},
+                {'c': 3, 'd': {'z': '26'}},
+            ]
+        )
+
+    def test_setdefault(self):
+        c = Context()
+
+        x = c.setdefault('x', 42)
+        self.assertEqual(x, 42)
+        self.assertEqual(c['x'], 42)
+
+        x = c.setdefault('x', 100)
+        self.assertEqual(x, 42)
+        self.assertEqual(c['x'], 42)
 
     def test_resolve_on_context_method(self):
         """
@@ -72,6 +136,20 @@ class ContextTests(SimpleTestCase):
             'a': 2, 'b': 4, 'c': 8
         })
 
+    def test_flatten_context_with_context(self):
+        """
+        Context.push() with a Context argument should work.
+        """
+        a = Context({'a': 2})
+        a.push(Context({'z': '8'}))
+        self.assertEqual(a.flatten(), {
+            'False': False,
+            'None': None,
+            'True': True,
+            'a': 2,
+            'z': '8',
+        })
+
     def test_context_comparable(self):
         """
         #21765 -- equality comparison should work
@@ -107,25 +185,20 @@ class ContextTests(SimpleTestCase):
 
 class RequestContextTests(SimpleTestCase):
 
-    @override_settings(TEMPLATES=[{
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'OPTIONS': {
-            'loaders': [
-                ('django.template.loaders.locmem.Loader', {
-                    'child': '{{ var|default:"none" }}',
-                }),
-            ],
-        },
-    }])
     def test_include_only(self):
         """
         #15721 -- ``{% include %}`` and ``RequestContext`` should work
         together.
         """
+        engine = Engine(loaders=[
+            ('django.template.loaders.locmem.Loader', {
+                'child': '{{ var|default:"none" }}',
+            }),
+        ])
         request = RequestFactory().get('/')
         ctx = RequestContext(request, {'var': 'parent'})
-        self.assertEqual(Template('{% include "child" %}').render(ctx), 'parent')
-        self.assertEqual(Template('{% include "child" only %}').render(ctx), 'none')
+        self.assertEqual(engine.from_string('{% include "child" %}').render(ctx), 'parent')
+        self.assertEqual(engine.from_string('{% include "child" only %}').render(ctx), 'none')
 
     def test_stack_size(self):
         """

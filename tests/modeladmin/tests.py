@@ -8,15 +8,12 @@ from django.contrib.admin.options import (
     HORIZONTAL, VERTICAL, ModelAdmin, TabularInline,
 )
 from django.contrib.admin.sites import AdminSite
-from django.contrib.admin.validation import ModelAdminValidator
 from django.contrib.admin.widgets import AdminDateWidget, AdminRadioSelect
 from django.core.checks import Error
-from django.core.exceptions import ImproperlyConfigured
 from django.forms.models import BaseModelFormSet
 from django.forms.widgets import Select
-from django.test import TestCase, ignore_warnings
+from django.test import SimpleTestCase, TestCase
 from django.utils import six
-from django.utils.deprecation import RemovedInDjango19Warning
 
 from .models import (
     Band, Concert, ValidationTestInlineModel, ValidationTestModel,
@@ -223,6 +220,37 @@ class ModelAdminTests(TestCase):
         self.assertEqual(
             list(list(ma.get_formsets_with_inlines(request))[0][0]().forms[0].fields),
             ['main_band', 'opening_band', 'id', 'DELETE'])
+
+    def test_custom_formfield_override_readonly(self):
+        class AdminBandForm(forms.ModelForm):
+            name = forms.CharField()
+
+            class Meta:
+                exclude = tuple()
+                model = Band
+
+        class BandAdmin(ModelAdmin):
+            form = AdminBandForm
+            readonly_fields = ['name']
+
+        ma = BandAdmin(Band, self.site)
+
+        # `name` shouldn't appear in base_fields because it's part of
+        # readonly_fields.
+        self.assertEqual(
+            list(ma.get_form(request).base_fields),
+            ['bio', 'sign_date']
+        )
+        # But it should appear in get_fields()/fieldsets() so it can be
+        # displayed as read-only.
+        self.assertEqual(
+            list(ma.get_fields(request)),
+            ['bio', 'sign_date', 'name']
+        )
+        self.assertEqual(
+            list(ma.get_fieldsets(request)),
+            [(None, {'fields': ['bio', 'sign_date', 'name']})]
+        )
 
     def test_custom_form_meta_exclude(self):
         """
@@ -539,12 +567,13 @@ class ModelAdminTests(TestCase):
             ['extra', 'transport', 'id', 'DELETE', 'main_band'])
 
 
-class CheckTestCase(TestCase):
+class CheckTestCase(SimpleTestCase):
 
     def assertIsInvalid(self, model_admin, model, msg,
             id=None, hint=None, invalid_obj=None):
         invalid_obj = invalid_obj or model_admin
-        errors = model_admin.check(model=model)
+        admin_obj = model_admin(model, AdminSite())
+        errors = admin_obj.check()
         expected = [
             Error(
                 msg,
@@ -561,7 +590,8 @@ class CheckTestCase(TestCase):
         Same as assertIsInvalid but treats the given msg as a regexp.
         """
         invalid_obj = invalid_obj or model_admin
-        errors = model_admin.check(model=model)
+        admin_obj = model_admin(model, AdminSite())
+        errors = admin_obj.check()
         self.assertEqual(len(errors), 1)
         error = errors[0]
         self.assertEqual(error.hint, hint)
@@ -570,7 +600,8 @@ class CheckTestCase(TestCase):
         six.assertRegex(self, error.msg, msg)
 
     def assertIsValid(self, model_admin, model):
-        errors = model_admin.check(model=model)
+        admin_obj = model_admin(model, AdminSite())
+        errors = admin_obj.check()
         expected = []
         self.assertEqual(errors, expected)
 
@@ -998,9 +1029,11 @@ class ListDisplayLinksCheckTests(CheckTestCase):
             list_display_links = ('non_existent_field',)
 
         self.assertIsInvalid(
-            ValidationTestModelAdmin, ValidationTestModel,
-            "The value of 'list_display_links[0]' refers to 'non_existent_field', which is not defined in 'list_display'.",
-            'admin.E111')
+            ValidationTestModelAdmin, ValidationTestModel, (
+                "The value of 'list_display_links[0]' refers to "
+                "'non_existent_field', which is not defined in 'list_display'."
+            ), 'admin.E111'
+        )
 
     def test_missing_in_list_display(self):
         class ValidationTestModelAdmin(ModelAdmin):
@@ -1213,9 +1246,10 @@ class OrderingCheckTests(CheckTestCase):
 
         self.assertIsInvalid(
             ValidationTestModelAdmin,
-            ValidationTestModel,
-            "The value of 'ordering[0]' refers to 'non_existent_field', which is not an attribute of 'modeladmin.ValidationTestModel'.",
-            'admin.E033',
+            ValidationTestModel, (
+                "The value of 'ordering[0]' refers to 'non_existent_field', "
+                "which is not an attribute of 'modeladmin.ValidationTestModel'."
+            ), 'admin.E033'
         )
 
     def test_random_marker_not_alone(self):
@@ -1505,21 +1539,6 @@ class FormsetCheckTests(CheckTestCase):
         self.assertIsValid(ValidationTestModelAdmin, ValidationTestModel)
 
 
-class CustomModelAdminTests(CheckTestCase):
-    @ignore_warnings(category=RemovedInDjango19Warning)
-    def test_deprecation(self):
-        "Deprecated Custom Validator definitions still work with the check framework."
-
-        class CustomValidator(ModelAdminValidator):
-            def validate_me(self, model_admin, model):
-                raise ImproperlyConfigured('error!')
-
-        class CustomModelAdmin(ModelAdmin):
-            validator_class = CustomValidator
-
-        self.assertIsInvalid(CustomModelAdmin, ValidationTestModel, 'error!')
-
-
 class ListDisplayEditableTests(CheckTestCase):
     def test_list_display_links_is_none(self):
         """
@@ -1544,7 +1563,7 @@ class ListDisplayEditableTests(CheckTestCase):
         self.assertIsValid(ProductAdmin, ValidationTestModel)
 
 
-class ModelAdminPermissionTests(TestCase):
+class ModelAdminPermissionTests(SimpleTestCase):
 
     class MockUser(object):
         def has_module_perms(self, app_label):
