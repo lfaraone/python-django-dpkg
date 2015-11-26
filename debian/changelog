@@ -1,9 +1,9 @@
-python-django (1.9~rc2-1) UNRELEASED; urgency=medium
+python-django (1.9~rc2-1) experimental; urgency=medium
 
   * New upstream release candidate.
   * Add myself to Uploaders.
 
- -- Chris Lamb <lamby@debian.org>  Thu, 26 Nov 2015 09:48:09 +0200
+ -- Chris Lamb <lamby@debian.org>  Thu, 26 Nov 2015 10:14:15 +0200
 
 python-django (1.8.7-2) unstable; urgency=high
 
