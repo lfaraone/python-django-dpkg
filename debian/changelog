@@ -1,3 +1,10 @@
+python-django (1.9~rc2-3) UNRELEASED; urgency=medium
+
+  * Adjust uversionmangle in debian/watch to mangle "1.9rc2" scheme
+    (previously only "1.9-rc-2" would have matched).
+
+ -- Chris Lamb <lamby@debian.org>  Fri, 27 Nov 2015 09:03:06 +0200
+
 python-django (1.9~rc2-2) experimental; urgency=medium
 
   * Move {app,project}_template to python-django-common to prevent
