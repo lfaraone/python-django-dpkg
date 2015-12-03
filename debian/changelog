@@ -4,7 +4,7 @@ python-django (1.9-1) unstable; urgency=medium
   * Adjust uversionmangle in debian/watch to mangle "1.9rc2" scheme
     (previously only "1.9-rc-2" would have matched).
 
- -- Chris Lamb <lamby@debian.org>  Fri, 27 Nov 2015 09:03:06 +0200
+ -- Chris Lamb <lamby@debian.org>  Thu, 03 Dec 2015 16:48:30 +0200
 
 python-django (1.9~rc2-2) experimental; urgency=medium
 
