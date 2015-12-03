@@ -110,6 +110,10 @@ django/conf/locale/es_AR/__init__.py
 django/conf/locale/es_AR/formats.py
 django/conf/locale/es_AR/LC_MESSAGES/django.mo
 django/conf/locale/es_AR/LC_MESSAGES/django.po
+django/conf/locale/es_CO/__init__.py
+django/conf/locale/es_CO/formats.py
+django/conf/locale/es_CO/LC_MESSAGES/django.mo
+django/conf/locale/es_CO/LC_MESSAGES/django.po
 django/conf/locale/es_MX/__init__.py
 django/conf/locale/es_MX/formats.py
 django/conf/locale/es_MX/LC_MESSAGES/django.mo
@@ -148,6 +152,10 @@ django/conf/locale/ga/__init__.py
 django/conf/locale/ga/formats.py
 django/conf/locale/ga/LC_MESSAGES/django.mo
 django/conf/locale/ga/LC_MESSAGES/django.po
+django/conf/locale/gd/__init__.py
+django/conf/locale/gd/formats.py
+django/conf/locale/gd/LC_MESSAGES/django.mo
+django/conf/locale/gd/LC_MESSAGES/django.po
 django/conf/locale/gl/__init__.py
 django/conf/locale/gl/formats.py
 django/conf/locale/gl/LC_MESSAGES/django.mo
@@ -442,6 +450,10 @@ django/contrib/admin/locale/es_AR/LC_MESSAGES/django.mo
 django/contrib/admin/locale/es_AR/LC_MESSAGES/django.po
 django/contrib/admin/locale/es_AR/LC_MESSAGES/djangojs.mo
 django/contrib/admin/locale/es_AR/LC_MESSAGES/djangojs.po
+django/contrib/admin/locale/es_CO/LC_MESSAGES/django.mo
+django/contrib/admin/locale/es_CO/LC_MESSAGES/django.po
+django/contrib/admin/locale/es_CO/LC_MESSAGES/djangojs.mo
+django/contrib/admin/locale/es_CO/LC_MESSAGES/djangojs.po
 django/contrib/admin/locale/es_MX/LC_MESSAGES/django.mo
 django/contrib/admin/locale/es_MX/LC_MESSAGES/django.po
 django/contrib/admin/locale/es_MX/LC_MESSAGES/djangojs.mo
@@ -478,6 +490,10 @@ django/contrib/admin/locale/ga/LC_MESSAGES/django.mo
 django/contrib/admin/locale/ga/LC_MESSAGES/django.po
 django/contrib/admin/locale/ga/LC_MESSAGES/djangojs.mo
 django/contrib/admin/locale/ga/LC_MESSAGES/djangojs.po
+django/contrib/admin/locale/gd/LC_MESSAGES/django.mo
+django/contrib/admin/locale/gd/LC_MESSAGES/django.po
+django/contrib/admin/locale/gd/LC_MESSAGES/djangojs.mo
+django/contrib/admin/locale/gd/LC_MESSAGES/djangojs.po
 django/contrib/admin/locale/gl/LC_MESSAGES/django.mo
 django/contrib/admin/locale/gl/LC_MESSAGES/django.po
 django/contrib/admin/locale/gl/LC_MESSAGES/djangojs.mo
@@ -851,6 +867,8 @@ django/contrib/admindocs/locale/es/LC_MESSAGES/django.mo
 django/contrib/admindocs/locale/es/LC_MESSAGES/django.po
 django/contrib/admindocs/locale/es_AR/LC_MESSAGES/django.mo
 django/contrib/admindocs/locale/es_AR/LC_MESSAGES/django.po
+django/contrib/admindocs/locale/es_CO/LC_MESSAGES/django.mo
+django/contrib/admindocs/locale/es_CO/LC_MESSAGES/django.po
 django/contrib/admindocs/locale/es_MX/LC_MESSAGES/django.mo
 django/contrib/admindocs/locale/es_MX/LC_MESSAGES/django.po
 django/contrib/admindocs/locale/es_VE/LC_MESSAGES/django.mo
@@ -869,6 +887,8 @@ django/contrib/admindocs/locale/fy/LC_MESSAGES/django.mo
 django/contrib/admindocs/locale/fy/LC_MESSAGES/django.po
 django/contrib/admindocs/locale/ga/LC_MESSAGES/django.mo
 django/contrib/admindocs/locale/ga/LC_MESSAGES/django.po
+django/contrib/admindocs/locale/gd/LC_MESSAGES/django.mo
+django/contrib/admindocs/locale/gd/LC_MESSAGES/django.po
 django/contrib/admindocs/locale/gl/LC_MESSAGES/django.mo
 django/contrib/admindocs/locale/gl/LC_MESSAGES/django.po
 django/contrib/admindocs/locale/he/LC_MESSAGES/django.mo
@@ -1054,6 +1074,8 @@ django/contrib/auth/locale/es/LC_MESSAGES/django.mo
 django/contrib/auth/locale/es/LC_MESSAGES/django.po
 django/contrib/auth/locale/es_AR/LC_MESSAGES/django.mo
 django/contrib/auth/locale/es_AR/LC_MESSAGES/django.po
+django/contrib/auth/locale/es_CO/LC_MESSAGES/django.mo
+django/contrib/auth/locale/es_CO/LC_MESSAGES/django.po
 django/contrib/auth/locale/es_MX/LC_MESSAGES/django.mo
 django/contrib/auth/locale/es_MX/LC_MESSAGES/django.po
 django/contrib/auth/locale/es_VE/LC_MESSAGES/django.mo
@@ -1072,6 +1094,8 @@ django/contrib/auth/locale/fy/LC_MESSAGES/django.mo
 django/contrib/auth/locale/fy/LC_MESSAGES/django.po
 django/contrib/auth/locale/ga/LC_MESSAGES/django.mo
 django/contrib/auth/locale/ga/LC_MESSAGES/django.po
+django/contrib/auth/locale/gd/LC_MESSAGES/django.mo
+django/contrib/auth/locale/gd/LC_MESSAGES/django.po
 django/contrib/auth/locale/gl/LC_MESSAGES/django.mo
 django/contrib/auth/locale/gl/LC_MESSAGES/django.po
 django/contrib/auth/locale/he/LC_MESSAGES/django.mo
@@ -1249,6 +1273,8 @@ django/contrib/contenttypes/locale/es/LC_MESSAGES/django.mo
 django/contrib/contenttypes/locale/es/LC_MESSAGES/django.po
 django/contrib/contenttypes/locale/es_AR/LC_MESSAGES/django.mo
 django/contrib/contenttypes/locale/es_AR/LC_MESSAGES/django.po
+django/contrib/contenttypes/locale/es_CO/LC_MESSAGES/django.mo
+django/contrib/contenttypes/locale/es_CO/LC_MESSAGES/django.po
 django/contrib/contenttypes/locale/es_MX/LC_MESSAGES/django.mo
 django/contrib/contenttypes/locale/es_MX/LC_MESSAGES/django.po
 django/contrib/contenttypes/locale/es_VE/LC_MESSAGES/django.mo
@@ -1267,6 +1293,8 @@ django/contrib/contenttypes/locale/fy/LC_MESSAGES/django.mo
 django/contrib/contenttypes/locale/fy/LC_MESSAGES/django.po
 django/contrib/contenttypes/locale/ga/LC_MESSAGES/django.mo
 django/contrib/contenttypes/locale/ga/LC_MESSAGES/django.po
+django/contrib/contenttypes/locale/gd/LC_MESSAGES/django.mo
+django/contrib/contenttypes/locale/gd/LC_MESSAGES/django.po
 django/contrib/contenttypes/locale/gl/LC_MESSAGES/django.mo
 django/contrib/contenttypes/locale/gl/LC_MESSAGES/django.po
 django/contrib/contenttypes/locale/he/LC_MESSAGES/django.mo
@@ -1431,6 +1459,8 @@ django/contrib/flatpages/locale/es/LC_MESSAGES/django.mo
 django/contrib/flatpages/locale/es/LC_MESSAGES/django.po
 django/contrib/flatpages/locale/es_AR/LC_MESSAGES/django.mo
 django/contrib/flatpages/locale/es_AR/LC_MESSAGES/django.po
+django/contrib/flatpages/locale/es_CO/LC_MESSAGES/django.mo
+django/contrib/flatpages/locale/es_CO/LC_MESSAGES/django.po
 django/contrib/flatpages/locale/es_MX/LC_MESSAGES/django.mo
 django/contrib/flatpages/locale/es_MX/LC_MESSAGES/django.po
 django/contrib/flatpages/locale/es_VE/LC_MESSAGES/django.mo
@@ -1449,6 +1479,8 @@ django/contrib/flatpages/locale/fy/LC_MESSAGES/django.mo
 django/contrib/flatpages/locale/fy/LC_MESSAGES/django.po
 django/contrib/flatpages/locale/ga/LC_MESSAGES/django.mo
 django/contrib/flatpages/locale/ga/LC_MESSAGES/django.po
+django/contrib/flatpages/locale/gd/LC_MESSAGES/django.mo
+django/contrib/flatpages/locale/gd/LC_MESSAGES/django.po
 django/contrib/flatpages/locale/gl/LC_MESSAGES/django.mo
 django/contrib/flatpages/locale/gl/LC_MESSAGES/django.po
 django/contrib/flatpages/locale/he/LC_MESSAGES/django.mo
@@ -1730,6 +1762,8 @@ django/contrib/gis/locale/es/LC_MESSAGES/django.mo
 django/contrib/gis/locale/es/LC_MESSAGES/django.po
 django/contrib/gis/locale/es_AR/LC_MESSAGES/django.mo
 django/contrib/gis/locale/es_AR/LC_MESSAGES/django.po
+django/contrib/gis/locale/es_CO/LC_MESSAGES/django.mo
+django/contrib/gis/locale/es_CO/LC_MESSAGES/django.po
 django/contrib/gis/locale/es_MX/LC_MESSAGES/django.mo
 django/contrib/gis/locale/es_MX/LC_MESSAGES/django.po
 django/contrib/gis/locale/es_VE/LC_MESSAGES/django.mo
@@ -1748,6 +1782,8 @@ django/contrib/gis/locale/fy/LC_MESSAGES/django.mo
 django/contrib/gis/locale/fy/LC_MESSAGES/django.po
 django/contrib/gis/locale/ga/LC_MESSAGES/django.mo
 django/contrib/gis/locale/ga/LC_MESSAGES/django.po
+django/contrib/gis/locale/gd/LC_MESSAGES/django.mo
+django/contrib/gis/locale/gd/LC_MESSAGES/django.po
 django/contrib/gis/locale/gl/LC_MESSAGES/django.mo
 django/contrib/gis/locale/gl/LC_MESSAGES/django.po
 django/contrib/gis/locale/he/LC_MESSAGES/django.mo
@@ -1936,6 +1972,8 @@ django/contrib/humanize/locale/es/LC_MESSAGES/django.mo
 django/contrib/humanize/locale/es/LC_MESSAGES/django.po
 django/contrib/humanize/locale/es_AR/LC_MESSAGES/django.mo
 django/contrib/humanize/locale/es_AR/LC_MESSAGES/django.po
+django/contrib/humanize/locale/es_CO/LC_MESSAGES/django.mo
+django/contrib/humanize/locale/es_CO/LC_MESSAGES/django.po
 django/contrib/humanize/locale/es_MX/LC_MESSAGES/django.mo
 django/contrib/humanize/locale/es_MX/LC_MESSAGES/django.po
 django/contrib/humanize/locale/es_VE/LC_MESSAGES/django.mo
@@ -1954,6 +1992,8 @@ django/contrib/humanize/locale/fy/LC_MESSAGES/django.mo
 django/contrib/humanize/locale/fy/LC_MESSAGES/django.po
 django/contrib/humanize/locale/ga/LC_MESSAGES/django.mo
 django/contrib/humanize/locale/ga/LC_MESSAGES/django.po
+django/contrib/humanize/locale/gd/LC_MESSAGES/django.mo
+django/contrib/humanize/locale/gd/LC_MESSAGES/django.po
 django/contrib/humanize/locale/gl/LC_MESSAGES/django.mo
 django/contrib/humanize/locale/gl/LC_MESSAGES/django.po
 django/contrib/humanize/locale/he/LC_MESSAGES/django.mo
@@ -1964,6 +2004,8 @@ django/contrib/humanize/locale/hr/LC_MESSAGES/django.mo
 django/contrib/humanize/locale/hr/LC_MESSAGES/django.po
 django/contrib/humanize/locale/hu/LC_MESSAGES/django.mo
 django/contrib/humanize/locale/hu/LC_MESSAGES/django.po
+django/contrib/humanize/locale/hy/LC_MESSAGES/django.mo
+django/contrib/humanize/locale/hy/LC_MESSAGES/django.po
 django/contrib/humanize/locale/ia/LC_MESSAGES/django.mo
 django/contrib/humanize/locale/ia/LC_MESSAGES/django.po
 django/contrib/humanize/locale/id/LC_MESSAGES/django.mo
@@ -2100,6 +2142,10 @@ django/contrib/postgres/forms/array.py
 django/contrib/postgres/forms/hstore.py
 django/contrib/postgres/forms/jsonb.py
 django/contrib/postgres/forms/ranges.py
+django/contrib/postgres/locale/ar/LC_MESSAGES/django.mo
+django/contrib/postgres/locale/ar/LC_MESSAGES/django.po
+django/contrib/postgres/locale/be/LC_MESSAGES/django.mo
+django/contrib/postgres/locale/be/LC_MESSAGES/django.po
 django/contrib/postgres/locale/bg/LC_MESSAGES/django.mo
 django/contrib/postgres/locale/bg/LC_MESSAGES/django.po
 django/contrib/postgres/locale/ca/LC_MESSAGES/django.mo
@@ -2120,10 +2166,18 @@ django/contrib/postgres/locale/es/LC_MESSAGES/django.mo
 django/contrib/postgres/locale/es/LC_MESSAGES/django.po
 django/contrib/postgres/locale/es_AR/LC_MESSAGES/django.mo
 django/contrib/postgres/locale/es_AR/LC_MESSAGES/django.po
+django/contrib/postgres/locale/es_CO/LC_MESSAGES/django.mo
+django/contrib/postgres/locale/es_CO/LC_MESSAGES/django.po
 django/contrib/postgres/locale/et/LC_MESSAGES/django.mo
 django/contrib/postgres/locale/et/LC_MESSAGES/django.po
+django/contrib/postgres/locale/fa/LC_MESSAGES/django.mo
+django/contrib/postgres/locale/fa/LC_MESSAGES/django.po
+django/contrib/postgres/locale/fi/LC_MESSAGES/django.mo
+django/contrib/postgres/locale/fi/LC_MESSAGES/django.po
 django/contrib/postgres/locale/fr/LC_MESSAGES/django.mo
 django/contrib/postgres/locale/fr/LC_MESSAGES/django.po
+django/contrib/postgres/locale/gd/LC_MESSAGES/django.mo
+django/contrib/postgres/locale/gd/LC_MESSAGES/django.po
 django/contrib/postgres/locale/he/LC_MESSAGES/django.mo
 django/contrib/postgres/locale/he/LC_MESSAGES/django.po
 django/contrib/postgres/locale/id/LC_MESSAGES/django.mo
@@ -2132,6 +2186,8 @@ django/contrib/postgres/locale/it/LC_MESSAGES/django.mo
 django/contrib/postgres/locale/it/LC_MESSAGES/django.po
 django/contrib/postgres/locale/ja/LC_MESSAGES/django.mo
 django/contrib/postgres/locale/ja/LC_MESSAGES/django.po
+django/contrib/postgres/locale/ko/LC_MESSAGES/django.mo
+django/contrib/postgres/locale/ko/LC_MESSAGES/django.po
 django/contrib/postgres/locale/lt/LC_MESSAGES/django.mo
 django/contrib/postgres/locale/lt/LC_MESSAGES/django.po
 django/contrib/postgres/locale/mk/LC_MESSAGES/django.mo
@@ -2148,12 +2204,18 @@ django/contrib/postgres/locale/pt/LC_MESSAGES/django.mo
 django/contrib/postgres/locale/pt/LC_MESSAGES/django.po
 django/contrib/postgres/locale/pt_BR/LC_MESSAGES/django.mo
 django/contrib/postgres/locale/pt_BR/LC_MESSAGES/django.po
+django/contrib/postgres/locale/ro/LC_MESSAGES/django.mo
+django/contrib/postgres/locale/ro/LC_MESSAGES/django.po
 django/contrib/postgres/locale/ru/LC_MESSAGES/django.mo
 django/contrib/postgres/locale/ru/LC_MESSAGES/django.po
+django/contrib/postgres/locale/sq/LC_MESSAGES/django.mo
+django/contrib/postgres/locale/sq/LC_MESSAGES/django.po
 django/contrib/postgres/locale/sv/LC_MESSAGES/django.mo
 django/contrib/postgres/locale/sv/LC_MESSAGES/django.po
 django/contrib/postgres/locale/tr/LC_MESSAGES/django.mo
 django/contrib/postgres/locale/tr/LC_MESSAGES/django.po
+django/contrib/postgres/locale/uk/LC_MESSAGES/django.mo
+django/contrib/postgres/locale/uk/LC_MESSAGES/django.po
 django/contrib/postgres/locale/zh_Hans/LC_MESSAGES/django.mo
 django/contrib/postgres/locale/zh_Hans/LC_MESSAGES/django.po
 django/contrib/redirects/__init__.py
@@ -2203,6 +2265,8 @@ django/contrib/redirects/locale/es/LC_MESSAGES/django.mo
 django/contrib/redirects/locale/es/LC_MESSAGES/django.po
 django/contrib/redirects/locale/es_AR/LC_MESSAGES/django.mo
 django/contrib/redirects/locale/es_AR/LC_MESSAGES/django.po
+django/contrib/redirects/locale/es_CO/LC_MESSAGES/django.mo
+django/contrib/redirects/locale/es_CO/LC_MESSAGES/django.po
 django/contrib/redirects/locale/es_MX/LC_MESSAGES/django.mo
 django/contrib/redirects/locale/es_MX/LC_MESSAGES/django.po
 django/contrib/redirects/locale/es_VE/LC_MESSAGES/django.mo
@@ -2221,6 +2285,8 @@ django/contrib/redirects/locale/fy/LC_MESSAGES/django.mo
 django/contrib/redirects/locale/fy/LC_MESSAGES/django.po
 django/contrib/redirects/locale/ga/LC_MESSAGES/django.mo
 django/contrib/redirects/locale/ga/LC_MESSAGES/django.po
+django/contrib/redirects/locale/gd/LC_MESSAGES/django.mo
+django/contrib/redirects/locale/gd/LC_MESSAGES/django.po
 django/contrib/redirects/locale/gl/LC_MESSAGES/django.mo
 django/contrib/redirects/locale/gl/LC_MESSAGES/django.po
 django/contrib/redirects/locale/he/LC_MESSAGES/django.mo
@@ -2389,6 +2455,8 @@ django/contrib/sessions/locale/es/LC_MESSAGES/django.mo
 django/contrib/sessions/locale/es/LC_MESSAGES/django.po
 django/contrib/sessions/locale/es_AR/LC_MESSAGES/django.mo
 django/contrib/sessions/locale/es_AR/LC_MESSAGES/django.po
+django/contrib/sessions/locale/es_CO/LC_MESSAGES/django.mo
+django/contrib/sessions/locale/es_CO/LC_MESSAGES/django.po
 django/contrib/sessions/locale/es_MX/LC_MESSAGES/django.mo
 django/contrib/sessions/locale/es_MX/LC_MESSAGES/django.po
 django/contrib/sessions/locale/es_VE/LC_MESSAGES/django.mo
@@ -2407,6 +2475,8 @@ django/contrib/sessions/locale/fy/LC_MESSAGES/django.mo
 django/contrib/sessions/locale/fy/LC_MESSAGES/django.po
 django/contrib/sessions/locale/ga/LC_MESSAGES/django.mo
 django/contrib/sessions/locale/ga/LC_MESSAGES/django.po
+django/contrib/sessions/locale/gd/LC_MESSAGES/django.mo
+django/contrib/sessions/locale/gd/LC_MESSAGES/django.po
 django/contrib/sessions/locale/gl/LC_MESSAGES/django.mo
 django/contrib/sessions/locale/gl/LC_MESSAGES/django.po
 django/contrib/sessions/locale/he/LC_MESSAGES/django.mo
@@ -2581,6 +2651,8 @@ django/contrib/sites/locale/es/LC_MESSAGES/django.mo
 django/contrib/sites/locale/es/LC_MESSAGES/django.po
 django/contrib/sites/locale/es_AR/LC_MESSAGES/django.mo
 django/contrib/sites/locale/es_AR/LC_MESSAGES/django.po
+django/contrib/sites/locale/es_CO/LC_MESSAGES/django.mo
+django/contrib/sites/locale/es_CO/LC_MESSAGES/django.po
 django/contrib/sites/locale/es_MX/LC_MESSAGES/django.mo
 django/contrib/sites/locale/es_MX/LC_MESSAGES/django.po
 django/contrib/sites/locale/es_VE/LC_MESSAGES/django.mo
@@ -2599,6 +2671,8 @@ django/contrib/sites/locale/fy/LC_MESSAGES/django.mo
 django/contrib/sites/locale/fy/LC_MESSAGES/django.po
 django/contrib/sites/locale/ga/LC_MESSAGES/django.mo
 django/contrib/sites/locale/ga/LC_MESSAGES/django.po
+django/contrib/sites/locale/gd/LC_MESSAGES/django.mo
+django/contrib/sites/locale/gd/LC_MESSAGES/django.po
 django/contrib/sites/locale/gl/LC_MESSAGES/django.mo
 django/contrib/sites/locale/gl/LC_MESSAGES/django.po
 django/contrib/sites/locale/he/LC_MESSAGES/django.mo
@@ -3417,6 +3491,7 @@ docs/releases/1.8.4.txt
 docs/releases/1.8.5.txt
 docs/releases/1.8.6.txt
 docs/releases/1.8.7.txt
+docs/releases/1.8.8.txt
 docs/releases/1.8.txt
 docs/releases/1.9.txt
 docs/releases/index.txt
@@ -4210,6 +4285,8 @@ tests/i18n/other/locale/de/__init__.py
 tests/i18n/other/locale/de/formats.py
 tests/i18n/other/locale/de/LC_MESSAGES/django.mo
 tests/i18n/other/locale/de/LC_MESSAGES/django.po
+tests/i18n/other/locale/fr/__init__.py
+tests/i18n/other/locale/fr/formats.py
 tests/i18n/other/locale/fr/LC_MESSAGES/django.mo
 tests/i18n/other/locale/fr/LC_MESSAGES/django.po
 tests/i18n/other2/__init__.py
