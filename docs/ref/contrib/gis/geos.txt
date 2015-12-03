@@ -17,7 +17,7 @@ implements the OpenGIS `Simple Features for SQL`__ spatial predicate functions
 and spatial operators. GEOS, now an OSGeo project, was initially developed and
 maintained by `Refractions Research`__ of Victoria, Canada.
 
-__ http://trac.osgeo.org/geos/
+__ https://trac.osgeo.org/geos/
 __ http://sourceforge.net/projects/jts-topo-suite/
 __ http://www.opengeospatial.org/standards/sfs
 __ http://www.refractions.net/
@@ -64,6 +64,16 @@ created by passing in the X and Y coordinates into its constructor::
 
     >>> from django.contrib.gis.geos import Point
     >>> pnt = Point(5, 23)
+
+All these constructors take the keyword argument ``srid``. For example::
+
+    >>> from django.contrib.gis.geos import GEOSGeometry, LineString, Point
+    >>> print(GEOSGeometry('POINT (0 0)', srid=4326))
+    SRID=4326;POINT (0.0000000000000000 0.0000000000000000)
+    >>> print(LineString((0, 0), (1, 1), srid=4326))
+    SRID=4326;LINESTRING (0.0000000000000000 0.0000000000000000, 1.0000000000000000 1.0000000000000000)
+    >>> print(Point(0, 0, srid=32140))
+    SRID=32140;POINT (0.0000000000000000 0.0000000000000000)
 
 Finally, there is the :func:`fromfile` factory method which returns a
 :class:`GEOSGeometry` object from a file::
@@ -725,7 +735,7 @@ In order to obtain a prepared geometry, just access the
 may be used with other ``GEOSGeometry`` objects.  An operation with a prepared
 geometry can be orders of magnitude faster -- the more complex the geometry
 that is prepared, the larger the speedup in the operation.  For more information,
-please consult the `GEOS wiki page on prepared geometries <http://trac.osgeo.org/geos/wiki/PreparedGeometry>`_.
+please consult the `GEOS wiki page on prepared geometries <https://trac.osgeo.org/geos/wiki/PreparedGeometry>`_.
 
 For example::
 
