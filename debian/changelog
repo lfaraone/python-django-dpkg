@@ -1,3 +1,11 @@
+python-django (1.8.7-2~bpo8+1) jessie-backports; urgency=medium
+
+  * Rebuild for jessie-backports. Django 1.8 is an LTS version that I'd like
+    to maintain in jessie-backports (even though Django 1.9 is on its way to
+    testing).
+
+ -- Raphaël Hertzog <hertzog@debian.org>  Wed, 09 Dec 2015 22:18:48 +0100
+
 python-django (1.8.7-2) unstable; urgency=high
 
   * Rely on C.UTF-8 to run the tests instead of building our locale ourselves.
