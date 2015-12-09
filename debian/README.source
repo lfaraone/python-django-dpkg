@@ -16,8 +16,8 @@ Until #801666 is fixed, you have to manually update your .git/config with the
 following commands (and update them again when a branch starts following
 a new upstream release):
 
-git config branch.debian/experimental.dpmUpstreamBranch upstream/1.8.x
-git config branch.debian/master.dpmUpstreamBranch upstream/1.8.x
+git config branch.debian/experimental.dpmUpstreamBranch upstream/1.9.x
+git config branch.debian/master.dpmUpstreamBranch upstream/1.9.x
 git config branch.debian/jessie.dpmUpstreamBranch upstream/1.7.x
 git config branch.debian/wheezy.dpmUpstreamBranch upstream/1.4.x
 git config branch.debian/squeeze.dpmUpstreamBranch upstream/1.2.x
