@@ -10,7 +10,7 @@ from django.conf import settings
 from django.core import exceptions
 from django.db import connections, router, transaction, IntegrityError
 from django.db.models.constants import LOOKUP_SEP
-from django.db.models.fields import AutoField, Empty
+from django.db.models.fields import AutoField, Empty, FieldDoesNotExist
 from django.db.models.query_utils import (Q, select_related_descend,
     deferred_class_factory, InvalidQuery)
 from django.db.models.deletion import Collector
@@ -1906,10 +1906,31 @@ def prefetch_one_level(instances, prefetcher, lookup, level):
         rel_attr_val = rel_obj_attr(rel_obj)
         rel_obj_cache.setdefault(rel_attr_val, []).append(rel_obj)
 
+    to_attr, as_attr = lookup.get_current_to_attr(level)
+    # Make sure `to_attr` does not conflict with a field.
+    if as_attr and instances:
+        # We assume that objects retrieved are homogeneous (which is the premise
+        # of prefetch_related), so what applies to first object applies to all.
+        model = instances[0].__class__
+        opts = model._meta
+        conflicts = False
+        try:
+            opts.get_field(to_attr)
+        except FieldDoesNotExist:
+            for related_m2m in opts.get_all_related_many_to_many_objects():
+                if related_m2m.get_accessor_name() == to_attr:
+                    conflicts = True
+                    break
+        else:
+            conflicts = True
+        if conflicts:
+            msg = 'to_attr={} conflicts with a field on the {} model.'
+            raise ValueError(msg.format(to_attr, model.__name__))
+
     for obj in instances:
         instance_attr_val = instance_attr(obj)
         vals = rel_obj_cache.get(instance_attr_val, [])
-        to_attr, as_attr = lookup.get_current_to_attr(level)
+
         if single:
             val = vals[0] if vals else None
             to_attr = to_attr if as_attr else cache_name

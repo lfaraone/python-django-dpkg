@@ -4024,6 +4024,7 @@ docs/releases/1.6.9.txt
 docs/releases/1.6.txt
 docs/releases/1.7.1.txt
 docs/releases/1.7.10.txt
+docs/releases/1.7.11.txt
 docs/releases/1.7.2.txt
 docs/releases/1.7.3.txt
 docs/releases/1.7.4.txt
