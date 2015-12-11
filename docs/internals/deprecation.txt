@@ -32,9 +32,12 @@ details on these changes.
 * ``allow_syncdb`` on database routers will no longer automatically become
   ``allow_migrate``.
 
-* The legacy method of syncing apps without migrations will be removed,
-  and migrations will become compulsory for all apps. This includes automatic
-  loading of ``initial_data`` fixtures and support for initial SQL data.
+* Automatic syncing of apps without migrations will be removed. Migrations will
+  become compulsory for all apps unless you pass the ``--run-syncdb`` option to
+  ``migrate``.
+
+* Support for automatic loading of ``initial_data`` fixtures and initial SQL
+  data will be removed.
 
 * All models will need to be defined inside an installed application or
   declare an explicit :attr:`~django.db.models.Options.app_label`.
@@ -111,7 +114,7 @@ details on these changes.
 * ``django.db.backends.DatabaseValidation.validate_field`` will be removed in
   favor of the ``check_field`` method.
 
-* The ``check`` management command will be removed.
+* The ``validate`` management command will be removed.
 
 * ``django.utils.module_loading.import_by_path`` will be removed in favor of
   ``django.utils.module_loading.import_string``.

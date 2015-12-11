@@ -475,14 +475,22 @@ can access these properties as part of a test condition.
     A dictionary-like object containing session information. See the
     :doc:`session documentation</topics/http/sessions>` for full details.
 
-    To modify the session and then save it, it must be stored in a variable
-    first (because a new ``SessionStore`` is created every time this property
-    is accessed)::
+    In Django 1.7, ``client.session`` returns a plain dictionary if the session
+    is empty. The following code creates a test client with a fully working
+    session engine::
 
-        def test_something(self):
-            session = self.client.session
-            session['somekey'] = 'test'
-            session.save()
+        from importlib import import_module
+
+        from django.conf import settings
+        from django.test import Client
+
+        def get_client_with_session(self):
+            client = Client()
+            engine = import_module(settings.SESSION_ENGINE)
+            s = engine.SessionStore()
+            s.save()
+            client.cookies[settings.SESSION_COOKIE_NAME] = s.session_key
+            return client
 
 Example
 ~~~~~~~
@@ -977,7 +985,7 @@ For example::
     class TestMyViews(TestCase):
         urls = 'myapp.test_urls'
 
-        def testIndexPageView(self):
+        def test_index_page_view(self):
             # Here you'd test your view using ``Client``.
             call_some_test_code()
 
@@ -1011,11 +1019,11 @@ For example::
     class TestMyViews(TestCase):
         multi_db = True
 
-        def testIndexPageView(self):
+        def test_index_page_view(self):
             call_some_test_code()
 
 This test case will flush *all* the test databases before running
-``testIndexPageView``.
+``test_index_page_view``.
 
 The ``multi_db`` flag also affects into which databases the
 attr:`TransactionTestCase.fixtures` are loaded. By default (when
@@ -1398,13 +1406,16 @@ your test suite.
     The following examples are valid tests and don't raise any
     ``AssertionError``::
 
-        self.assertHTMLEqual('<p>Hello <b>world!</p>',
+        self.assertHTMLEqual(
+            '<p>Hello <b>world!</p>',
             '''<p>
                 Hello   <b>world! <b/>
-            </p>''')
+            </p>'''
+        )
         self.assertHTMLEqual(
             '<input type="checkbox" checked="checked" id="id_accept_terms" />',
-            '<input id="id_accept_terms" type='checkbox' checked>')
+            '<input id="id_accept_terms" type="checkbox" checked>'
+        )
 
     ``html1`` and ``html2`` must be valid HTML. An ``AssertionError`` will be
     raised if one of them cannot be parsed.
@@ -1621,6 +1632,7 @@ it would under MySQL with MyISAM tables)::
         @skipIfDBFeature('supports_transactions')
         def test_transaction_behavior(self):
             # ... conditional test code
+            pass
 
 .. versionchanged:: 1.7
 
@@ -1639,6 +1651,7 @@ under MySQL with MyISAM tables)::
         @skipUnlessDBFeature('supports_transactions')
         def test_transaction_behavior(self):
             # ... conditional test code
+            pass
 
 .. versionchanged:: 1.7
 

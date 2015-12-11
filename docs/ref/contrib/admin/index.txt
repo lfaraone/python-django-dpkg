@@ -1267,6 +1267,8 @@ templates used by the :class:`ModelAdmin` views:
         class ArticleAdmin(admin.ModelAdmin):
             def save_formset(self, request, form, formset, change):
                 instances = formset.save(commit=False)
+                for obj in formset.deleted_objects:
+                    obj.delete()
                 for instance in instances:
                     instance.user = request.user
                     instance.save()
@@ -1276,7 +1278,7 @@ templates used by the :class:`ModelAdmin` views:
 
 .. method:: ModelAdmin.get_ordering(request)
 
-    The ``get_ordering`` method takes a``request`` as parameter and
+    The ``get_ordering`` method takes a ``request`` as parameter and
     is expected to return a ``list`` or ``tuple`` for ordering similar
     to the :attr:`ordering` attribute. For example::
 
@@ -1692,7 +1694,7 @@ templates used by the :class:`ModelAdmin` views:
     documentation for more details. One difference is that the level may be
     passed as a string label in addition to integer/constant.
 
-.. method:: ModelAdmin.get_paginator(queryset, per_page, orphans=0, allow_empty_first_page=True)
+.. method:: ModelAdmin.get_paginator(request, queryset, per_page, orphans=0, allow_empty_first_page=True)
 
     Returns an instance of the paginator to use for this view. By default,
     instantiates an instance of :attr:`paginator`.

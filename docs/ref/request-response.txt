@@ -51,7 +51,7 @@ All attributes should be considered read-only, unless stated otherwise below.
 .. attribute:: HttpRequest.path
 
     A string representing the full path to the requested page, not including
-    the domain.
+    the scheme or domain.
 
     Example: ``"/music/bands/the_beatles/"``
 
@@ -147,8 +147,9 @@ All attributes should be considered read-only, unless stated otherwise below.
     Available headers depend on the client and server, but here are some
     examples:
 
-    * ``CONTENT_LENGTH`` -- the length of the request body (as a string).
-    * ``CONTENT_TYPE`` -- the MIME type of the request body.
+    * ``CONTENT_LENGTH`` -- The length of the request body (as a string).
+    * ``CONTENT_TYPE`` -- The MIME type of the request body.
+    * ``HTTP_ACCEPT`` -- Acceptable content types for the response.
     * ``HTTP_ACCEPT_ENCODING`` -- Acceptable encodings for the response.
     * ``HTTP_ACCEPT_LANGUAGE`` -- Acceptable languages for the response.
     * ``HTTP_HOST`` -- The HTTP Host header sent by the client.
@@ -330,7 +331,7 @@ Methods
     Methods implementing a file-like interface for reading from an
     HttpRequest instance. This makes it possible to consume an incoming
     request in a streaming fashion. A common use-case would be to process a
-    big XML payload with iterative parser without constructing a whole
+    big XML payload with an iterative parser without constructing a whole
     XML tree in memory.
 
     Given this standard interface, an HttpRequest instance can be
@@ -397,12 +398,12 @@ a subclass of dictionary. Exceptions are outlined here:
     Returns ``True`` if the given key is set. This lets you do, e.g., ``if "foo"
     in request.GET``.
 
-.. method:: QueryDict.get(key, default)
+.. method:: QueryDict.get(key, default=None)
 
     Uses the same logic as ``__getitem__()`` above, with a hook for returning a
     default value if the key doesn't exist.
 
-.. method:: QueryDict.setdefault(key, default)
+.. method:: QueryDict.setdefault(key, default=None)
 
     Just like the standard dictionary ``setdefault()`` method, except it uses
     ``__setitem__()`` internally.
@@ -460,12 +461,12 @@ In addition, ``QueryDict`` has the following methods:
     Returns a copy of the object, using ``copy.deepcopy()`` from the Python
     standard library. This copy will be mutable even if the original was not.
 
-.. method:: QueryDict.getlist(key, default)
+.. method:: QueryDict.getlist(key, default=None)
 
     Returns the data with the requested key, as a Python list. Returns an
     empty list if the key doesn't exist and no default value was provided.
     It's guaranteed to return a list of some sort unless the default value
-    was no list.
+    provided is not a list.
 
 .. method:: QueryDict.setlist(key, list_)
 
@@ -475,7 +476,7 @@ In addition, ``QueryDict`` has the following methods:
 
     Appends an item to the internal list associated with key.
 
-.. method:: QueryDict.setlistdefault(key, default_list)
+.. method:: QueryDict.setlistdefault(key, default_list=None)
 
     Just like ``setdefault``, except it takes a list of values instead of a
     single value.
@@ -706,7 +707,7 @@ Methods
       header. It is not part of the :rfc:`2109` standard for cookies,
       and it isn't honored consistently by all browsers. However,
       when it is honored, it can be a useful way to mitigate the
-      risk of client side script accessing the protected cookie
+      risk of a client-side script from accessing the protected cookie
       data.
 
     .. _HTTPOnly: https://www.owasp.org/index.php/HTTPOnly
