@@ -29,6 +29,7 @@ X-Python-Version: >= 2.7
 
 Package: python-django
 Architecture: all
+Pre-Depends: dpkg (>= 1.17.14)
 Depends: ${misc:Depends}, ${python:Depends}, python-django-common (= ${binary:Version})
 Recommends: libjs-jquery, python-sqlparse, python-tz
 Suggests: python-psycopg2, python-mysqldb, python-flup, python-sqlite, python-memcache, python-pil, python-bcrypt, python-yaml, geoip-database-extra | geoip-database-contrib, gettext, python-django-doc, ipython, bpython, libgdal1
@@ -59,6 +60,7 @@ Description: High-level Python web development framework (Python 2 version)
 Package: python3-django
 Architecture: all
 Depends: ${misc:Depends}, ${python3:Depends}, python-django-common (= ${binary:Version})
+Pre-Depends: dpkg (>= 1.17.14)
 Recommends: libjs-jquery, python3-sqlparse, python3-tz
 Suggests: python3-psycopg2, python3-mysqldb, python3-flup, python3-sqlite, python3-memcache, python3-pil, python3-bcrypt, python3-yaml, geoip-database-contrib, gettext, python-django-doc, ipython3, bpython3, libgdal1
 Description: High-level Python web development framework (Python 3 version)

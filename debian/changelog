@@ -1,3 +1,11 @@
+python-django (1.9-2) UNRELEASED; urgency=medium
+
+  * Use dpkg-maintscript-helper's dir_to_symlink to correctly replace the
+    app_template and project_template symlinks added in 1.9~rc2-2.
+    (Closes: #807683)
+
+ -- Chris Lamb <lamby@debian.org>  Sat, 12 Dec 2015 21:02:28 +0200
+
 python-django (1.9-1) unstable; urgency=medium
 
   * Upload to unstable

@@ -1,0 +1,11 @@
+#!/bin/sh
+
+#DEBHELPER#
+
+for X in app_template project_template
+do
+	dpkg-maintscript-helper dir_to_symlink \
+		/usr/lib/python3/dist-packages/django/conf/${X} \
+		/usr/share/python-django-common/django/conf/${X} \
+		1.9-2~ python3-django -- "$@"
+done
