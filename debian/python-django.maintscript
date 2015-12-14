@@ -1,0 +1,2 @@
+dir_to_symlink /usr/lib/python2.7/dist-packages/django/conf/app_template /usr/share/python-django-common/django/conf/app_template 1.9-2~ python-django
+dir_to_symlink /usr/lib/python2.7/dist-packages/django/conf/project_template /usr/share/python-django-common/django/conf/project_template 1.9-2~ python-django
