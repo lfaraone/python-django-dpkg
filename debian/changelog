@@ -1,4 +1,4 @@
-python-django (1.9-2) UNRELEASED; urgency=medium
+python-django (1.9-2) unstable; urgency=medium
 
   [ Chris Lamb ]
   * Use dpkg-maintscript-helper's dir_to_symlink to correctly replace the
@@ -10,7 +10,7 @@ python-django (1.9-2) UNRELEASED; urgency=medium
     against the installed package. In both cases, we do it with python2 and
     python3.
 
- -- Chris Lamb <lamby@debian.org>  Sat, 12 Dec 2015 21:02:28 +0200
+ -- Raphaël Hertzog <hertzog@debian.org>  Wed, 30 Dec 2015 16:44:04 +0100
 
 python-django (1.9-1) unstable; urgency=medium
 
