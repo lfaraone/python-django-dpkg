@@ -18,6 +18,7 @@ Build-Depends: debhelper (>= 9), dh-python, python-all (>= 2.6.6-3~), python3-al
  python-yaml, python3-yaml,
  python-tz, python3-tz,
  python-setuptools, python3-setuptools,
+ python-tblib, python3-tblib,
 # python-memcache, python3-memcache, memcached, # we can't rely on running daemon
  python-sqlparse, python3-sqlparse,
 # python-selenium in theory too... but it's not properly packaged
