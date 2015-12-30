@@ -1,0 +1,27 @@
+From 875446913d7e87fc586e1ec405849b3892fd7239 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Rapha=C3=ABl=20Hertzog?= <hertzog@debian.org>
+Date: Wed, 30 Dec 2015 18:31:11 +0100
+Subject: Fixed #26016 -- Restore compatibility with py-bcrypt
+
+At least until Debian has a newer bcrypt available in Debian unstable.
+
+Bug: https://code.djangoproject.com/ticket/26016
+Last-Update: 2015-12-30
+Patch-Name: fix-26016-restore-compat-with-py-bcrypt.patch
+---
+ django/contrib/auth/hashers.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/django/contrib/auth/hashers.py b/django/contrib/auth/hashers.py
+index 3d585be..0188f4a 100644
+--- a/django/contrib/auth/hashers.py
++++ b/django/contrib/auth/hashers.py
+@@ -286,7 +286,7 @@ class BCryptSHA256PasswordHasher(BasePasswordHasher):
+ 
+     def salt(self):
+         bcrypt = self._load_library()
+-        return bcrypt.gensalt(rounds=self.rounds)
++        return bcrypt.gensalt(self.rounds)
+ 
+     def encode(self, password, salt):
+         bcrypt = self._load_library()
