@@ -1,6 +1,9 @@
 python-django (1.8.8-1~bpo8+1) jessie-backports; urgency=medium
 
   * New upstream release of Django 1.8.x (LTS version).
+  * Add some DEP-8 tests testing "django-admin" and running the test suite
+    against the installed package. In both cases, we do it with python2 and
+    python3.
 
  -- Raphaël Hertzog <hertzog@debian.org>  Tue, 05 Jan 2016 10:57:29 +0100
 

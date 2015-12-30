@@ -1,0 +1,45 @@
+#!/bin/sh
+
+set -e
+
+ensure_files_exist() {
+    for f in "$@"; do
+	if [ ! -e $f ]; then
+	    echo "ERROR: $f does not exist" >&2
+	    exit 1
+	else
+	    echo "OK: $f is there"
+	fi
+    done
+}
+
+run() {
+    echo "Running “$@”"
+    $@
+}
+
+case $0 in
+    *-py3)
+        python=python3
+        ;;
+    *)
+        python=python2
+        ;;
+esac
+
+# Test startproject
+cd $ADTTMP
+run django-admin startproject testproject
+
+ensure_files_exist testproject/manage.py testproject/testproject/settings.py
+
+# Test startapp
+cd testproject
+run django-admin startapp testapp
+
+ensure_files_exist testapp/models.py testapp/tests.py testapp/views.py
+
+# Test manage.py
+# ./manage.py hardcodes python3, so we have to call the correct/available
+# python interpreter explicitly
+run $python ./manage.py check
