@@ -11,6 +11,9 @@ python-django (1.9-2) unstable; urgency=medium
     python3.
   * Add python-tblib and python3-tblib to Build-Depends for the benefit of
     the parallel testing feature of the test suite.
+  * Add "set -e" in the command line running the tests with all supported
+    versions so that it actually fails as soon as one version is failing
+    (and thus disallow later successes to shadow earlier failures).
 
  -- Raphaël Hertzog <hertzog@debian.org>  Wed, 30 Dec 2015 16:44:04 +0100
 
