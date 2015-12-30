@@ -18,15 +18,6 @@ run() {
     $@
 }
 
-case $0 in
-    *-py3)
-        python=python3
-        ;;
-    *)
-        python=python2
-        ;;
-esac
-
 # Test startproject
 cd $ADTTMP
 run django-admin startproject testproject
@@ -40,6 +31,4 @@ run django-admin startapp testapp
 ensure_files_exist testapp/models.py testapp/tests.py testapp/views.py
 
 # Test manage.py
-# ./manage.py hardcodes python3, so we have to call the correct/available
-# python interpreter explicitly
-run $python ./manage.py check
+./manage.py check
