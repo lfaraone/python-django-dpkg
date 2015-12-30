@@ -11,8 +11,8 @@ case $0 in
 	;;
 esac
 
-cp -a tests $ADTTMP/django-tests
-cd $ADTTMP/django-tests
+cp -a tests $ADTTMP/tests
+cd $ADTTMP/tests
 
 echo "Running “$python ./runtests.py --verbosity 2”"
-LC_ALL=C.UTF-8 $python ./runtests.py --verbosity 2 --parallel 1
+LC_ALL=C.UTF-8 $python ./runtests.py --verbosity 2
