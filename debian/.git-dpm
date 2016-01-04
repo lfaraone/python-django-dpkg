@@ -2,10 +2,10 @@
 875446913d7e87fc586e1ec405849b3892fd7239
 875446913d7e87fc586e1ec405849b3892fd7239
 f3eb470bfb3d3b5f86aac67f1e7be9aedf202edf
-f3eb470bfb3d3b5f86aac67f1e7be9aedf202edf
-python-django_1.9.orig.tar.gz
-2bbf1ce45a030069b3a695db4b16d17783b86175
-7392116
+4c3207df476c2bbb3a7c107d692f7eae2a3bb744
+python-django_1.9.1.orig.tar.gz
+06457faee6998b922cb9c97a06116dd781618e07
+7411671
 debianTag="debian/%e%v"
 patchedTag="debian/patches/%e%v"
 upstreamTag="upstream/%e%u"
