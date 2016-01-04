@@ -45,7 +45,7 @@ class TestDataMixin(object):
             is_staff=True, last_login=datetime(2007, 5, 30, 13, 20, 10),
             date_joined=datetime(2007, 5, 30, 13, 20, 10)
         )
-        models.Car.objects.create(id=1, owner=cls.u1, make='Volkswagon', model='Passat')
+        models.Car.objects.create(id=1, owner=cls.u1, make='Volkswagen', model='Passat')
         models.Car.objects.create(id=2, owner=cls.u2, make='BMW', model='M3')
 
 
@@ -206,7 +206,7 @@ class AdminFormfieldForDBFieldWithRequestTests(TestDataMixin, TestCase):
         self.client.login(username="super", password="secret")
         response = self.client.get(reverse('admin:admin_widgets_cartire_add'))
         self.assertNotContains(response, "BMW M3")
-        self.assertContains(response, "Volkswagon Passat")
+        self.assertContains(response, "Volkswagen Passat")
 
 
 @override_settings(PASSWORD_HASHERS=['django.contrib.auth.hashers.SHA1PasswordHasher'],
@@ -1260,6 +1260,7 @@ class RelatedFieldWidgetSeleniumFirefoxTests(SeleniumDataMixin, AdminSeleniumWeb
         self.selenium.find_element_by_id('add_id_user').click()
         self.wait_for_popup()
         self.selenium.switch_to.window('id_user')
+        self.wait_for('#id_password')
         password_field = self.selenium.find_element_by_id('id_password')
         password_field.send_keys('password')
 
@@ -1278,6 +1279,7 @@ class RelatedFieldWidgetSeleniumFirefoxTests(SeleniumDataMixin, AdminSeleniumWeb
         self.wait_for_popup()
         self.selenium.switch_to.window('id_user')
 
+        self.wait_for('#id_username')
         username_field = self.selenium.find_element_by_id('id_username')
         username_value = 'changednewuser'
         username_field.clear()
