@@ -87,8 +87,11 @@ class ChapterXtra1Admin(admin.ModelAdmin):
 
 
 class ArticleAdmin(admin.ModelAdmin):
-    list_display = ('content', 'date', callable_year, 'model_year',
-                    'modeladmin_year', 'model_year_reversed')
+    list_display = (
+        'content', 'date', callable_year, 'model_year', 'modeladmin_year',
+        'model_year_reversed', 'section',
+    )
+    list_editable = ('section',)
     list_filter = ('date', 'section')
     view_on_site = False
     fieldsets = (
@@ -384,7 +387,7 @@ class LinkInline(admin.TabularInline):
     model = Link
     extra = 1
 
-    readonly_fields = ("posted", "multiline")
+    readonly_fields = ("posted", "multiline", "readonly_link_content")
 
     def multiline(self, instance):
         return "InlineMultiline\ntest\nstring"
@@ -432,7 +435,7 @@ class PostAdmin(admin.ModelAdmin):
     readonly_fields = (
         'posted', 'awesomeness_level', 'coolness', 'value',
         'multiline', 'multiline_html', lambda obj: "foo",
-        'multiline_html_allow_tags',
+        'multiline_html_allow_tags', 'readonly_content',
     )
 
     inlines = [

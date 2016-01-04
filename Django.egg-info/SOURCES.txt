@@ -2168,6 +2168,8 @@ django/contrib/postgres/locale/es_AR/LC_MESSAGES/django.mo
 django/contrib/postgres/locale/es_AR/LC_MESSAGES/django.po
 django/contrib/postgres/locale/es_CO/LC_MESSAGES/django.mo
 django/contrib/postgres/locale/es_CO/LC_MESSAGES/django.po
+django/contrib/postgres/locale/es_MX/LC_MESSAGES/django.mo
+django/contrib/postgres/locale/es_MX/LC_MESSAGES/django.po
 django/contrib/postgres/locale/et/LC_MESSAGES/django.mo
 django/contrib/postgres/locale/et/LC_MESSAGES/django.po
 django/contrib/postgres/locale/fa/LC_MESSAGES/django.mo
@@ -3493,6 +3495,7 @@ docs/releases/1.8.6.txt
 docs/releases/1.8.7.txt
 docs/releases/1.8.8.txt
 docs/releases/1.8.txt
+docs/releases/1.9.1.txt
 docs/releases/1.9.txt
 docs/releases/index.txt
 docs/releases/security.txt
@@ -4258,6 +4261,8 @@ tests/i18n/commands/locale/hr/LC_MESSAGES/django.po
 tests/i18n/commands/locale/ja/LC_MESSAGES/django.po
 tests/i18n/commands/locale/pt_BR/LC_MESSAGES/django.pristine
 tests/i18n/commands/locale/ru/LC_MESSAGES/django.po
+tests/i18n/commands/locale/xxx/LC_MESSAGES/django.mo
+tests/i18n/commands/locale/xxx/LC_MESSAGES/django.po
 tests/i18n/commands/media_root/media_ignored.html
 tests/i18n/commands/someapp/static/javascript.js
 tests/i18n/commands/static/javascript_ignored.js
@@ -4520,6 +4525,9 @@ tests/migrations/migrations_test_apps/with_package_model/models/__init__.py
 tests/migrations/migrations_test_apps/without_init_file/__init__.py
 tests/migrations/migrations_test_apps/without_init_file/migrations/.keep
 tests/migrations/related_models_app/__init__.py
+tests/migrations/test_add_many_to_many_field_initial/0001_initial.py
+tests/migrations/test_add_many_to_many_field_initial/0002_initial.py
+tests/migrations/test_add_many_to_many_field_initial/__init__.py
 tests/migrations/test_migrations/0001_initial.py
 tests/migrations/test_migrations/0002_second.py
 tests/migrations/test_migrations/__init__.py

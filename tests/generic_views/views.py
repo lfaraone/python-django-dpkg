@@ -34,6 +34,17 @@ class AuthorDetail(generic.DetailView):
     queryset = Author.objects.all()
 
 
+class AuthorCustomDetail(generic.DetailView):
+    template_name = 'generic_views/author_detail.html'
+    queryset = Author.objects.all()
+
+    def get(self, request, *args, **kwargs):
+        # Ensures get_context_object_name() doesn't reference self.object.
+        author = self.get_object()
+        context = {'custom_' + self.get_context_object_name(author): author}
+        return self.render_to_response(context)
+
+
 class PageDetail(generic.DetailView):
     queryset = Page.objects.all()
     template_name_field = 'template'
@@ -136,9 +147,14 @@ class NaiveAuthorUpdate(generic.UpdateView):
 
 
 class AuthorUpdate(generic.UpdateView):
+    get_form_called_count = 0  # Used to ensure get_form() is called once.
     model = Author
     success_url = '/list/authors/'
     fields = '__all__'
+
+    def get_form(self, *args, **kwargs):
+        self.get_form_called_count += 1
+        return super(AuthorUpdate, self).get_form(*args, **kwargs)
 
 
 class OneAuthorUpdate(generic.UpdateView):
@@ -307,3 +323,13 @@ class NonModelDetail(generic.DetailView):
 class ObjectDoesNotExistDetail(generic.DetailView):
     def get_queryset(self):
         return Book.does_not_exist.all()
+
+
+class LateValidationView(generic.FormView):
+    form_class = ContactForm
+    success_url = reverse_lazy('authors_list')
+    template_name = 'generic_views/form.html'
+
+    def form_valid(self, form):
+        form.add_error(None, 'There is an error')
+        return self.form_invalid(form)
