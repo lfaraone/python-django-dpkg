@@ -1,9 +1,9 @@
-Tests: django-admin
+Test-Command: debian/tests/django-admin --with python2
 Depends: python-django
 
-Tests: django-admin-py3
+Test-Command: debian/tests/django-admin --with python3
 Depends: python3-django
 
-Tests: test-suite, test-suite-py3
+Test-Command: debian/tests/test-suite python2 python3
 Restrictions: allow-stderr, needs-recommends
 Depends: @, @builddeps@
