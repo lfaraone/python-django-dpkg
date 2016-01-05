@@ -2,17 +2,10 @@
 
 set -e
 
-case $0 in
-    *-py3)
-	python=python3
-	;;
-    *)
-	python=python2
-	;;
-esac
+cp -a tests $ADTTMP/tests
+cd $ADTTMP/tests
 
-cp -a tests $ADTTMP/django-tests
-cd $ADTTMP/django-tests
-
-echo "Running “$python ./runtests.py --verbosity 2”"
-LC_ALL=C.UTF-8 $python ./runtests.py --verbosity 2 --parallel 1
+for python in "$@"; do
+    echo "Running “$python ./runtests.py --verbosity 2”"
+    LC_ALL=C.UTF-8 $python ./runtests.py --verbosity 2
+done
