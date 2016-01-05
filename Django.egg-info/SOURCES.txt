@@ -3408,6 +3408,7 @@ docs/releases/1.8.4.txt
 docs/releases/1.8.5.txt
 docs/releases/1.8.6.txt
 docs/releases/1.8.7.txt
+docs/releases/1.8.8.txt
 docs/releases/1.8.txt
 docs/releases/index.txt
 docs/releases/security.txt
@@ -4141,6 +4142,8 @@ tests/i18n/commands/locale/it/LC_MESSAGES/django.po
 tests/i18n/commands/locale/ja/LC_MESSAGES/django.po
 tests/i18n/commands/locale/pt_BR/LC_MESSAGES/django.pristine
 tests/i18n/commands/locale/ru/LC_MESSAGES/django.po
+tests/i18n/commands/locale/xxx/LC_MESSAGES/django.mo
+tests/i18n/commands/locale/xxx/LC_MESSAGES/django.po
 tests/i18n/commands/media_root/media_ignored.html
 tests/i18n/commands/someapp/static/javascript.js
 tests/i18n/commands/static/javascript_ignored.js
@@ -4168,6 +4171,8 @@ tests/i18n/other/locale/de/__init__.py
 tests/i18n/other/locale/de/formats.py
 tests/i18n/other/locale/de/LC_MESSAGES/django.mo
 tests/i18n/other/locale/de/LC_MESSAGES/django.po
+tests/i18n/other/locale/fr/__init__.py
+tests/i18n/other/locale/fr/formats.py
 tests/i18n/other/locale/fr/LC_MESSAGES/django.mo
 tests/i18n/other/locale/fr/LC_MESSAGES/django.po
 tests/i18n/other2/__init__.py
