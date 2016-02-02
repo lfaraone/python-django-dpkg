@@ -1,3 +1,11 @@
+python-django (1.9.2-1) unstable; urgency=medium
+
+  * New upstream security release fixing:
+    - CVE-2016-2048: User with "change" but not "add" permission can create
+      objects for ModelAdmin objects with save_as=True
+
+ -- Raphaël Hertzog <hertzog@debian.org>  Tue, 02 Feb 2016 09:06:46 +0100
+
 python-django (1.9.1-1) unstable; urgency=medium
 
   * New upstream release.
