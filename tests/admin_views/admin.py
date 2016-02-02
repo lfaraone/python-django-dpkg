@@ -34,11 +34,12 @@ from .models import (
     GenRelReference, Grommet, ImplicitlyGeneratedPK, Ingredient,
     InlineReference, InlineReferer, Inquisition, Language, Link,
     MainPrepopulated, ModelWithStringPrimaryKey, NotReferenced, OldSubscriber,
-    OtherStory, Paper, Parent, ParentWithDependentChildren, Person, Persona,
-    Picture, Pizza, Plot, PlotDetails, PluggableSearchPerson, Podcast, Post,
-    PrePopulatedPost, PrePopulatedPostLargeSlug, PrePopulatedSubPost, Promo,
-    Question, Recipe, Recommendation, Recommender, ReferencedByGenRel,
-    ReferencedByInline, ReferencedByParent, RelatedPrepopulated, Report,
+    OtherStory, Paper, Parent, ParentWithDependentChildren, ParentWithUUIDPK,
+    Person, Persona, Picture, Pizza, Plot, PlotDetails, PlotProxy,
+    PluggableSearchPerson, Podcast, Post, PrePopulatedPost,
+    PrePopulatedPostLargeSlug, PrePopulatedSubPost, Promo, Question, Recipe,
+    Recommendation, Recommender, ReferencedByGenRel, ReferencedByInline,
+    ReferencedByParent, RelatedPrepopulated, RelatedWithUUIDPKModel, Report,
     Reservation, Restaurant, RowLevelChangePermissionModel, Section,
     ShortMessage, Simple, Sketch, State, Story, StumpJoke, Subscriber,
     SuperVillain, Telegram, Thing, Topping, UnchangeableObject,
@@ -867,6 +868,10 @@ class InlineRefererAdmin(admin.ModelAdmin):
     inlines = [InlineReferenceInline]
 
 
+class PlotReadonlyAdmin(admin.ModelAdmin):
+    readonly_fields = ('plotdetails',)
+
+
 class GetFormsetsArgumentCheckingAdmin(admin.ModelAdmin):
     fields = ['name']
 
@@ -921,6 +926,7 @@ site.register(Villain)
 site.register(SuperVillain)
 site.register(Plot)
 site.register(PlotDetails)
+site.register(PlotProxy, PlotReadonlyAdmin)
 site.register(Bookmark)
 site.register(CyclicOne)
 site.register(CyclicTwo)
@@ -950,6 +956,8 @@ site.register(ReferencedByInline)
 site.register(InlineReferer, InlineRefererAdmin)
 site.register(ReferencedByGenRel)
 site.register(GenRelReference)
+site.register(ParentWithUUIDPK)
+site.register(RelatedWithUUIDPKModel)
 
 # We intentionally register Promo and ChapterXtra1 but not Chapter nor ChapterXtra2.
 # That way we cover all four cases:

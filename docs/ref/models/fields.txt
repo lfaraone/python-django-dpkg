@@ -745,8 +745,8 @@ equivalent to XSS or CSRF attacks.
 columns with a default max length of 100 characters. As with other fields, you
 can change the maximum length using the :attr:`~CharField.max_length` argument.
 
-FileField and FieldFile
-~~~~~~~~~~~~~~~~~~~~~~~
+``FileField`` and ``FieldFile``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. currentmodule:: django.db.models.fields.files
 
@@ -1387,8 +1387,6 @@ The possible values for :attr:`~ForeignKey.on_delete` are found in
 
     If in doubt, leave it to its default of ``True``.
 
-.. _ref-manytomany:
-
 ``ManyToManyField``
 -------------------
 
@@ -1591,8 +1589,6 @@ that control how the relationship functions.
 
 :attr:`~Field.null` has no effect since there is no way to require a
 relationship at the database level.
-
-.. _ref-onetoone:
 
 ``OneToOneField``
 -----------------

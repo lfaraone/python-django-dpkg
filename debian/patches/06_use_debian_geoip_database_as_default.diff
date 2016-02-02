@@ -1,4 +1,4 @@
-From 43dddcabcc6f08a4bae582b85e22a35c0f12d78c Mon Sep 17 00:00:00 2001
+From 5b9e2d6ad57a11c752bd6a5022045b027b47b98c Mon Sep 17 00:00:00 2001
 From: Tapio Rantala <tapio.rantala@iki.fi>
 Date: Sun, 11 Oct 2015 11:43:20 +1100
 Subject: Use Debian GeoIP database path as default
