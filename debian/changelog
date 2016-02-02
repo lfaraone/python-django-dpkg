@@ -1,3 +1,9 @@
+python-django (1.8.9-1~bpo8+1) jessie-backports; urgency=medium
+
+  * New upstream release of Django 1.8.x (LTS version).
+
+ -- Raphaël Hertzog <hertzog@debian.org>  Tue, 02 Feb 2016 09:52:08 +0100
+
 python-django (1.8.8-1~bpo8+1) jessie-backports; urgency=medium
 
   * New upstream release of Django 1.8.x (LTS version).
