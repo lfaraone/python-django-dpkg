@@ -1,4 +1,4 @@
-From aba3a7cd2400262d1eba2611f582fd0063833e65 Mon Sep 17 00:00:00 2001
+From 0b90dc60e48ae6176a297f6fd635b331d60951f7 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Rapha=C3=ABl=20Hertzog?= <hertzog@debian.org>
 Date: Wed, 25 Nov 2015 12:54:52 +0100
 Subject: Fix #25761 -- re-raised exceptions need __cause__.__traceback__
