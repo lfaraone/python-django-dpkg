@@ -1,7 +1,11 @@
 python-django (1.7.11-1) jessie; urgency=medium
 
   * New upstream release incorporating former security updates and
-    multiple bugfixes.
+    multiple bugfixes. Detailed changes documented here:
+    - https://docs.djangoproject.com/en/1.7/releases/1.7.8/
+    - https://docs.djangoproject.com/en/1.7/releases/1.7.9/
+    - https://docs.djangoproject.com/en/1.7/releases/1.7.10/
+    - https://docs.djangoproject.com/en/1.7/releases/1.7.11/
 
  -- Raphaël Hertzog <hertzog@debian.org>  Fri, 11 Dec 2015 10:44:42 +0100
 
